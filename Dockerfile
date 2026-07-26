@@ -18,7 +18,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o main .
 FROM alpine:latest
 RUN apk add --no-cache ca-certificates tzdata mailcap
 ENV TZ=Asia/Shanghai
-ENV GIN_MODE=release
 WORKDIR /app
 COPY --from=backend-builder /app/main .
 EXPOSE 8080
