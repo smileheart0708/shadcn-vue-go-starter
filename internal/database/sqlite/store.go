@@ -38,18 +38,18 @@ func withTx(ctx context.Context, db *sql.DB, fn func(*sql.Tx) error) error {
 		return errors.New("database: transaction requires a non-nil SQLite database")
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("database: begin SQLite transaction: %w", err)
+	tx, beginErr := db.BeginTx(ctx, nil)
+	if beginErr != nil {
+		return fmt.Errorf("database: begin SQLite transaction: %w", beginErr)
 	}
-	if err := fn(tx); err != nil {
+	if fnErr := fn(tx); fnErr != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return errors.Join(err, fmt.Errorf("database: rollback SQLite transaction: %w", rollbackErr))
+			return errors.Join(fnErr, fmt.Errorf("database: rollback SQLite transaction: %w", rollbackErr))
 		}
-		return err
+		return fnErr
 	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("database: commit SQLite transaction: %w", err)
+	if commitErr := tx.Commit(); commitErr != nil {
+		return fmt.Errorf("database: commit SQLite transaction: %w", commitErr)
 	}
 	return nil
 }

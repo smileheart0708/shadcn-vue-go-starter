@@ -144,7 +144,7 @@ func (s *Store) RevokeSession(ctx context.Context, sessionID string, reason stri
 	if err != nil {
 		return err
 	}
-	if _, err := db.ExecContext(
+	if _, execErr := db.ExecContext(
 		ctx,
 		`UPDATE auth_sessions
 		SET revoked_at = COALESCE(revoked_at, ?), revoke_reason = COALESCE(revoke_reason, ?)
@@ -152,8 +152,8 @@ func (s *Store) RevokeSession(ctx context.Context, sessionID string, reason stri
 		revokedAt.Unix(),
 		strings.TrimSpace(reason),
 		sessionID,
-	); err != nil {
-		return fmt.Errorf("auth: revoke session: %w", err)
+	); execErr != nil {
+		return fmt.Errorf("auth: revoke session: %w", execErr)
 	}
 	return nil
 }

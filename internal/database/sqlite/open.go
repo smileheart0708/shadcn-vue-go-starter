@@ -44,17 +44,17 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	db.SetConnMaxLifetime(0)
 	db.SetConnMaxIdleTime(0)
 
-	if err := verifyPragmas(ctx, db); err != nil {
+	if pragmaErr := verifyPragmas(ctx, db); pragmaErr != nil {
 		closeDBOnError(db, "verify SQLite pragmas")
-		return nil, err
+		return nil, pragmaErr
 	}
-	if err := db.PingContext(ctx); err != nil {
+	if pingErr := db.PingContext(ctx); pingErr != nil {
 		closeDBOnError(db, "ping SQLite")
-		return nil, fmt.Errorf("database: ping SQLite: %w", err)
+		return nil, fmt.Errorf("database: ping SQLite: %w", pingErr)
 	}
-	if err := migrate(ctx, db); err != nil {
+	if migrateErr := migrate(ctx, db); migrateErr != nil {
 		closeDBOnError(db, "run SQLite migrations")
-		return nil, err
+		return nil, migrateErr
 	}
 
 	return &Store{db: db}, nil
@@ -99,9 +99,9 @@ func sqliteParentDir(dsn string) string {
 }
 
 func verifyPragmas(ctx context.Context, db *sql.DB) error {
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		return fmt.Errorf("database: get SQLite connection: %w", err)
+	conn, connErr := db.Conn(ctx)
+	if connErr != nil {
+		return fmt.Errorf("database: get SQLite connection: %w", connErr)
 	}
 	defer func() {
 		if closeErr := conn.Close(); closeErr != nil {

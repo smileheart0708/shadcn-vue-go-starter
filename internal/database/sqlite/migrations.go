@@ -48,18 +48,18 @@ func migrate(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	for _, migration := range migrations {
-		applied, err := getAppliedMigration(ctx, db, migration.Version)
-		if err == nil {
-			if err := reconcileAppliedMigration(migration, applied); err != nil {
-				return err
+		applied, lookupErr := getAppliedMigration(ctx, db, migration.Version)
+		if lookupErr == nil {
+			if reconcileErr := reconcileAppliedMigration(migration, applied); reconcileErr != nil {
+				return reconcileErr
 			}
 			continue
 		}
-		if !errors.Is(err, errMigrationNotApplied) {
-			return err
+		if !errors.Is(lookupErr, errMigrationNotApplied) {
+			return lookupErr
 		}
-		if err := applySQLMigration(ctx, db, migration); err != nil {
-			return err
+		if applyErr := applySQLMigration(ctx, db, migration); applyErr != nil {
+			return applyErr
 		}
 	}
 	return nil
@@ -92,9 +92,9 @@ func loadSQLMigrations() ([]sqlMigration, error) {
 			continue
 		}
 		name := entry.Name()
-		version, err := migrationVersionFromFilename(name)
-		if err != nil {
-			return nil, err
+		version, versionErr := migrationVersionFromFilename(name)
+		if versionErr != nil {
+			return nil, versionErr
 		}
 		if existing, exists := seenVersions[version]; exists {
 			return nil, fmt.Errorf("database: duplicate SQLite migration version %d in %s and %s", version, existing, name)
@@ -162,22 +162,22 @@ func reconcileAppliedMigration(migration sqlMigration, applied appliedMigration)
 }
 
 func applySQLMigration(ctx context.Context, db *sql.DB, migration sqlMigration) error {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("database: begin SQLite migration %d (%s): %w", migration.Version, migration.Name, err)
+	tx, beginErr := db.BeginTx(ctx, nil)
+	if beginErr != nil {
+		return fmt.Errorf("database: begin SQLite migration %d (%s): %w", migration.Version, migration.Name, beginErr)
 	}
-	if _, err := tx.ExecContext(ctx, migration.SQL); err != nil {
-		return rollbackMigrationTx(tx, fmt.Errorf("database: apply SQLite migration %d (%s): %w", migration.Version, migration.Name, err))
+	if _, execErr := tx.ExecContext(ctx, migration.SQL); execErr != nil {
+		return rollbackMigrationTx(tx, fmt.Errorf("database: apply SQLite migration %d (%s): %w", migration.Version, migration.Name, execErr))
 	}
-	shouldCommit, err := recordAppliedMigration(ctx, tx, db, migration)
-	if err != nil {
-		return err
+	shouldCommit, recordErr := recordAppliedMigration(ctx, tx, db, migration)
+	if recordErr != nil {
+		return recordErr
 	}
 	if !shouldCommit {
 		return nil
 	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("database: commit SQLite migration %d (%s): %w", migration.Version, migration.Name, err)
+	if commitErr := tx.Commit(); commitErr != nil {
+		return fmt.Errorf("database: commit SQLite migration %d (%s): %w", migration.Version, migration.Name, commitErr)
 	}
 	return nil
 }
