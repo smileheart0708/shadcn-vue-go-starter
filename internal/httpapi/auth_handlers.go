@@ -170,8 +170,7 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ip, userAgent := requestMetadata(r)
-	result, err := api.auth.Refresh(r.Context(), rawToken, ip, userAgent)
+	result, err := api.auth.Refresh(r.Context(), rawToken)
 	if err != nil {
 		api.auth.ClearRefreshCookie(w, r)
 		writeAPIError(w, http.StatusUnauthorized, "invalid_refresh_token", "Refresh session is invalid or expired.")
@@ -185,8 +184,7 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	rawToken, err := api.auth.ReadRefreshCookie(r)
 	if err == nil {
-		ip, userAgent := requestMetadata(r)
-		if logoutErr := api.auth.Logout(r.Context(), rawToken, ip, userAgent); logoutErr != nil && !errors.Is(logoutErr, auth.ErrInvalidRefreshToken) {
+		if logoutErr := api.auth.Logout(r.Context(), rawToken); logoutErr != nil && !errors.Is(logoutErr, auth.ErrInvalidRefreshToken) {
 			writeAPIError(w, http.StatusInternalServerError, "logout_failed", "Failed to revoke refresh session.")
 			return
 		}

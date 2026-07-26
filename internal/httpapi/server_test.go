@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -439,6 +440,7 @@ func newTestContext(t *testing.T) *testContext {
 		MaxBytes:  logging.DefaultStreamMaxBytes,
 		Retention: 3650 * 24 * time.Hour,
 	})
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	authzService := authorization.NewService()
 	identityService := identity.NewService(dbRuntime.Identity)
@@ -450,7 +452,6 @@ func newTestContext(t *testing.T) *testContext {
 		RefreshIdleTTL:     7 * 24 * time.Hour,
 		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
 	}, dbRuntime.Sessions, identityService, authzService, policiesService)
-	logger := logging.New()
 
 	handler := NewHandlerWithOptions(HandlerOptions{
 		Logger:          logger,

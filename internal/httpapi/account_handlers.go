@@ -134,8 +134,7 @@ func (api *API) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ip, userAgent := requestMetadata(r)
-	err := api.auth.ChangePassword(r.Context(), actor, payload.CurrentPassword, payload.NewPassword, ip, userAgent)
+	err := api.auth.ChangePassword(r.Context(), actor, payload.CurrentPassword, payload.NewPassword)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrCurrentPasswordInvalid):

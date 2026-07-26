@@ -8,6 +8,31 @@ import (
 	"testing"
 )
 
+// Regression: requestLogger wraps the ResponseWriter in statusRecorder. Without
+// an Unwrap method, http.ResponseController could not reach the underlying
+// Flusher and the SSE log stream failed with "streaming_unsupported" whenever
+// API_REQUEST_LOG_ENABLED was true.
+func TestRequestLoggerKeepsResponseControllerFlushable(t *testing.T) {
+	t.Parallel()
+
+	var flushErr error
+	var sawRecorder bool
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, sawRecorder = w.(*statusRecorder)
+		flushErr = http.NewResponseController(w).Flush()
+	})
+
+	logged := Chain(inner, requestLogger(slog.New(slog.NewTextHandler(io.Discard, nil))))
+	logged.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/management/system-logs/stream", nil))
+
+	if !sawRecorder {
+		t.Fatal("expected requestLogger to wrap the ResponseWriter in statusRecorder")
+	}
+	if flushErr != nil {
+		t.Fatalf("expected Flush through the request logger to succeed, got %v", flushErr)
+	}
+}
+
 func TestParseSystemLogTail(t *testing.T) {
 	t.Parallel()
 

@@ -129,26 +129,18 @@ func LoadConfig() (Config, error) {
 }
 
 func getEnv[T goe.EnvType](name string, fallback T) (T, error) {
-	return getEnvAny([]string{name}, fallback)
-}
-
-func getEnvAny[T goe.EnvType](names []string, fallback T) (T, error) {
-	for _, name := range names {
-		raw, ok := os.LookupEnv(name)
-		if !ok {
-			continue
-		}
-
-		value, err := goe.Parse[T](raw)
-		if err != nil {
-			var zero T
-			return zero, fmt.Errorf("config %s: %w", name, err)
-		}
-
-		return value, nil
+	raw, ok := os.LookupEnv(name)
+	if !ok {
+		return fallback, nil
 	}
 
-	return fallback, nil
+	value, err := goe.Parse[T](raw)
+	if err != nil {
+		var zero T
+		return zero, fmt.Errorf("config %s: %w", name, err)
+	}
+
+	return value, nil
 }
 
 func loadJWTSecret(dataDir string) (string, error) {
