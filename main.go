@@ -99,8 +99,9 @@ func run() error {
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		// SSE responses may stay open for a long time; rely on client cancellation and shutdown instead.
-		WriteTimeout:   0,
+		// Long-lived responses (SSE) clear this deadline per-request via
+		// http.ResponseController, so slow clients on normal routes stay bounded.
+		WriteTimeout:   30 * time.Second,
 		IdleTimeout:    60 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}

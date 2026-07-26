@@ -235,7 +235,7 @@ func (s *Service) Register(ctx context.Context, params RegisterParams, ip string
 	return result, nil
 }
 
-func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userAgent string) (SessionResult, error) {
+func (s *Service) Refresh(ctx context.Context, rawToken string) (SessionResult, error) {
 	sessionID, _, err := ParseRefreshToken(rawToken)
 	if err != nil {
 		return SessionResult{}, ErrInvalidRefreshToken
@@ -330,7 +330,7 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 	}, nil
 }
 
-func (s *Service) Logout(ctx context.Context, rawToken string, ip string, userAgent string) error {
+func (s *Service) Logout(ctx context.Context, rawToken string) error {
 	sessionID, _, err := ParseRefreshToken(rawToken)
 	if err != nil {
 		return err
@@ -347,7 +347,7 @@ func (s *Service) Logout(ctx context.Context, rawToken string, ip string, userAg
 	return nil
 }
 
-func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPassword string, newPassword string, ip string, userAgent string) error {
+func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPassword string, newPassword string) error {
 	if len(strings.TrimSpace(newPassword)) < MinPasswordLength {
 		return ErrPasswordTooShort
 	}
