@@ -99,9 +99,9 @@ func loadSQLMigrations() ([]sqlMigration, error) {
 		if existing, exists := seenVersions[version]; exists {
 			return nil, fmt.Errorf("database: duplicate SQLite migration version %d in %s and %s", version, existing, name)
 		}
-		content, err := embeddedMigrations.ReadFile(path.Join("migrations", name))
-		if err != nil {
-			return nil, fmt.Errorf("database: read SQLite migration %s: %w", name, err)
+		content, readErr := embeddedMigrations.ReadFile(path.Join("migrations", name))
+		if readErr != nil {
+			return nil, fmt.Errorf("database: read SQLite migration %s: %w", name, readErr)
 		}
 		if strings.TrimSpace(string(content)) == "" {
 			return nil, fmt.Errorf("database: SQLite migration %s is empty", name)

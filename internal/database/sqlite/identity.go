@@ -20,7 +20,7 @@ func (s *Store) CreateUser(ctx context.Context, params identity.CreateUserParams
 	var created identity.User
 	err = withTx(ctx, db, func(tx *sql.Tx) error {
 		now := time.Now().UTC()
-		result, err := tx.ExecContext(
+		result, insertErr := tx.ExecContext(
 			ctx,
 			`INSERT INTO users (
 				username,
@@ -40,15 +40,15 @@ func (s *Store) CreateUser(ctx context.Context, params identity.CreateUserParams
 			now.Unix(),
 			now.Unix(),
 		)
-		if err != nil {
-			return mapIdentityWriteError(err)
+		if insertErr != nil {
+			return mapIdentityWriteError(insertErr)
 		}
 
-		userID, err := result.LastInsertId()
-		if err != nil {
-			return fmt.Errorf("identity: read inserted user id: %w", err)
+		userID, idErr := result.LastInsertId()
+		if idErr != nil {
+			return fmt.Errorf("identity: read inserted user id: %w", idErr)
 		}
-		if _, err := tx.ExecContext(
+		if _, credentialErr := tx.ExecContext(
 			ctx,
 			`INSERT INTO credentials (
 				user_id,
@@ -62,12 +62,16 @@ func (s *Store) CreateUser(ctx context.Context, params identity.CreateUserParams
 			now.Unix(),
 			now.Unix(),
 			now.Unix(),
-		); err != nil {
-			return fmt.Errorf("identity: insert credential: %w", err)
+		); credentialErr != nil {
+			return fmt.Errorf("identity: insert credential: %w", credentialErr)
 		}
 
-		created, err = getUser(ctx, tx, userID)
-		return err
+		user, getErr := getUser(ctx, tx, userID)
+		if getErr != nil {
+			return getErr
+		}
+		created = user
+		return nil
 	})
 	if err != nil {
 		return identity.User{}, err
@@ -131,8 +135,8 @@ func (s *Store) UpdateProfile(ctx context.Context, userID int64, username string
 	if err != nil {
 		return identity.User{}, mapIdentityWriteError(err)
 	}
-	if err := ensureUserRowsAffected(result); err != nil {
-		return identity.User{}, err
+	if affectedErr := ensureUserRowsAffected(result); affectedErr != nil {
+		return identity.User{}, affectedErr
 	}
 	return getUser(ctx, db, userID)
 }
@@ -146,8 +150,8 @@ func (s *Store) UpdateAvatar(ctx context.Context, userID int64, avatarPath *stri
 	if err != nil {
 		return identity.User{}, fmt.Errorf("identity: update avatar: %w", err)
 	}
-	if err := ensureUserRowsAffected(result); err != nil {
-		return identity.User{}, err
+	if affectedErr := ensureUserRowsAffected(result); affectedErr != nil {
+		return identity.User{}, affectedErr
 	}
 	return getUser(ctx, db, userID)
 }
@@ -160,15 +164,19 @@ func (s *Store) UpdateManagedUser(ctx context.Context, userID int64, params iden
 
 	var updated identity.User
 	err = withTx(ctx, db, func(tx *sql.Tx) error {
-		result, err := tx.ExecContext(ctx, `UPDATE users SET username = ?, email = ?, updated_at = ? WHERE id = ?`, params.Username, params.Email, time.Now().UTC().Unix(), userID)
-		if err != nil {
-			return mapIdentityWriteError(err)
+		result, updateErr := tx.ExecContext(ctx, `UPDATE users SET username = ?, email = ?, updated_at = ? WHERE id = ?`, params.Username, params.Email, time.Now().UTC().Unix(), userID)
+		if updateErr != nil {
+			return mapIdentityWriteError(updateErr)
 		}
-		if err := ensureUserRowsAffected(result); err != nil {
-			return err
+		if affectedErr := ensureUserRowsAffected(result); affectedErr != nil {
+			return affectedErr
 		}
-		updated, err = getUser(ctx, tx, userID)
-		return err
+		user, getErr := getUser(ctx, tx, userID)
+		if getErr != nil {
+			return getErr
+		}
+		updated = user
+		return nil
 	})
 	if err != nil {
 		return identity.User{}, err
@@ -189,7 +197,7 @@ func (s *Store) SetUserStatus(ctx context.Context, userID int64, status string) 
 		if status == identity.StatusDisabled {
 			disabledAt = now.Unix()
 		}
-		result, err := tx.ExecContext(
+		result, updateErr := tx.ExecContext(
 			ctx,
 			`UPDATE users
 			SET status = ?, disabled_at = ?, security_version = security_version + 1, updated_at = ?
@@ -199,17 +207,21 @@ func (s *Store) SetUserStatus(ctx context.Context, userID int64, status string) 
 			now.Unix(),
 			userID,
 		)
-		if err != nil {
-			return fmt.Errorf("identity: update status: %w", err)
+		if updateErr != nil {
+			return fmt.Errorf("identity: update status: %w", updateErr)
 		}
-		if err := ensureUserRowsAffected(result); err != nil {
-			return err
+		if affectedErr := ensureUserRowsAffected(result); affectedErr != nil {
+			return affectedErr
 		}
-		if err := revokeUserSessionsTx(ctx, tx, userID, "status_changed", now); err != nil {
-			return err
+		if revokeErr := revokeUserSessionsTx(ctx, tx, userID, "status_changed", now); revokeErr != nil {
+			return revokeErr
 		}
-		updated, err = getUser(ctx, tx, userID)
-		return err
+		user, getErr := getUser(ctx, tx, userID)
+		if getErr != nil {
+			return getErr
+		}
+		updated = user
+		return nil
 	})
 	if err != nil {
 		return identity.User{}, err
@@ -252,8 +264,8 @@ func (s *Store) ListUsers(ctx context.Context, params identity.ListUsersParams) 
 		whereSQL = " WHERE " + strings.Join(clauses, " AND ")
 	}
 	var total int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users u"+whereSQL, args...).Scan(&total); err != nil {
-		return identity.ListUsersResult{}, fmt.Errorf("identity: count users: %w", err)
+	if countErr := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users u"+whereSQL, args...).Scan(&total); countErr != nil {
+		return identity.ListUsersResult{}, fmt.Errorf("identity: count users: %w", countErr)
 	}
 	queryArgs := append(append([]any{}, args...), params.PageSize, (params.Page-1)*params.PageSize)
 	rows, err := db.QueryContext(ctx, `SELECT
@@ -277,14 +289,14 @@ func (s *Store) ListUsers(ctx context.Context, params identity.ListUsersParams) 
 
 	items := make([]identity.User, 0, params.PageSize)
 	for rows.Next() {
-		item, err := scanUser(rows)
-		if err != nil {
-			return identity.ListUsersResult{}, errors.Join(err, closeUserRows(rows))
+		item, scanErr := scanUser(rows)
+		if scanErr != nil {
+			return identity.ListUsersResult{}, errors.Join(scanErr, closeUserRows(rows))
 		}
 		items = append(items, item)
 	}
-	if err := errors.Join(rows.Err(), closeUserRows(rows)); err != nil {
-		return identity.ListUsersResult{}, fmt.Errorf("identity: iterate users: %w", err)
+	if iterateErr := errors.Join(rows.Err(), closeUserRows(rows)); iterateErr != nil {
+		return identity.ListUsersResult{}, fmt.Errorf("identity: iterate users: %w", iterateErr)
 	}
 	return identity.ListUsersResult{Items: items, Page: params.Page, PageSize: params.PageSize, Total: total}, nil
 }

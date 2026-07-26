@@ -55,15 +55,15 @@ func (s *Store) CompleteInitialOwner(ctx context.Context, owner setup.InitialOwn
 	var created identity.User
 	err = withTx(ctx, db, func(tx *sql.Tx) error {
 		var setupState string
-		if err := tx.QueryRowContext(ctx, `SELECT setup_state FROM install_state WHERE id = 1`).Scan(&setupState); err != nil {
-			return fmt.Errorf("setup: load install state: %w", err)
+		if stateErr := tx.QueryRowContext(ctx, `SELECT setup_state FROM install_state WHERE id = 1`).Scan(&setupState); stateErr != nil {
+			return fmt.Errorf("setup: load install state: %w", stateErr)
 		}
 		if setupState == setup.StateCompleted {
 			return setup.ErrAlreadyCompleted
 		}
 
 		now := time.Now().UTC()
-		result, err := tx.ExecContext(
+		result, insertErr := tx.ExecContext(
 			ctx,
 			`INSERT INTO users (
 				username,
@@ -82,14 +82,14 @@ func (s *Store) CompleteInitialOwner(ctx context.Context, owner setup.InitialOwn
 			now.Unix(),
 			now.Unix(),
 		)
-		if err != nil {
-			return mapIdentityWriteError(err)
+		if insertErr != nil {
+			return mapIdentityWriteError(insertErr)
 		}
-		userID, err := result.LastInsertId()
-		if err != nil {
-			return fmt.Errorf("setup: read owner user id: %w", err)
+		userID, idErr := result.LastInsertId()
+		if idErr != nil {
+			return fmt.Errorf("setup: read owner user id: %w", idErr)
 		}
-		if _, err := tx.ExecContext(
+		if _, credentialErr := tx.ExecContext(
 			ctx,
 			`INSERT INTO credentials (
 				user_id,
@@ -103,10 +103,10 @@ func (s *Store) CompleteInitialOwner(ctx context.Context, owner setup.InitialOwn
 			now.Unix(),
 			now.Unix(),
 			now.Unix(),
-		); err != nil {
-			return fmt.Errorf("setup: insert owner credential: %w", err)
+		); credentialErr != nil {
+			return fmt.Errorf("setup: insert owner credential: %w", credentialErr)
 		}
-		if _, err := tx.ExecContext(
+		if _, stateErr := tx.ExecContext(
 			ctx,
 			`UPDATE install_state
 			SET setup_state = ?, owner_user_id = ?, setup_completed_at = ?, updated_at = ?
@@ -115,12 +115,16 @@ func (s *Store) CompleteInitialOwner(ctx context.Context, owner setup.InitialOwn
 			userID,
 			now.Unix(),
 			now.Unix(),
-		); err != nil {
-			return fmt.Errorf("setup: update install state: %w", err)
+		); stateErr != nil {
+			return fmt.Errorf("setup: update install state: %w", stateErr)
 		}
 
-		created, err = getUser(ctx, tx, userID)
-		return err
+		user, getErr := getUser(ctx, tx, userID)
+		if getErr != nil {
+			return getErr
+		}
+		created = user
+		return nil
 	})
 	if err != nil {
 		return identity.User{}, err

@@ -374,8 +374,8 @@ func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPasswo
 	if err != nil {
 		return err
 	}
-	if err := sessions.UpdatePasswordAndRevokeSessions(ctx, actor.User.ID, passwordHash, time.Now().UTC()); err != nil {
-		return fmt.Errorf("auth: change password: %w", err)
+	if updateErr := sessions.UpdatePasswordAndRevokeSessions(ctx, actor.User.ID, passwordHash, time.Now().UTC()); updateErr != nil {
+		return fmt.Errorf("auth: change password: %w", updateErr)
 	}
 	return nil
 }
@@ -400,7 +400,7 @@ func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, i
 	if err != nil {
 		return SessionResult{}, err
 	}
-	if err := sessions.CreateSession(ctx, Session{
+	if createErr := sessions.CreateSession(ctx, Session{
 		ID:               sessionID,
 		UserID:           user.ID,
 		RefreshTokenHash: hashRefreshToken(refreshToken),
@@ -410,8 +410,8 @@ func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, i
 		IdleExpiresAt:    now.Add(s.refreshIdleTTL),
 		IP:               stringPointerOrNil(ip),
 		UserAgent:        stringPointerOrNil(userAgent),
-	}); err != nil {
-		return SessionResult{}, fmt.Errorf("auth: create refresh session: %w", err)
+	}); createErr != nil {
+		return SessionResult{}, fmt.Errorf("auth: create refresh session: %w", createErr)
 	}
 
 	accessToken, expiresAt, err := s.issueAccessToken(user, sessionID)
@@ -562,8 +562,8 @@ func (s *Service) revokeSessionByID(ctx context.Context, sessionID string, reaso
 	if err != nil {
 		return err
 	}
-	if err := sessions.RevokeSession(ctx, sessionID, strings.TrimSpace(reason), time.Now().UTC()); err != nil {
-		return fmt.Errorf("auth: revoke session: %w", err)
+	if revokeErr := sessions.RevokeSession(ctx, sessionID, strings.TrimSpace(reason), time.Now().UTC()); revokeErr != nil {
+		return fmt.Errorf("auth: revoke session: %w", revokeErr)
 	}
 	return nil
 }

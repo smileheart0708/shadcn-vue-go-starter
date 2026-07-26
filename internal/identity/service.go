@@ -166,8 +166,8 @@ func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params Up
 	if err != nil {
 		return User{}, err
 	}
-	if _, err := repository.GetUserByID(ctx, userID); err != nil {
-		return User{}, err
+	if _, lookupErr := repository.GetUserByID(ctx, userID); lookupErr != nil {
+		return User{}, lookupErr
 	}
 
 	params.Username = normalizeUsername(params.Username)
@@ -201,8 +201,8 @@ func (s *Service) DeleteUser(ctx context.Context, userID int64) error {
 	if err != nil {
 		return err
 	}
-	if _, err := repository.GetUserByID(ctx, userID); err != nil {
-		return err
+	if _, lookupErr := repository.GetUserByID(ctx, userID); lookupErr != nil {
+		return lookupErr
 	}
 	return repository.DeleteUser(ctx, userID)
 }
