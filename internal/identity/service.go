@@ -37,8 +37,6 @@ type User struct {
 	UpdatedAt       time.Time
 }
 
-type UserWithRoles = User
-
 type AuthRecord struct {
 	User
 	PasswordHash      string

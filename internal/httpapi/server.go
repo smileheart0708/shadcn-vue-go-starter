@@ -341,8 +341,11 @@ func (r *statusRecorder) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 }
 
-func (r *statusRecorder) Write(p []byte) (int, error) {
-	return r.ResponseWriter.Write(p)
+// Unwrap exposes the underlying ResponseWriter to http.ResponseController so
+// wrapping a handler does not hide Flusher/deadline support from it. Without
+// this, enabling API request logging breaks the SSE log stream.
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
 }
 
 func clientAddr(remoteAddr string) string {

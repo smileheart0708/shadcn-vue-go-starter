@@ -11,11 +11,6 @@ import (
 
 const bannerDivider = "=============================================================================="
 
-func New() *slog.Logger {
-	logger, _ := NewWithStream(StreamOptions{})
-	return logger
-}
-
 func NewWithStream(options StreamOptions) (*slog.Logger, *Stream) {
 	stream := NewStream(options)
 	consoleHandler := tint.NewHandler(os.Stdout, &tint.Options{

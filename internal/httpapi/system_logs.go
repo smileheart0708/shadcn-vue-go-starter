@@ -21,12 +21,6 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		writeAPIError(w, http.StatusInternalServerError, "streaming_unsupported", "Streaming is not supported by this server.")
-		return
-	}
-
 	actor, authenticated := api.currentActor(r.Context())
 	if !authenticated {
 		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
@@ -41,12 +35,28 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
+	// ResponseController unwraps middleware wrappers, so this keeps working when
+	// API request logging wraps the ResponseWriter. A plain w.(http.Flusher)
+	// assertion does not unwrap and silently broke this endpoint.
+	stream := http.NewResponseController(w)
+
+	// SSE connections stay open indefinitely, so opt this response out of the
+	// server-wide WriteTimeout instead of disabling that timeout globally.
+	if err := stream.SetWriteDeadline(time.Time{}); err != nil {
+		logger.WarnContext(r.Context(), "failed to clear system log stream write deadline", "error", err)
+	}
+
+	if err := stream.Flush(); err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "streaming_unsupported", "Streaming is not supported by this server.")
+		return
+	}
+
 	for _, entry := range api.logStream.Snapshot(tail) {
 		if err := writeSystemLogSSEEvent(w, entry); err != nil {
 			logger.WarnContext(r.Context(), "failed to replay system log entry", "user_id", actor.User.ID, "entry_id", entry.ID, "error", err)
 			return
 		}
-		flusher.Flush()
+		flushStream(r, stream, logger)
 	}
 
 	heartbeat := time.NewTicker(systemLogsHeartbeatInterval)
@@ -61,7 +71,7 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 				logger.WarnContext(r.Context(), "failed to write system log heartbeat", "user_id", actor.User.ID, "error", err)
 				return
 			}
-			flusher.Flush()
+			flushStream(r, stream, logger)
 		case streamEntry, entriesOK := <-subscription.Entries():
 			if !entriesOK {
 				return
@@ -70,8 +80,14 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 				logger.WarnContext(r.Context(), "failed to stream system log entry", "user_id", actor.User.ID, "entry_id", streamEntry.ID, "error", err)
 				return
 			}
-			flusher.Flush()
+			flushStream(r, stream, logger)
 		}
+	}
+}
+
+func flushStream(r *http.Request, stream *http.ResponseController, logger *slog.Logger) {
+	if err := stream.Flush(); err != nil {
+		logger.WarnContext(r.Context(), "failed to flush system log stream", "error", err)
 	}
 }
 
