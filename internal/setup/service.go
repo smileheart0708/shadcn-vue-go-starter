@@ -60,24 +60,24 @@ func (s *Service) GetState(ctx context.Context) (State, error) {
 	return repository.GetState(ctx)
 }
 
-func (s *Service) Complete(ctx context.Context, input CompleteSetupInput) (identity.UserWithRoles, error) {
+func (s *Service) Complete(ctx context.Context, input CompleteSetupInput) (identity.User, error) {
 	repository, err := s.requireRepository()
 	if err != nil {
-		return identity.UserWithRoles{}, err
+		return identity.User{}, err
 	}
 
 	username := strings.TrimSpace(input.Username)
 	if username == "" {
-		return identity.UserWithRoles{}, fmt.Errorf("setup: username is required")
+		return identity.User{}, fmt.Errorf("setup: username is required")
 	}
 	password := strings.TrimSpace(input.Password)
 	if len(password) < auth.MinPasswordLength {
-		return identity.UserWithRoles{}, auth.ErrPasswordTooShort
+		return identity.User{}, auth.ErrPasswordTooShort
 	}
 
 	passwordHash, err := auth.HashPassword(password)
 	if err != nil {
-		return identity.UserWithRoles{}, fmt.Errorf("setup: hash owner password: %w", err)
+		return identity.User{}, fmt.Errorf("setup: hash owner password: %w", err)
 	}
 	return repository.CompleteInitialOwner(ctx, InitialOwner{
 		Username:     username,

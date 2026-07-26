@@ -164,33 +164,33 @@ func (s *Store) UpdatePasswordAndRevokeSessions(ctx context.Context, userID int6
 		return err
 	}
 	return withTx(ctx, db, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(
+		if _, credentialErr := tx.ExecContext(
 			ctx,
 			`UPDATE credentials SET password_hash = ?, password_changed_at = ?, updated_at = ? WHERE user_id = ?`,
 			passwordHash,
 			changedAt.Unix(),
 			changedAt.Unix(),
 			userID,
-		); err != nil {
-			return fmt.Errorf("auth: update password credential: %w", err)
+		); credentialErr != nil {
+			return fmt.Errorf("auth: update password credential: %w", credentialErr)
 		}
-		if _, err := tx.ExecContext(
+		if _, versionErr := tx.ExecContext(
 			ctx,
 			`UPDATE users SET security_version = security_version + 1, updated_at = ? WHERE id = ?`,
 			changedAt.Unix(),
 			userID,
-		); err != nil {
-			return fmt.Errorf("auth: bump security version: %w", err)
+		); versionErr != nil {
+			return fmt.Errorf("auth: bump security version: %w", versionErr)
 		}
-		if _, err := tx.ExecContext(
+		if _, revokeErr := tx.ExecContext(
 			ctx,
 			`UPDATE auth_sessions
 			SET revoked_at = COALESCE(revoked_at, ?), revoke_reason = COALESCE(revoke_reason, 'password_changed')
 			WHERE user_id = ? AND revoked_at IS NULL`,
 			changedAt.Unix(),
 			userID,
-		); err != nil {
-			return fmt.Errorf("auth: revoke sessions after password change: %w", err)
+		); revokeErr != nil {
+			return fmt.Errorf("auth: revoke sessions after password change: %w", revokeErr)
 		}
 		return nil
 	})
