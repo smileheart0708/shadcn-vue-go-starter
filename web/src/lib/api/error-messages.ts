@@ -1,4 +1,4 @@
-import type { APIError } from '@/lib/api/client'
+import { APIError } from '@/lib/api/client'
 
 const API_ERROR_MESSAGE_KEYS = {
   invalid_credentials: 'apiError.invalidCredentials',
@@ -33,7 +33,11 @@ export function getAPIErrorMessage(
   error: unknown,
   fallbackKey = 'apiError.unknown',
 ): string {
-  if (isAPIError(error) && error.code !== undefined && error.code !== '') {
+  if (
+    error instanceof APIError &&
+    error.code !== undefined &&
+    error.code !== ''
+  ) {
     const key = getAPIErrorMessageKey(error.code)
     if (key) {
       return t(key)
@@ -51,12 +55,6 @@ function getAPIErrorMessageKey(
   }
 
   return API_ERROR_MESSAGE_KEYS[code]
-}
-
-function isAPIError(error: unknown): error is APIError {
-  return (
-    error instanceof Error && error.name === 'APIError' && 'status' in error
-  )
 }
 
 function hasAPIErrorMessageKey(code: string): code is APIErrorMessageCode {

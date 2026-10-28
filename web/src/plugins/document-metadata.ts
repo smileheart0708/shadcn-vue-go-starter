@@ -21,7 +21,9 @@ export function installDocumentMetadata(router: Router) {
   }
 
   watchEffect(() => {
-    void i18n.global.locale
+    // Touch the locale ref's value (not the ref object) so the effect re-runs on every
+    // language switch; `t()` alone would not register a dependency on the active locale.
+    void i18n.global.locale.value
     updateDocumentTitle()
   })
 }

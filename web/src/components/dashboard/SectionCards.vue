@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { ChartArea, Clock, TrendingDown, TrendingUp } from '@lucide/vue'
 
 import { Badge } from '@/components/ui/badge'
@@ -21,39 +22,16 @@ import {
 } from '@/components/ui/empty'
 import LineChart from '@/components/dashboard/LineChart.vue'
 
+const { t } = useI18n()
+
+// Demo dashboard tiles with static figures. Values stay hardcoded on purpose — swap
+// this array for real data when the metrics endpoint exists; the copy is keyed by
+// metric id under `dashboard.metric.*`.
 const metrics = [
-  {
-    title: 'Total Revenue',
-    value: '$1,250.00',
-    trend: '+12.5%',
-    summary: 'Trending up this month',
-    detail: 'Visitors for the last 6 months',
-    icon: TrendingUp,
-  },
-  {
-    title: 'New Customers',
-    value: '1,234',
-    trend: '-20%',
-    summary: 'Down 20% this period',
-    detail: 'Acquisition needs attention',
-    icon: TrendingDown,
-  },
-  {
-    title: 'Active Accounts',
-    value: '45,678',
-    trend: '+12.5%',
-    summary: 'Strong user retention',
-    detail: 'Engagement exceed targets',
-    icon: TrendingUp,
-  },
-  {
-    title: 'Growth Rate',
-    value: '4.5%',
-    trend: '+4.5%',
-    summary: 'Steady performance increase',
-    detail: 'Meets growth projections',
-    icon: TrendingUp,
-  },
+  { id: 'totalRevenue', value: '$1,250.00', trend: '+12.5%', icon: TrendingUp },
+  { id: 'newCustomers', value: '1,234', trend: '-20%', icon: TrendingDown },
+  { id: 'activeAccounts', value: '45,678', trend: '+12.5%', icon: TrendingUp },
+  { id: 'growthRate', value: '4.5%', trend: '+4.5%', icon: TrendingUp },
 ] as const
 </script>
 
@@ -62,11 +40,13 @@ const metrics = [
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Card
         v-for="metric in metrics"
-        :key="metric.title"
+        :key="metric.id"
         class="@container/card gap-4 py-5"
       >
         <CardHeader class="pbe-0">
-          <CardDescription>{{ metric.title }}</CardDescription>
+          <CardDescription>{{
+            t(`dashboard.metric.${metric.id}.title`)
+          }}</CardDescription>
           <CardTitle
             class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl"
           >
@@ -84,14 +64,14 @@ const metrics = [
         </CardHeader>
         <CardFooter class="flex-col items-start gap-1.5 pbs-0 text-sm">
           <div class="line-clamp-1 flex gap-2 font-medium">
-            {{ metric.summary }}
+            {{ t(`dashboard.metric.${metric.id}.summary`) }}
             <component
               :is="metric.icon"
               class="block-4 inline-4"
             />
           </div>
           <div class="text-muted-foreground">
-            {{ metric.detail }}
+            {{ t(`dashboard.metric.${metric.id}.detail`) }}
           </div>
         </CardFooter>
       </Card>
@@ -102,12 +82,16 @@ const metrics = [
 
       <Card class="gap-0 overflow-hidden py-5 min-block-0 min-inline-0">
         <CardHeader class="shrink-0 pbe-2">
-          <CardDescription>Reserved Panel</CardDescription>
-          <CardTitle class="text-xl font-semibold">Next Widget Slot</CardTitle>
+          <CardDescription>{{
+            t('dashboard.reservedPanel.eyebrow')
+          }}</CardDescription>
+          <CardTitle class="text-xl font-semibold">{{
+            t('dashboard.reservedPanel.title')
+          }}</CardTitle>
           <CardAction>
             <Badge variant="outline">
               <Clock class="block-4 inline-4" />
-              Placeholder
+              {{ t('dashboard.reservedPanel.badge') }}
             </Badge>
           </CardAction>
         </CardHeader>
@@ -117,10 +101,11 @@ const metrics = [
               <EmptyMedia variant="icon">
                 <ChartArea class="block-5 inline-5" />
               </EmptyMedia>
-              <EmptyTitle>Reserved for the next dashboard module</EmptyTitle>
+              <EmptyTitle>{{
+                t('dashboard.reservedPanel.emptyTitle')
+              }}</EmptyTitle>
               <EmptyDescription>
-                Keep this panel available for alerts, conversion funnels, or a
-                quick summary table without changing the current desktop fold.
+                {{ t('dashboard.reservedPanel.emptyDescription') }}
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent class="max-inline-none min-inline-0">
@@ -128,26 +113,32 @@ const metrics = [
                 <div
                   class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0"
                 >
-                  <span class="text-muted-foreground">Suggested width</span>
-                  <span class="truncate text-end font-medium"
-                    >Right-side companion card</span
-                  >
+                  <span class="text-muted-foreground">{{
+                    t('dashboard.reservedPanel.suggestedWidth')
+                  }}</span>
+                  <span class="truncate text-end font-medium">{{
+                    t('dashboard.reservedPanel.suggestedWidthValue')
+                  }}</span>
                 </div>
                 <div
                   class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0"
                 >
-                  <span class="text-muted-foreground">Suggested content</span>
-                  <span class="truncate text-end font-medium"
-                    >Tasks, notices, or small table</span
-                  >
+                  <span class="text-muted-foreground">{{
+                    t('dashboard.reservedPanel.suggestedContent')
+                  }}</span>
+                  <span class="truncate text-end font-medium">{{
+                    t('dashboard.reservedPanel.suggestedContentValue')
+                  }}</span>
                 </div>
                 <div
                   class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0"
                 >
-                  <span class="text-muted-foreground">Viewport rule</span>
-                  <span class="truncate text-end font-medium"
-                    >No vertical scroll on desktop</span
-                  >
+                  <span class="text-muted-foreground">{{
+                    t('dashboard.reservedPanel.viewportRule')
+                  }}</span>
+                  <span class="truncate text-end font-medium">{{
+                    t('dashboard.reservedPanel.viewportRuleValue')
+                  }}</span>
                 </div>
               </div>
             </EmptyContent>

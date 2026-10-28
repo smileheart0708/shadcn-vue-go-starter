@@ -54,21 +54,56 @@ export function applyHistoryLimit(
   return sourceEntries.slice(-limit)
 }
 
-export function appendSystemLogEntry(
-  sourceEntries: readonly SystemLogEntry[],
-  entry: SystemLogEntry,
-): SystemLogEntry[] {
-  if (sourceEntries.some((sourceEntry) => sourceEntry.id === entry.id)) {
-    return [...sourceEntries]
+/**
+ * Append-only buffer for the live log stream, kept sorted by entry id and capped by an
+ * approximate byte budget.
+ *
+ * Mutates in place and tracks the running byte total incrementally. The previous
+ * implementation rebuilt the array and re-summed every entry on each append, which is
+ * O(n) per SSE message — noticeable once the buffer holds tens of thousands of lines
+ * under a busy stream. Vue's reactivity tracks in-place array mutation, so callers that
+ * hold this in a `ref` still re-render correctly.
+ */
+export class SystemLogBuffer {
+  private readonly entries: SystemLogEntry[] = []
+  private bufferedBytes = 0
+
+  get items(): readonly SystemLogEntry[] {
+    return this.entries
   }
 
-  const nextEntries = [...sourceEntries]
-  nextEntries.splice(findEntryInsertIndex(nextEntries, entry.id), 0, entry)
-  return pruneLocalEntries(nextEntries)
-}
+  append(entry: SystemLogEntry): void {
+    const insertIndex = findEntryInsertIndex(this.entries, entry.id)
 
-export function clearSystemLogEntries(): SystemLogEntry[] {
-  return []
+    // The stream can redeliver entries after a reconnect; ids are unique and ascending,
+    // so a hit at the insert position means we already have this one.
+    if (this.entries[insertIndex]?.id === entry.id) {
+      return
+    }
+
+    this.entries.splice(insertIndex, 0, entry)
+    this.bufferedBytes += getSystemLogEntrySize(entry)
+    this.pruneOldest()
+  }
+
+  clear(): void {
+    this.entries.length = 0
+    this.bufferedBytes = 0
+  }
+
+  private pruneOldest(): void {
+    while (
+      this.bufferedBytes > LOCAL_STREAM_MAX_BYTES &&
+      this.entries.length > 0
+    ) {
+      const removedEntry = this.entries.shift()
+      if (!removedEntry) {
+        break
+      }
+
+      this.bufferedBytes -= getSystemLogEntrySize(removedEntry)
+    }
+  }
 }
 
 export function normalizeHistoryLimitSelectValue(
@@ -185,29 +220,6 @@ function findEntryInsertIndex(
     }
   }
   return low
-}
-
-function pruneLocalEntries(
-  sourceEntries: readonly SystemLogEntry[],
-): SystemLogEntry[] {
-  const nextEntries = [...sourceEntries]
-  let localBufferedBytes = nextEntries.reduce(
-    (total, entry) => total + getSystemLogEntrySize(entry),
-    0,
-  )
-
-  while (
-    localBufferedBytes > LOCAL_STREAM_MAX_BYTES &&
-    nextEntries.length > 0
-  ) {
-    const removedEntry = nextEntries.shift()
-    if (!removedEntry) {
-      break
-    }
-    localBufferedBytes -= getSystemLogEntrySize(removedEntry)
-  }
-
-  return nextEntries
 }
 
 function getSystemLogEntrySize(entry: SystemLogEntry): number {

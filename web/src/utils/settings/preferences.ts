@@ -1,5 +1,4 @@
 import {
-  isSupportedLocale,
   localeNames,
   supportedLocales,
   type AppLocale,
@@ -13,10 +12,6 @@ export interface LocaleOption {
 
 export function isThemePreference(value: unknown): value is ThemePreference {
   return value === 'light' || value === 'dark' || value === 'system'
-}
-
-export function isAppLocale(value: unknown): value is AppLocale {
-  return typeof value === 'string' && isSupportedLocale(value)
 }
 
 export function getLocaleOptions(): LocaleOption[] {

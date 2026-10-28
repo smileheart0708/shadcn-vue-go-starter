@@ -1,22 +1,13 @@
 import imageCompression from 'browser-image-compression'
-import { MAX_AVATAR_FILE_SIZE_BYTES } from '@/lib/avatar'
-
-export const AVATAR_ACCEPTED_FILE_TYPES = 'image/jpeg,image/png,image/webp'
+import {
+  isSupportedAvatarFileType,
+  MAX_AVATAR_FILE_SIZE_BYTES,
+} from '@/lib/avatar'
 
 export type AvatarValidationFailure = 'unsupported-type' | 'file-too-large'
 
 export type AvatarValidationResult =
   { ok: true } | { ok: false; failure: AvatarValidationFailure }
-
-export function isSupportedAvatarFileType(
-  fileType: string,
-): fileType is 'image/jpeg' | 'image/png' | 'image/webp' {
-  return (
-    fileType === 'image/jpeg' ||
-    fileType === 'image/png' ||
-    fileType === 'image/webp'
-  )
-}
 
 export function validateAvatarFile(file: File): AvatarValidationResult {
   if (!isSupportedAvatarFileType(file.type)) {
@@ -39,6 +30,8 @@ export async function compressAvatarFile(file: File): Promise<File> {
     initialQuality: 0.8,
   })
 
+  // browser-image-compression can resolve to a plain Blob, so re-wrap it to preserve the
+  // original filename for the multipart upload.
   return compressedAvatar instanceof File
     ? compressedAvatar
     : new File([compressedAvatar], file.name, { type: file.type })

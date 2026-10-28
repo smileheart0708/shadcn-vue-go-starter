@@ -1,23 +1,21 @@
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { usePollingTask } from '@/composables/usePollingTask'
-import { useAuthStore } from '@/stores/auth'
+import { useCurrentViewerPolling } from '@/composables/auth/useCurrentViewerPolling'
 import {
   normalizePollingIntervalSeconds,
   usePollingStore,
 } from '@/stores/polling'
 import { useLocaleStore } from '@/stores/locale'
 import { useThemeStore } from '@/stores/theme'
+import { isSupportedLocale } from '@/plugins/i18n/locales'
 import {
   getLocaleOptions,
-  isAppLocale,
   isThemePreference,
 } from '@/utils/settings/preferences'
 
 export function useSettingsPreferences() {
   const { t } = useI18n()
-  const authStore = useAuthStore()
   const themeStore = useThemeStore()
   const localeStore = useLocaleStore()
   const pollingStore = usePollingStore()
@@ -33,15 +31,14 @@ export function useSettingsPreferences() {
     ),
   )
 
-  const currentUserPolling = usePollingTask({
-    key: 'auth.current-user',
-    intervalMs: () => pollingStore.currentUserIntervalMs,
-    enabled: () => authStore.isAuthenticated,
-    fetch: async ({ signal }) =>
-      authStore.fetchViewer({ signal, backgroundRequest: true }),
-    apply: (viewer) => {
-      authStore.applyViewer(viewer)
-    },
+  // Acquires the same ref-counted task the app shell already runs, so that changing the
+  // interval here can restart it immediately instead of waiting out the current tick.
+  const currentUserPolling = useCurrentViewerPolling()
+
+  // The shared task only polls on its interval, so ask for one immediate refresh when this
+  // page mounts: it is the only place that surfaces a failing viewer refresh.
+  onMounted(() => {
+    currentUserPolling.refreshNow()
   })
 
   watch(
@@ -70,7 +67,7 @@ export function useSettingsPreferences() {
   }
 
   function handleLocaleChange(value: unknown) {
-    if (isAppLocale(value)) {
+    if (isSupportedLocale(value)) {
       localeStore.setLocale(value)
     }
   }

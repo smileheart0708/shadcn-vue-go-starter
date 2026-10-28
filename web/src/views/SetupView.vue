@@ -49,37 +49,28 @@ const setupCompleted = computed(
 const currentStep = ref(1)
 const transitionDirection = ref<TransitionDirection>('forward')
 
+// Both directions share every class except the sign of the horizontal offset: content
+// slides in from the side it is travelling from and leaves towards the opposite one.
+// The `motion-reduce:` variants neutralise the slide (but keep the fade) for users who
+// asked for reduced motion.
+const MOTION_SAFE_RESET =
+  'motion-reduce:translate-x-0 motion-reduce:opacity-100'
+const TRANSITION_REST = `translate-x-0 opacity-100 ${MOTION_SAFE_RESET}`
+
 const transitionClasses = computed(() => {
-  if (transitionDirection.value === 'backward') {
-    return {
-      enterActive:
-        'transition duration-300 ease-out motion-reduce:transition-none',
-      enterFrom:
-        '-translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-      enterTo:
-        'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-      leaveActive:
-        'transition duration-200 ease-in motion-reduce:transition-none',
-      leaveFrom:
-        'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-      leaveTo:
-        'translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-    }
-  }
+  const goingBackward = transitionDirection.value === 'backward'
+  const enterOffset = goingBackward ? '-translate-x-8' : 'translate-x-8'
+  const leaveOffset = goingBackward ? 'translate-x-8' : '-translate-x-8'
 
   return {
     enterActive:
       'transition duration-300 ease-out motion-reduce:transition-none',
-    enterFrom:
-      'translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-    enterTo:
-      'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
+    enterFrom: `${enterOffset} opacity-0 ${MOTION_SAFE_RESET}`,
+    enterTo: TRANSITION_REST,
     leaveActive:
       'transition duration-200 ease-in motion-reduce:transition-none',
-    leaveFrom:
-      'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-    leaveTo:
-      '-translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
+    leaveFrom: TRANSITION_REST,
+    leaveTo: `${leaveOffset} opacity-0 ${MOTION_SAFE_RESET}`,
   }
 })
 

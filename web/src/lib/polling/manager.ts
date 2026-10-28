@@ -1,6 +1,6 @@
 import { readonly, ref, toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 
-export type PollingRunReason = 'start' | 'interval' | 'manual' | 'resume'
+export type PollingRunReason = 'interval' | 'manual' | 'resume'
 
 interface PollingRunContext {
   reason: PollingRunReason
@@ -47,6 +47,13 @@ interface InternalPollingTaskOptions {
 }
 
 const DEFAULT_MAX_BACKOFF_MS = 60_000
+
+/**
+ * Tasks are keyed and ref-counted so several components can subscribe to the same poll
+ * without multiplying requests: the first consumer creates the timer, the last one to
+ * release it tears the timer down. Tasks also pause while the document is hidden and
+ * back off exponentially on failure.
+ */
 const taskRegistry = new Map<string, InternalPollingTask>()
 
 let visibilityListenerInstalled = false
@@ -164,7 +171,13 @@ class InternalPollingTask {
 
     this.running.value = true
     this.manualPaused = false
-    this.requestImmediateRun('start')
+
+    // The first run waits one interval instead of firing immediately: tasks are started
+    // from components that already hold freshly loaded data (the app shell mounts right
+    // after the router guard fetched the viewer), so an immediate run repeats that
+    // request. `refreshNow()`/`resume()` remain the explicit ways to refresh on demand.
+    this.syncPausedState()
+    this.scheduleNext(this.getSuccessDelayMs(this.options))
   }
 
   private stop() {

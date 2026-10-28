@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import SystemLogConsolePanel from '@/components/system-logs/SystemLogConsolePanel.vue'
 import SystemLogsPageHeader from '@/components/system-logs/SystemLogsPageHeader.vue'
 import { useSystemLogStream } from '@/composables/system-logs/useSystemLogStream'
+import { CAPABILITY } from '@/lib/auth/roles'
 import { useAuthStore } from '@/stores/auth'
 import { useSystemLogsPreferencesStore } from '@/stores/system-logs-preferences'
 
@@ -14,7 +15,7 @@ const { levels, historyLimit, exportFormat } = storeToRefs(
 )
 
 const canReadSystemLogs = computed(() =>
-  authStore.can('management.system_logs.read'),
+  authStore.can(CAPABILITY.managementSystemLogsRead),
 )
 
 const {

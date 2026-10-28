@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   ArrowDown,
   ArrowRight,
@@ -26,6 +27,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -44,101 +46,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { demoTasks, type TaskPriority, type TaskStatus } from '@/fixtures/tasks'
 
-type TaskLabel = 'Documentation' | 'Bug' | 'Feature'
-type TaskStatus = 'Backlog' | 'Todo' | 'In Progress' | 'Done' | 'Canceled'
-type TaskPriority = 'Low' | 'Medium' | 'High'
-
-interface TaskRow {
-  id: string
-  label: TaskLabel
-  title: string
-  status: TaskStatus
-  priority: TaskPriority
-}
+/**
+ * Demo page shipped with the starter: a data table wired to static fixtures.
+ *
+ * Sorting and the Status/Priority facet buttons are deliberately inert placeholders —
+ * they exist to show the intended layout. See `AdminUsersView.vue` for the pattern this
+ * page should follow once it is backed by a real API (composable + server-side paging).
+ */
 
 type TaskColumnId = 'task' | 'title' | 'status' | 'priority'
 
-const tasks: TaskRow[] = [
-  {
-    id: 'TASK-8782',
-    label: 'Documentation',
-    title:
-      "You can't compress the program without quantifying the open-source SSD pixel!",
-    status: 'In Progress',
-    priority: 'Medium',
-  },
-  {
-    id: 'TASK-7878',
-    label: 'Documentation',
-    title:
-      'Try to calculate the EXE feed, maybe it will index the multi-byte pixel!',
-    status: 'Backlog',
-    priority: 'Medium',
-  },
-  {
-    id: 'TASK-7839',
-    label: 'Bug',
-    title: 'We need to bypass the neural TCP card!',
-    status: 'Todo',
-    priority: 'High',
-  },
-  {
-    id: 'TASK-5562',
-    label: 'Feature',
-    title:
-      'The SAS interface is down, bypass the open-source pixel so we can back up the PNG bandwidth!',
-    status: 'Backlog',
-    priority: 'Medium',
-  },
-  {
-    id: 'TASK-8686',
-    label: 'Feature',
-    title:
-      "I'll parse the wireless SSL protocol, that should driver the API panel!",
-    status: 'Canceled',
-    priority: 'Medium',
-  },
-  {
-    id: 'TASK-1280',
-    label: 'Bug',
-    title:
-      'Use the digital TLS panel, then you can transmit the haptic system!',
-    status: 'Done',
-    priority: 'High',
-  },
-  {
-    id: 'TASK-7262',
-    label: 'Feature',
-    title:
-      'The UTF8 application is down, parse the neural bandwidth so we can back up the PNG firewall!',
-    status: 'Done',
-    priority: 'High',
-  },
-  {
-    id: 'TASK-1138',
-    label: 'Feature',
-    title:
-      "Generating the driver won't do anything, we need to quantify the 1080p SMTP bandwidth!",
-    status: 'In Progress',
-    priority: 'Medium',
-  },
-  {
-    id: 'TASK-7184',
-    label: 'Feature',
-    title: 'We need to program the back-end THX pixel!',
-    status: 'Todo',
-    priority: 'Low',
-  },
-  {
-    id: 'TASK-5160',
-    label: 'Documentation',
-    title:
-      "Calculating the bus won't do anything, we need to navigate the back-end JSON protocol!",
-    status: 'In Progress',
-    priority: 'High',
-  },
-]
+const { t } = useI18n()
 
 const filterText = ref('')
 const rowsPerPage = ref('10')
@@ -152,61 +72,54 @@ const visibleColumns = ref<TaskColumnId[]>([
 ])
 
 const columnOptions = [
-  { id: 'task', label: 'Task' },
-  { id: 'title', label: 'Title' },
-  { id: 'status', label: 'Status' },
-  { id: 'priority', label: 'Priority' },
-] as const satisfies readonly { id: TaskColumnId; label: string }[]
+  'task',
+  'title',
+  'status',
+  'priority',
+] as const satisfies readonly TaskColumnId[]
 
-const statusMeta = {
-  Backlog: {
-    icon: CircleHelp,
-    iconClass: 'text-muted-foreground',
-    labelClass: 'text-foreground',
-  },
-  Todo: {
-    icon: Circle,
-    iconClass: 'text-muted-foreground',
-    labelClass: 'text-foreground',
-  },
-  'In Progress': {
-    icon: Clock3,
-    iconClass: 'text-muted-foreground',
-    labelClass: 'text-foreground',
-  },
-  Done: {
-    icon: CheckCircle2,
-    iconClass: 'text-muted-foreground',
-    labelClass: 'text-foreground',
-  },
-  Canceled: {
-    icon: CircleSlash2,
-    iconClass: 'text-muted-foreground',
-    labelClass: 'text-foreground',
-  },
-} as const satisfies Record<
-  TaskStatus,
-  { icon: object; iconClass: string; labelClass: string }
->
+// Icons only; the visible text comes from i18n so the meta tables stay language-neutral.
+const statusIcons = {
+  backlog: CircleHelp,
+  todo: Circle,
+  inProgress: Clock3,
+  done: CheckCircle2,
+  canceled: CircleSlash2,
+} as const satisfies Record<TaskStatus, object>
 
-const priorityMeta = {
-  Low: { icon: ArrowDown, class: 'text-muted-foreground' },
-  Medium: { icon: ArrowRight, class: 'text-muted-foreground' },
-  High: { icon: ArrowUp, class: 'text-muted-foreground' },
-} as const satisfies Record<TaskPriority, { icon: object; class: string }>
+const priorityIcons = {
+  low: ArrowDown,
+  medium: ArrowRight,
+  high: ArrowUp,
+} as const satisfies Record<TaskPriority, object>
+
+// Search matches what the user actually sees, so the translated label/status/priority
+// are folded into the haystack alongside the raw id and title.
+const searchableTasks = computed(() =>
+  demoTasks.map((task) => ({
+    task,
+    haystack: [
+      task.id,
+      task.title,
+      t(`tasks.label.${task.label}`),
+      t(`tasks.status.${task.status}`),
+      t(`tasks.priority.${task.priority}`),
+    ]
+      .join(' ')
+      .toLowerCase(),
+  })),
+)
 
 const filteredTasks = computed(() => {
   const query = filterText.value.trim().toLowerCase()
 
-  if (!query) {
-    return tasks
+  if (query === '') {
+    return demoTasks
   }
 
-  return tasks.filter((task) =>
-    [task.id, task.label, task.title, task.status, task.priority].some(
-      (value) => value.toLowerCase().includes(query),
-    ),
-  )
+  return searchableTasks.value
+    .filter((entry) => entry.haystack.includes(query))
+    .map((entry) => entry.task)
 })
 
 const pageSize = computed(() => Number(rowsPerPage.value))
@@ -276,12 +189,11 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
 
 function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
   if (nextValue) {
-    visibleColumns.value = columnOptions
-      .filter(
-        (column) =>
-          column.id === columnId || visibleColumns.value.includes(column.id),
-      )
-      .map((column) => column.id)
+    // Rebuild from `columnOptions` rather than appending, so columns keep their declared
+    // display order regardless of the order the user toggled them back on.
+    visibleColumns.value = columnOptions.filter(
+      (column) => column === columnId || visibleColumns.value.includes(column),
+    )
     return
   }
 
@@ -297,9 +209,9 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
   <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
     <div class="flex items-start justify-between gap-4">
       <div class="space-y-1">
-        <h2 class="text-2xl font-semibold">Welcome back!</h2>
+        <h2 class="text-2xl font-semibold">{{ t('tasks.title') }}</h2>
         <p class="text-sm text-muted-foreground">
-          Here's a list of your tasks for this month.
+          {{ t('tasks.description') }}
         </p>
       </div>
     </div>
@@ -310,25 +222,28 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
       <div class="flex flex-col gap-3 sm:flex-row">
         <Input
           v-model="filterText"
-          placeholder="Filter tasks..."
+          :placeholder="t('tasks.filterPlaceholder')"
           class="block-9 inline-full sm:inline-80 lg:inline-94"
         />
         <div class="flex flex-wrap gap-3">
+          <!-- Facet filters are layout placeholders; wire them up alongside a real API. -->
           <Button
             variant="outline"
             size="sm"
+            disabled
             class="justify-start gap-2.5 block-9"
           >
             <CirclePlus class="block-4 inline-4" />
-            Status
+            {{ t('tasks.filter.status') }}
           </Button>
           <Button
             variant="outline"
             size="sm"
+            disabled
             class="justify-start gap-2.5 block-9"
           >
             <CirclePlus class="block-4 inline-4" />
-            Priority
+            {{ t('tasks.filter.priority') }}
           </Button>
         </div>
       </div>
@@ -341,7 +256,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             class="gap-2.5 block-9 inline-full sm:inline-auto"
           >
             <SlidersHorizontal class="block-4 inline-4" />
-            View
+            {{ t('table.action.view') }}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -350,14 +265,14 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
         >
           <DropdownMenuCheckboxItem
             v-for="column in columnOptions"
-            :key="column.id"
-            :model-value="isColumnVisible(column.id)"
-            :disabled="
-              visibleColumns.length === 1 && isColumnVisible(column.id)
+            :key="column"
+            :model-value="isColumnVisible(column)"
+            :disabled="visibleColumns.length === 1 && isColumnVisible(column)"
+            @update:model-value="
+              toggleColumnVisibility(column, $event === true)
             "
-            @update:model-value="toggleColumnVisibility(column.id, !!$event)"
           >
-            {{ column.label }}
+            {{ t(`tasks.column.${column}`) }}
           </DropdownMenuCheckboxItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -369,54 +284,46 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
           <TableRow class="hover:bg-transparent">
             <TableHead class="inline-12">
               <Checkbox
-                aria-label="Select all tasks on the current page"
+                :aria-label="t('tasks.selectAllAriaLabel')"
                 :model-value="
                   allPageSelected || (somePageSelected && 'indeterminate')
                 "
-                @update:model-value="toggleAllOnPage(!!$event)"
+                @update:model-value="toggleAllOnPage($event === true)"
               />
             </TableHead>
             <TableHead
               v-if="isColumnVisible('task')"
               class="text-sm font-semibold inline-17.5 min-inline-17.5"
             >
-              Task
+              {{ t('tasks.column.task') }}
             </TableHead>
             <TableHead
               v-if="isColumnVisible('title')"
               class="text-sm font-semibold min-inline-105"
             >
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 font-semibold"
-              >
-                Title
+              <!-- Sorting is not implemented for the demo fixtures. -->
+              <span class="inline-flex items-center gap-2 font-semibold">
+                {{ t('tasks.column.title') }}
                 <ArrowUpDown class="text-muted-foreground block-4 inline-4" />
-              </button>
+              </span>
             </TableHead>
             <TableHead
               v-if="isColumnVisible('status')"
               class="text-sm font-semibold inline-22 min-inline-22"
             >
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 font-semibold"
-              >
-                Status
+              <span class="inline-flex items-center gap-2 font-semibold">
+                {{ t('tasks.column.status') }}
                 <ArrowUpDown class="text-muted-foreground block-4 inline-4" />
-              </button>
+              </span>
             </TableHead>
             <TableHead
               v-if="isColumnVisible('priority')"
               class="text-sm font-semibold inline-20 min-inline-20"
             >
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 font-semibold"
-              >
-                Priority
+              <span class="inline-flex items-center gap-2 font-semibold">
+                {{ t('tasks.column.priority') }}
                 <ArrowUpDown class="text-muted-foreground block-4 inline-4" />
-              </button>
+              </span>
             </TableHead>
             <TableHead class="inline-14" />
           </TableRow>
@@ -428,9 +335,11 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
           >
             <TableCell class="align-middle">
               <Checkbox
-                aria-label="Select task"
+                :aria-label="t('tasks.selectRowAriaLabel')"
                 :model-value="selectedTaskIds.includes(task.id)"
-                @update:model-value="toggleTaskSelection(task.id, !!$event)"
+                @update:model-value="
+                  toggleTaskSelection(task.id, $event === true)
+                "
               />
             </TableCell>
             <TableCell
@@ -445,7 +354,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
                   variant="outline"
                   class="rounded-full px-3 py-1 text-xs font-medium"
                 >
-                  {{ task.label }}
+                  {{ t(`tasks.label.${task.label}`) }}
                 </Badge>
                 <span class="block truncate text-sm font-medium min-inline-0">
                   {{ task.title }}
@@ -455,27 +364,19 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             <TableCell v-if="isColumnVisible('status')">
               <div class="flex items-center gap-2 text-sm">
                 <component
-                  :is="statusMeta[task.status].icon"
-                  :class="[
-                    'shrink-0 block-4 inline-4',
-                    statusMeta[task.status].iconClass,
-                  ]"
+                  :is="statusIcons[task.status]"
+                  class="shrink-0 text-muted-foreground block-4 inline-4"
                 />
-                <span :class="statusMeta[task.status].labelClass">{{
-                  task.status
-                }}</span>
+                <span>{{ t(`tasks.status.${task.status}`) }}</span>
               </div>
             </TableCell>
             <TableCell v-if="isColumnVisible('priority')">
               <div class="flex items-center gap-2 text-sm">
                 <component
-                  :is="priorityMeta[task.priority].icon"
-                  :class="[
-                    'shrink-0 block-4 inline-4',
-                    priorityMeta[task.priority].class,
-                  ]"
+                  :is="priorityIcons[task.priority]"
+                  class="shrink-0 text-muted-foreground block-4 inline-4"
                 />
-                <span>{{ task.priority }}</span>
+                <span>{{ t(`tasks.priority.${task.priority}`) }}</span>
               </div>
             </TableCell>
             <TableCell>
@@ -486,15 +387,23 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
                     size="icon-sm"
                     class="rounded-full"
                   >
-                    <span class="sr-only">Open menu</span>
+                    <span class="sr-only">{{
+                      t('tasks.openMenuAriaLabel')
+                    }}</span>
                     <MoreHorizontal class="block-4 inline-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem>View task</DropdownMenuItem>
-                  <DropdownMenuItem>Copy id</DropdownMenuItem>
+                  <DropdownMenuItem>{{
+                    t('tasks.action.viewTask')
+                  }}</DropdownMenuItem>
+                  <DropdownMenuItem>{{
+                    t('tasks.action.copyId')
+                  }}</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Archive</DropdownMenuItem>
+                  <DropdownMenuItem>{{
+                    t('tasks.action.archive')
+                  }}</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>
@@ -507,14 +416,21 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
       class="flex flex-col gap-4 px-1 lg:flex-row lg:items-center lg:justify-between"
     >
       <div class="text-sm text-muted-foreground">
-        {{ selectedCount }} of {{ filteredTasks.length }} row(s) selected.
+        {{
+          t('table.pagination.rowSelected', {
+            selected: selectedCount,
+            total: filteredTasks.length,
+          })
+        }}
       </div>
 
       <div
         class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end sm:gap-6"
       >
         <div class="flex items-center gap-3">
-          <span class="text-sm font-medium">Rows per page</span>
+          <span class="text-sm font-medium">{{
+            t('table.pagination.rowsPerPage')
+          }}</span>
           <Select v-model="rowsPerPage">
             <SelectTrigger class="inline-20">
               <SelectValue placeholder="10" />
@@ -530,7 +446,12 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
         </div>
 
         <div class="text-sm font-medium">
-          Page {{ currentPage }} of {{ pageCount }}
+          {{
+            t('table.pagination.pageOf', {
+              page: currentPage,
+              total: pageCount,
+            })
+          }}
         </div>
 
         <div class="flex items-center gap-2">
@@ -540,7 +461,9 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             :disabled="currentPage === 1"
             @click="currentPage = 1"
           >
-            <span class="sr-only">Go to first page</span>
+            <span class="sr-only">{{
+              t('table.pagination.goToFirstPage')
+            }}</span>
             <ChevronsLeft class="block-4 inline-4" />
           </Button>
           <Button
@@ -549,7 +472,9 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             :disabled="currentPage === 1"
             @click="currentPage = Math.max(1, currentPage - 1)"
           >
-            <span class="sr-only">Go to previous page</span>
+            <span class="sr-only">{{
+              t('table.pagination.goToPreviousPage')
+            }}</span>
             <ChevronLeft class="block-4 inline-4" />
           </Button>
           <Button
@@ -558,7 +483,9 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             :disabled="currentPage === pageCount"
             @click="currentPage = Math.min(pageCount, currentPage + 1)"
           >
-            <span class="sr-only">Go to next page</span>
+            <span class="sr-only">{{
+              t('table.pagination.goToNextPage')
+            }}</span>
             <ChevronRight class="block-4 inline-4" />
           </Button>
           <Button
@@ -567,7 +494,9 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             :disabled="currentPage === pageCount"
             @click="currentPage = pageCount"
           >
-            <span class="sr-only">Go to last page</span>
+            <span class="sr-only">{{
+              t('table.pagination.goToLastPage')
+            }}</span>
             <ChevronsRight class="block-4 inline-4" />
           </Button>
         </div>

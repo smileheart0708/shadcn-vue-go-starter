@@ -29,6 +29,18 @@ import {
 
 defineOptions({ name: 'DashboardLineChart' })
 
+/**
+ * Demo chart with static data — the only consumer of `@unovis` in the app.
+ *
+ * COST: unovis pulls in maplibre-gl transitively (hence the maplibre-gl / stylus /
+ * vue-metamorph pins in pnpm-workspace.yaml) and makes DashboardView the largest chunk
+ * in the bundle by a wide margin. It is lazily loaded with the route, so it costs
+ * nothing until the dashboard is opened.
+ *
+ * If you are not shipping charts, deleting this component plus `components/ui/chart/`
+ * lets you drop both `@unovis/*` dependencies and all three pnpm overrides. If you are,
+ * replace `chartData` with a real series and keep the rest.
+ */
 const chartData = [
   { date: new Date('2024-04-01'), desktop: 222, mobile: 150 },
   { date: new Date('2024-04-02'), desktop: 97, mobile: 180 },

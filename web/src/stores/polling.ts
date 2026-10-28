@@ -9,8 +9,16 @@ const CURRENT_USER_INTERVAL_STORAGE_KEY =
 export const POLLING_INTERVAL_MIN_SECONDS = 5
 export const POLLING_INTERVAL_MAX_SECONDS = 60
 export const POLLING_INTERVAL_DEFAULT_SECONDS = 10
-const storedPollingIntervalSecondsSchema = z.coerce
-  .number()
+// Deliberately NOT `z.coerce.number()`: coercion maps both `null` and `''` to 0, which
+// then survives the `Number.isFinite` guard below and gets clamped to the *minimum*
+// (5s) instead of falling back to the default (10s) — silently doubling the poll rate
+// whenever localStorage is cleared or corrupted.
+const storedPollingIntervalSecondsSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .transform((value) => Number(value))
+  .refine(Number.isFinite)
   .transform(normalizePollingIntervalSeconds)
 
 export function normalizePollingIntervalSeconds(value: number) {

@@ -1,10 +1,15 @@
 import type { Capability, RoleKey } from '@/lib/api/auth'
 
-export const ROLE_KEY = {
+const ROLE_KEY = {
   owner: 'owner',
   user: 'user',
 } as const satisfies Record<string, RoleKey>
 
+/**
+ * Named handles for the capability strings the backend grants in `viewer.authorization`.
+ * Always reference capabilities through this object — a bare string literal type-checks
+ * (the type is a string-literal union) but silently drifts if the backend renames one.
+ */
 export const CAPABILITY = {
   systemSettingsRead: 'system.settings.read',
   systemSettingsUpdate: 'system.settings.update',
@@ -16,15 +21,6 @@ export const CAPABILITY = {
   managementSystemLogsRead: 'management.system_logs.read',
   accountDeleteSelf: 'account.delete_self',
 } as const satisfies Record<string, Capability>
-
-export function roleLabel(roleKey: RoleKey | null | undefined) {
-  switch (roleKey) {
-    case ROLE_KEY.owner:
-      return 'owner'
-    default:
-      return 'user'
-  }
-}
 
 export function getUserRoleLabelKey(role: RoleKey | null | undefined) {
   switch (role) {
@@ -44,11 +40,4 @@ export function getUserRoleBadgeVariant(
     default:
       return 'outline'
   }
-}
-
-export function hasCapability(
-  capabilities: readonly string[] | null | undefined,
-  capability: Capability,
-) {
-  return Array.isArray(capabilities) && capabilities.includes(capability)
 }

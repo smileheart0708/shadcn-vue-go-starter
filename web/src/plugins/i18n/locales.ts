@@ -6,17 +6,10 @@ const appLocaleSchema = z.enum(supportedLocales)
 
 export type AppLocale = z.infer<typeof appLocaleSchema>
 
-export const localeDefinitions: Record<
-  AppLocale,
-  { label: string; htmlLang: string }
-> = {
-  'zh-CN': { label: '简体中文', htmlLang: 'zh-CN' },
-  'en-US': { label: 'English', htmlLang: 'en-US' },
-}
-
+/** Endonyms for the language switcher — always shown in their own language. */
 export const localeNames: Record<AppLocale, string> = {
-  'zh-CN': localeDefinitions['zh-CN'].label,
-  'en-US': localeDefinitions['en-US'].label,
+  'zh-CN': '简体中文',
+  'en-US': 'English',
 }
 
 export const fallbackLocale: AppLocale = 'en-US'
@@ -30,11 +23,14 @@ const localeAliases: Readonly<Partial<Record<string, AppLocale>>> = {
   'zh-cn': 'zh-CN',
 }
 
-export function isSupportedLocale(locale: string): locale is AppLocale {
+// Accepts `unknown` so callers can narrow untrusted values (storage, UI event payloads)
+// without a type assertion.
+export function isSupportedLocale(locale: unknown): locale is AppLocale {
   return parseExternalValue(appLocaleSchema, locale) !== null
 }
 
-export function normalizeLocale(locale: string): AppLocale | null {
+/** Maps a browser language tag (`en`, `zh-Hans-CN`, …) onto a supported locale. */
+function normalizeLocale(locale: string): AppLocale | null {
   const normalizedLocale = locale.toLowerCase()
   const exactMatch = supportedLocales.find(
     (candidate) => candidate.toLowerCase() === normalizedLocale,
@@ -82,7 +78,8 @@ export function applyDocumentLanguage(locale: AppLocale) {
     return
   }
 
-  document.documentElement.lang = localeDefinitions[locale].htmlLang
+  // The locale keys are already valid BCP 47 tags, so they double as `<html lang>`.
+  document.documentElement.lang = locale
 }
 
 export function persistLocale(locale: AppLocale) {

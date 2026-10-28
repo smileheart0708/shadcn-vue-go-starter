@@ -1,6 +1,15 @@
 import { readonly, ref } from 'vue'
 import type { Router } from 'vue-router'
 
+/**
+ * Marks a request as background work so it does not drive the top loading bar.
+ *
+ * Purely a client-side signal — the backend neither reads nor requires it. It lives here
+ * rather than in the API client because suppressing the loading bar is its only purpose,
+ * and keeping it here makes the dependency one-way (api/client -> route-loading).
+ */
+export const BACKGROUND_REQUEST_HEADER = 'X-App-Background-Request'
+
 const SHOW_DELAY_MS = 120
 const MIN_VISIBLE_MS = 80
 
@@ -11,7 +20,6 @@ const routeLoadingErrorRevision = ref(0)
 const navigationIds = new WeakMap<object, number>()
 
 let installed = false
-let requestTrackingInstalled = false
 let activeNavigationId = 0
 let visibleSince = 0
 let showTimer: ReturnType<typeof setTimeout> | null = null
@@ -119,26 +127,19 @@ function signalRouteLoadingError() {
   routeLoadingErrorRevision.value += 1
 }
 
-function shouldTrackRequest(input: RequestInfo | URL) {
+function shouldTrackRequest(request: Request) {
+  // Background work (polling, prefetch) must not flash the top loading bar.
+  if (request.headers.has(BACKGROUND_REQUEST_HEADER)) {
+    return false
+  }
+
   try {
     const locationOrigin =
       typeof globalThis.location === 'undefined'
         ? 'http://localhost'
         : globalThis.location.origin
-    const locationHref =
-      typeof globalThis.location === 'undefined'
-        ? `${locationOrigin}/`
-        : globalThis.location.href
-    const requestInput =
-      typeof input === 'string'
-        ? input
-        : input instanceof URL
-          ? input.href
-          : input.url
-    const requestUrl =
-      typeof Request !== 'undefined' && input instanceof Request
-        ? new URL(input.url)
-        : new URL(requestInput, locationHref)
+
+    const requestUrl = new URL(request.url)
     return (
       requestUrl.origin === locationOrigin &&
       requestUrl.pathname.startsWith('/api/')
@@ -186,30 +187,28 @@ export function installRouteLoading(router: Router) {
   })
 }
 
-export function installRequestLoadingTracking() {
-  if (requestTrackingInstalled || typeof globalThis.fetch !== 'function') {
-    return
+/**
+ * `fetch` implementation for the shared ky instances that keeps the top loading bar in
+ * sync with in-flight API calls.
+ *
+ * Scoped to ky on purpose: patching `globalThis.fetch` would also intercept the MSW
+ * service worker and any third-party script, and leaves a process-wide side effect that
+ * is easy to double-install and impossible to reason about from a call site.
+ */
+export const trackedFetch: typeof globalThis.fetch = async (input, init) => {
+  const request = input instanceof Request ? input : new Request(input, init)
+
+  if (!shouldTrackRequest(request)) {
+    return globalThis.fetch(input, init)
   }
 
-  requestTrackingInstalled = true
+  incrementRequestLoading()
 
-  const originalFetch = globalThis.fetch.bind(globalThis)
-
-  const wrappedFetch: typeof globalThis.fetch = async (...args) => {
-    if (!shouldTrackRequest(args[0])) {
-      return originalFetch(...args)
-    }
-
-    incrementRequestLoading()
-
-    try {
-      return await originalFetch(...args)
-    } finally {
-      decrementRequestLoading()
-    }
+  try {
+    return await globalThis.fetch(input, init)
+  } finally {
+    decrementRequestLoading()
   }
-
-  globalThis.fetch = wrappedFetch
 }
 
 export function useRouteLoadingState() {

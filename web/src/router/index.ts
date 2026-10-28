@@ -2,10 +2,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 import { CAPABILITY } from '@/lib/auth/roles'
 import { installAuthGuard } from '@/middleware/auth'
-import {
-  installRequestLoadingTracking,
-  installRouteLoading,
-} from '@/router/route-loading'
+import { installRouteLoading } from '@/router/route-loading'
 import type { RouteTitleKey } from '@/router/route-title'
 
 const AppShellLayout = async () => import('@/layouts/AppShellLayout.vue')
@@ -130,6 +127,5 @@ const router = createRouter({
 
 installAuthGuard(router)
 installRouteLoading(router)
-installRequestLoadingTracking()
 
 export default router

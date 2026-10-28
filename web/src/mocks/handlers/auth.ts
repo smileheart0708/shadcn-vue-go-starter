@@ -1,18 +1,15 @@
-/* eslint-disable @typescript-eslint/array-type, @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/prefer-optional-chain, @typescript-eslint/restrict-template-expressions, @typescript-eslint/strict-boolean-expressions */
 import { http, HttpResponse } from 'msw'
+import type { Capability, RoleKey, ViewerIdentity } from '@/lib/api/auth'
 
-type RoleKey = 'owner' | 'user'
-type UserStatus = 'active' | 'disabled'
-type Capability =
-  | 'system.settings.read'
-  | 'system.settings.update'
-  | 'management.users.read'
-  | 'management.users.create'
-  | 'management.users.update'
-  | 'management.users.disable'
-  | 'management.users.enable'
-  | 'management.system_logs.read'
-  | 'account.delete_self'
+/**
+ * In-memory backend stand-in for `pnpm dev` with `VITE_API_MOCKING=true`.
+ *
+ * Domain types are imported from `lib/api/auth` rather than redeclared so that a schema
+ * change breaks this file at compile time instead of silently drifting from the client
+ * contract it is supposed to emulate.
+ */
+
+type UserStatus = ViewerIdentity['status']
 
 interface MockUser {
   id: number
@@ -181,7 +178,7 @@ function getCurrentUserFromRequest(request: Request) {
 
   const user =
     state.users.find((entry) => entry.id === state.session?.userId) ?? null
-  if (user === null || user.status !== 'active') {
+  if (user?.status !== 'active') {
     return null
   }
 
@@ -195,7 +192,7 @@ function getCurrentUserFromSession() {
 
   const user =
     state.users.find((entry) => entry.id === state.session?.userId) ?? null
-  if (user === null || user.status !== 'active') {
+  if (user?.status !== 'active') {
     return null
   }
 
@@ -244,7 +241,7 @@ function toViewer(user: MockUser) {
 
 function issueSession(
   user: MockUser,
-  accessToken = `mock-access-${user.id}-${Date.now()}`,
+  accessToken = `mock-access-${String(user.id)}-${String(Date.now())}`,
 ) {
   user.lastActiveAt = nowISO()
   state.session = createMockSession(user.id, accessToken)
@@ -295,7 +292,7 @@ function usernameTaken(username: string, excludeUserID?: number) {
 }
 
 function emailTaken(email: string | null, excludeUserID?: number) {
-  if (!email) {
+  if (email === null || email === '') {
     return false
   }
 
@@ -314,17 +311,23 @@ function requireSetupCompleted() {
   return null
 }
 
-function requireAuthenticated(request: Request) {
+// Discriminated union, not `{ error: X | null; user: Y | null }`: callers guard with
+// `if (error) return error` and then use `user`, which only narrows to a non-null user
+// when the two fields are correlated in the type.
+type AuthenticatedResult =
+  { error: Response; user: null } | { error: null; user: MockUser }
+
+function requireAuthenticated(request: Request): AuthenticatedResult {
   const setupResponse = requireSetupCompleted()
   if (setupResponse) {
-    return { error: setupResponse, user: null as MockUser | null }
+    return { error: setupResponse, user: null }
   }
 
   const user = getCurrentUserFromRequest(request)
   if (user === null) {
     return {
       error: jsonError(401, 'unauthorized', 'Authentication required.'),
-      user: null as MockUser | null,
+      user: null,
     }
   }
 
@@ -352,7 +355,7 @@ function canManageUser(
 }
 
 function managedUserActions(actor: MockUser, target: MockUser) {
-  const actions: Array<'update' | 'disable' | 'enable'> = []
+  const actions: ('update' | 'disable' | 'enable')[] = []
 
   if (canManageUser(actor, target, 'update')) {
     actions.push('update')
@@ -386,7 +389,7 @@ function toManagedUser(user: MockUser, actor: MockUser) {
 
 function readPositiveInt(url: URL, key: string, fallback: number) {
   const raw = url.searchParams.get(key)
-  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN
+  const parsed = raw === null ? Number.NaN : Number.parseInt(raw, 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
@@ -449,7 +452,11 @@ function selectSystemLogReplayEntries(rawTail: string | null) {
   return baseSystemLogs
 }
 
-async function readJSON(request: Request) {
+/**
+ * Returns `unknown` (not the `any` that `Request#json()` produces) so every handler is
+ * forced to narrow the payload before reading fields off it.
+ */
+async function readJSON(request: Request): Promise<unknown> {
   return request.json().catch(() => null)
 }
 
@@ -542,7 +549,7 @@ export const authHandlers = [
           entry.username === payload.identifier ||
           entry.email === payload.identifier,
       ) ?? null
-    if (user === null || user.password !== payload.password) {
+    if (user?.password !== payload.password) {
       return jsonError(401, 'invalid_credentials', 'Invalid credentials.')
     }
     if (user.status !== 'active') {
@@ -682,7 +689,7 @@ export const authHandlers = [
       return error
     }
 
-    user.avatarUrl = `/mock/avatar-${user.id}.png?v=${Date.now()}`
+    user.avatarUrl = `/mock/avatar-${String(user.id)}.png?v=${String(Date.now())}`
     user.updatedAt = nowISO()
     return jsonSuccess(toViewer(user))
   }),
@@ -802,7 +809,7 @@ export const authHandlers = [
       ) {
         return false
       }
-      if (status && status !== entry.status) {
+      if (status !== null && status !== '' && status !== entry.status) {
         return false
       }
       return true

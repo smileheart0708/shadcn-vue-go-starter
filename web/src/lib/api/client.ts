@@ -6,12 +6,11 @@ import type {
   RetryOptions,
 } from 'ky'
 import { readAuthToken } from '@/lib/auth/token'
+import { BACKGROUND_REQUEST_HEADER, trackedFetch } from '@/router/route-loading'
 
 interface APIErrorPayload {
   error?: { code?: string; message?: string }
 }
-
-export const BACKGROUND_REQUEST_HEADER = 'X-App-Background-Request'
 
 interface APIClientContext {
   skipAuthRefresh?: boolean
@@ -130,6 +129,8 @@ const authRefreshRetry: RetryOptions = {
 export const baseApi = ky.create({
   retry: 0,
   credentials: 'same-origin',
+  // Routes every API call through the loading-bar counter without patching global fetch.
+  fetch: trackedFetch,
   hooks: sharedHooks,
 })
 
@@ -141,7 +142,7 @@ export const authApi = baseApi.extend({
   },
 })
 
-export async function toAPIError(error: HTTPError): Promise<APIError> {
+async function toAPIError(error: HTTPError): Promise<APIError> {
   const payload = await readResponsePayload(error.response.clone())
   const errorPayload = isAPIErrorPayload(payload) ? payload : undefined
 

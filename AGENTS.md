@@ -15,6 +15,24 @@ This is a starter, not a compatibility layer. Optimize for a clean, current foun
 - Prefer clear boundaries, explicit data flow, and production-safe defaults over speculative flexibility.
 - When contracts change, update callers, tests, mocks, and docs together; add no branches for old callers.
 
+### Intentionally unreferenced code
+
+Two categories look like dead code but are deliberate. Do not delete them as part of an
+unrelated cleanup:
+
+- **`web/src/components/ui/**`** — the shadcn-vue primitive pool. Components here are
+  expected to sit unused until an app feature needs one; that availability is the point of
+  the starter. They are tree-shaken out of the bundle, so an unused primitive costs nothing
+  at runtime. Remove one only when deliberately trimming the kit.
+- **Demo pages and fixtures** — `views/TasksView.vue`, `views/HomeView.vue`,
+  `components/dashboard/`, and `fixtures/`. These demonstrate the intended UI patterns
+  against static data. Each is commented with what to replace when wiring real data.
+
+Everything else — unreferenced exports, helpers, i18n keys, dependencies — is fair game and
+should be deleted rather than left behind. i18n keys live in three files
+(`locales/schema.ts`, `en-US.ts`, `zh-CN.ts`); the schema is what keeps the two locales in
+lockstep, so add and remove keys in all three together.
+
 ## Build, Test, and Development Commands
 
 Run frontend commands in `web/` with pinned `pnpm`:

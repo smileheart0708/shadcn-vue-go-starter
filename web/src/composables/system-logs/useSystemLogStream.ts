@@ -5,15 +5,13 @@ import { toast } from 'vue-sonner'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import {
   openSystemLogsStream,
-  type SystemLogEntry,
   type SystemLogHistoryLimit,
 } from '@/lib/api/system-logs'
 import {
-  appendSystemLogEntry,
-  clearSystemLogEntries,
   getReconnectDelayMs,
   historyLimitRank,
   shouldRetryStreamError,
+  SystemLogBuffer,
 } from '@/utils/system-logs/console'
 
 interface UseSystemLogStreamOptions {
@@ -24,7 +22,9 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
   const { t } = useI18n()
   const documentVisibility = useDocumentVisibility()
 
-  const entries = ref<SystemLogEntry[]>([])
+  // `ref` (not `shallowRef`) so that the buffer's in-place mutations stay reactive.
+  const buffer = ref(new SystemLogBuffer())
+  const entries = computed(() => buffer.value.items)
   const loading = ref(true)
   const connecting = ref(false)
   const connected = ref(false)
@@ -68,7 +68,7 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
   }
 
   function clearEntries() {
-    entries.value = clearSystemLogEntries()
+    buffer.value.clear()
   }
 
   function reconnect() {
@@ -106,7 +106,7 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
               return
             }
 
-            entries.value = appendSystemLogEntry(entries.value, entry)
+            buffer.value.append(entry)
           },
         })
       } catch (error) {

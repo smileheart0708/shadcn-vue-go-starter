@@ -103,6 +103,10 @@ export function useAdminUserMutations(options: UseAdminUserMutationsOptions) {
       await requestPromise
       dialogOpen.value = false
       await options.refreshUsers()
+    } catch {
+      // The rejection is already surfaced by toast.promise above; swallow it here so the
+      // shared promise is not left unhandled. Keep the dialog open so the user can retry
+      // with corrected input.
     } finally {
       dialogPending.value = false
     }
@@ -148,6 +152,9 @@ export function useAdminUserMutations(options: UseAdminUserMutationsOptions) {
       confirmOpen.value = false
       confirmTarget.value = null
       await options.refreshUsers()
+    } catch {
+      // Already reported by toast.promise; swallow to avoid an unhandled rejection and
+      // leave the confirmation dialog open for a retry.
     } finally {
       confirmPending.value = false
     }

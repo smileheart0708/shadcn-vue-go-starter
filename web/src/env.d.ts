@@ -12,7 +12,10 @@ declare module '*.vue' {
 }
 
 interface ImportMetaEnv {
-  readonly VITE_API_MOCKING?: boolean
+  // Vite exposes every `VITE_*` variable as a string, never a boolean. The parsed
+  // boolean is injected separately as the `__VITE_API_MOCKING__` define below, which is
+  // what application code should read.
+  readonly VITE_API_MOCKING?: string
 }
 
 interface ImportMeta {

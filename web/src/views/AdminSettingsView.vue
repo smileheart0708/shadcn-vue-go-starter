@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -20,97 +18,19 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
-import { getAPIErrorMessage } from '@/lib/api/error-messages'
-import {
-  getAdminSystemSettings,
-  updateSystemSettings,
-  type SystemSettings,
-} from '@/lib/api/system-settings'
-import { useAuthStore } from '@/stores/auth'
+import { useSystemSettings } from '@/composables/system-settings/useSystemSettings'
 
 const { t } = useI18n()
-const authStore = useAuthStore()
 
-const loading = ref(true)
-const saving = ref(false)
-const loadFailed = ref(false)
-const settings = ref<SystemSettings | null>(null)
-const form = ref<SystemSettings>({
-  publicRegistrationEnabled: false,
-  selfServiceAccountDeletionEnabled: false,
-})
-
-const isDirty = computed(() => {
-  const currentSettings = settings.value
-  if (!currentSettings) {
-    return false
-  }
-
-  return (
-    form.value.publicRegistrationEnabled !==
-      currentSettings.publicRegistrationEnabled ||
-    form.value.selfServiceAccountDeletionEnabled !==
-      currentSettings.selfServiceAccountDeletionEnabled
-  )
-})
-
-onMounted(() => {
-  void loadSettings()
-})
-
-async function loadSettings() {
-  loading.value = true
-
-  try {
-    const nextSettings = await getAdminSystemSettings()
-    settings.value = nextSettings
-    form.value = { ...nextSettings }
-    loadFailed.value = false
-  } catch (error) {
-    loadFailed.value = true
-    toast.error(
-      getAPIErrorMessage(t, error, 'systemConfig.feedback.loadFailed'),
-    )
-  } finally {
-    loading.value = false
-  }
-}
-
-async function saveSettings() {
-  if (!isDirty.value || saving.value) {
-    return
-  }
-
-  saving.value = true
-  const savePromise = updateSystemSettings({
-    publicRegistrationEnabled: form.value.publicRegistrationEnabled,
-    selfServiceAccountDeletionEnabled:
-      form.value.selfServiceAccountDeletionEnabled,
-  })
-
-  toast.promise(savePromise, {
-    loading: t('systemConfig.feedback.saving'),
-    success: () => t('systemConfig.feedback.saved'),
-    error: (error: unknown) =>
-      getAPIErrorMessage(t, error, 'systemConfig.feedback.saveFailed'),
-  })
-
-  try {
-    settings.value = await savePromise
-    form.value = { ...settings.value }
-    await authStore.refreshPublicState()
-    try {
-      await authStore.refreshViewer({ backgroundRequest: true })
-    } catch (error: unknown) {
-      console.warn(
-        'Failed to refresh viewer after saving account policies',
-        error,
-      )
-    }
-  } finally {
-    saving.value = false
-  }
-}
+const {
+  loading,
+  saving,
+  loadFailed,
+  form,
+  isDirty,
+  loadSettings,
+  saveSettings,
+} = useSystemSettings()
 </script>
 
 <template>

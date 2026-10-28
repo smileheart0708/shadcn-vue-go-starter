@@ -5,10 +5,8 @@ import zhCN from '@/locales/zh-CN'
 import {
   applyDocumentLanguage,
   fallbackLocale,
-  localeNames,
   persistLocale,
   resolveInitialLocale,
-  supportedLocales,
   type AppLocale,
 } from '@/plugins/i18n/locales'
 
@@ -17,24 +15,29 @@ const messages: Record<AppLocale, MessageSchema> = {
   'en-US': enUS,
 }
 
-const locale = resolveInitialLocale()
+const initialLocale = resolveInitialLocale()
 
-applyDocumentLanguage(locale)
+applyDocumentLanguage(initialLocale)
 
-export const i18n = createI18n<[MessageSchema], AppLocale>({
+// The third generic (Legacy) must be an explicit `false`, not just the `legacy: false`
+// option: vue-i18n keys `I18n['global']` off that type parameter. Left to inference it
+// widens to `boolean`, `global` degrades to the Legacy `VueI18n` shape, and `global.locale`
+// types as a bare string — which then makes the correct `.value` access below a type error.
+export const i18n = createI18n<[MessageSchema], AppLocale, false>({
   legacy: false,
-  locale,
+  locale: initialLocale,
   fallbackLocale,
   globalInjection: true,
   messages,
 })
 
 export function setLocale(locale: AppLocale) {
-  i18n.global.locale = locale
+  // `global.locale` is a WritableComputedRef under the Composition API. Assigning to the
+  // property itself (`i18n.global.locale = locale`) silently replaces the ref with a plain
+  // string, permanently severing reactivity — every later switch then no-ops.
+  i18n.global.locale.value = locale
   applyDocumentLanguage(locale)
   persistLocale(locale)
 }
 
 export default i18n
-export { fallbackLocale, localeNames, supportedLocales }
-export type { AppLocale }

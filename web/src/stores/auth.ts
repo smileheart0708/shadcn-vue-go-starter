@@ -14,7 +14,6 @@ import type {
   LoginCredentials,
   PublicAuthConfig,
   RegisterInput,
-  RoleKey,
   SessionResponse,
   SetupInput,
   Viewer,
@@ -275,10 +274,6 @@ export const useAuthStore = defineStore('auth', () => {
     return capabilities.value.includes(capability)
   }
 
-  function hasRole(roleKey: RoleKey) {
-    return currentRole.value === roleKey
-  }
-
   return {
     initialized,
     initializing,
@@ -293,9 +288,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     bindRouter,
     fetchViewer,
-    fetchCurrentUser: fetchViewer,
     applyViewer,
-    applyCurrentUser: applyViewer,
     refreshPublicState,
     refreshViewer,
     initialize,
@@ -309,7 +302,6 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     resetSession,
     can,
-    hasRole,
   }
 })
 

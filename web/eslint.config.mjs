@@ -118,6 +118,14 @@ export default defineConfig(
       ],
       'vue/no-use-computed-property-like-method': 'error',
       'vue/no-unused-components': 'error',
+      // Catches components used in a template but never imported. Without this, a
+      // missing import silently degrades to a runtime `resolveComponent` lookup that
+      // fails only when that branch of the template renders — `RouterView`/`RouterLink`
+      // are the legitimate globals registered by vue-router.
+      'vue/no-undef-components': [
+        'error',
+        { ignorePatterns: ['RouterView', 'RouterLink'] },
+      ],
       'vue/no-unused-vars': ['error', { ignorePattern: '^_' }],
       'vue/no-useless-v-bind': 'error',
       'vue/no-useless-mustaches': 'error',

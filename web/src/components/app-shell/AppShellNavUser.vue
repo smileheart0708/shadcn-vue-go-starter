@@ -33,7 +33,11 @@ import {
 import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
 import type { RoleKey } from '@/lib/api/auth'
 import { useI18n } from 'vue-i18n'
-import { supportedLocales, localeNames, type AppLocale } from '@/plugins/i18n'
+import {
+  isSupportedLocale,
+  localeNames,
+  supportedLocales,
+} from '@/plugins/i18n/locales'
 import { useLocaleStore } from '@/stores/locale'
 
 const props = defineProps<{
@@ -55,8 +59,13 @@ const roleBadgeVariant = computed(() =>
   getUserRoleBadgeVariant(props.user.role),
 )
 
-function switchLanguage(newLocale: AppLocale) {
-  localeStore.setLocale(newLocale)
+// reka-ui's radio group emits `AcceptableValue`, so narrow instead of asserting —
+// the repo lints `consistent-type-assertions: never`, and template expressions are
+// outside that rule's reach, making a cast here an easy way to smuggle one in.
+function switchLanguage(newLocale: unknown) {
+  if (isSupportedLocale(newLocale)) {
+    localeStore.setLocale(newLocale)
+  }
 }
 </script>
 
@@ -144,7 +153,7 @@ function switchLanguage(newLocale: AppLocale) {
               <DropdownMenuSubContent>
                 <DropdownMenuRadioGroup
                   :model-value="localeStore.locale"
-                  @update:model-value="switchLanguage($event as AppLocale)"
+                  @update:model-value="switchLanguage($event)"
                 >
                   <DropdownMenuRadioItem
                     v-for="lang in supportedLocales"

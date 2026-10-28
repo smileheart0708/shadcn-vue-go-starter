@@ -1,68 +1,33 @@
+/**
+ * The shape every locale file must satisfy.
+ *
+ * This is the contract that keeps `en-US.ts` and `zh-CN.ts` in lockstep — adding a key
+ * to one locale without the other is a compile error. Keep it limited to keys the app
+ * actually renders: unused entries are dead weight in three files at once.
+ */
 export interface MessageSchema {
   app: { name: string; title: string; titleWithPage: string }
   common: {
     action: {
-      add: string
       back: string
       cancel: string
-      close: string
-      confirm: string
-      copy: string
-      create: string
-      delete: string
-      download: string
       edit: string
-      export: string
-      filter: string
-      import: string
-      menu: string
-      next: string
-      refresh: string
-      reset: string
-      retry: string
       save: string
-      search: string
-      sort: string
-      submit: string
-      update: string
-      upload: string
-      view: string
     }
     field: {
       email: string
       password: string
       username: string
       usernameOrEmail: string
-      name: string
       confirmPassword: string
     }
     feedback: {
-      loadFailed: string
       networkError: string
-      required: string
-      unknownError: string
     }
     state: {
-      completed: string
       disabled: string
-      empty: string
-      enabled: string
-      failed: string
       loading: string
       neverUsed: string
-      noData: string
-      noResult: string
-      pending: string
-      processing: string
-      success: string
-    }
-    text: {
-      yes: string
-      no: string
-      none: string
-      all: string
-      optional: string
-      required: string
     }
     role: { owner: string; user: string }
   }
@@ -123,9 +88,7 @@ export interface MessageSchema {
   settings: {
     title: string
     description: string
-    saved: string
-    save: string
-    tabs: { basic: string; account: string; notifications: string }
+    tabs: { basic: string; account: string }
     account: {
       profile: string
       profileDesc: string
@@ -173,23 +136,10 @@ export interface MessageSchema {
       light: string
       dark: string
       system: string
-      selectTheme: string
       language: string
       selectLanguage: string
       dataRefreshInterval: string
       dataRefreshIntervalDesc: string
-    }
-    notifications: {
-      title: string
-      desc: string
-      email: string
-      emailDesc: string
-      push: string
-      pushDesc: string
-      digest: string
-      digestDesc: string
-      security: string
-      securityDesc: string
     }
   }
   setup: {
@@ -207,13 +157,11 @@ export interface MessageSchema {
     signIn: {
       description: string
       identifierPlaceholder: string
-      forgotPassword: string
       loginFailed: string
       loginSuccess: string
       noAccount: string
       passwordPlaceholder: string
       register: string
-      rememberMe: string
       signingIn: string
       submit: string
       title: string
@@ -304,25 +252,9 @@ export interface MessageSchema {
       enableFailed: string
     }
   }
+  /** Shared data-table chrome (column toggle + pagination). */
   table: {
-    action: {
-      addSection: string
-      customizeColumns: string
-      columns: string
-      delete: string
-      edit: string
-      favorite: string
-      makeCopy: string
-    }
-    column: {
-      header: string
-      limit: string
-      reviewer: string
-      sectionType: string
-      status: string
-      target: string
-    }
-    empty: string
+    action: { view: string }
     pagination: {
       rowsPerPage: string
       pageOf: string
@@ -332,12 +264,59 @@ export interface MessageSchema {
       goToLastPage: string
       rowSelected: string
     }
-    select: { assignReviewer: string; view: string }
-    tab: {
-      outline: string
-      pastPerformance: string
-      keyPersonnel: string
-      focusDocuments: string
+  }
+  /** Demo page shipped with the starter; see TasksView.vue. */
+  tasks: {
+    title: string
+    description: string
+    filterPlaceholder: string
+    selectAllAriaLabel: string
+    selectRowAriaLabel: string
+    openMenuAriaLabel: string
+    column: {
+      task: string
+      title: string
+      status: string
+      priority: string
+    }
+    action: { viewTask: string; copyId: string; archive: string }
+    filter: { status: string; priority: string }
+    label: { documentation: string; bug: string; feature: string }
+    status: {
+      backlog: string
+      todo: string
+      inProgress: string
+      done: string
+      canceled: string
+    }
+    priority: { low: string; medium: string; high: string }
+  }
+  home: {
+    announcement: string
+    title: string
+    description: string
+    getStarted: string
+    viewComponents: string
+  }
+  dashboard: {
+    metric: {
+      totalRevenue: { title: string; summary: string; detail: string }
+      newCustomers: { title: string; summary: string; detail: string }
+      activeAccounts: { title: string; summary: string; detail: string }
+      growthRate: { title: string; summary: string; detail: string }
+    }
+    reservedPanel: {
+      eyebrow: string
+      title: string
+      badge: string
+      emptyTitle: string
+      emptyDescription: string
+      suggestedWidth: string
+      suggestedWidthValue: string
+      suggestedContent: string
+      suggestedContentValue: string
+      viewportRule: string
+      viewportRuleValue: string
     }
   }
   notFound: { description: string }
@@ -389,7 +368,6 @@ export interface MessageSchema {
       lifecycle: string
       analytics: string
       projects: string
-      team: string
     }
     management: {
       systemConfig: string
@@ -403,7 +381,6 @@ export interface MessageSchema {
       billing: string
       notifications: string
       language: string
-      switchLanguage: string
       logout: string
     }
   }

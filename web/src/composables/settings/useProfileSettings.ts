@@ -4,13 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
-import { getAvatarFallbackText } from '@/lib/avatar'
+import { AVATAR_ACCEPTED_FILE_TYPES, getAvatarFallbackText } from '@/lib/avatar'
 import { useAuthStore } from '@/stores/auth'
-import {
-  AVATAR_ACCEPTED_FILE_TYPES,
-  compressAvatarFile,
-  validateAvatarFile,
-} from '@/utils/settings/avatar'
+import { compressAvatarFile, validateAvatarFile } from '@/utils/settings/avatar'
 import { normalizeOptionalEmail } from '@/utils/settings/preferences'
 
 export function useProfileSettings() {
