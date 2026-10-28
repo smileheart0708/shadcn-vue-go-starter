@@ -10,7 +10,7 @@ import tseslint from 'typescript-eslint'
 const tsconfigRootDir = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig(
-  { ignores: ['dist', 'node_modules', 'public/mockServiceWorker.js'] },
+  { ignores: ['dist', 'node_modules'] },
 
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

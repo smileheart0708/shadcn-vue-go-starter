@@ -1,6 +1,5 @@
 allowBuilds:
   maplibre-gl: true
-  msw: true
   vue-demi: true
 
 overrides:

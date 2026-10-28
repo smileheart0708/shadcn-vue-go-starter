@@ -13,11 +13,15 @@ async function enableMocking() {
     return
   }
 
-  const [{ worker }, { initializeMockDevSession }] = await Promise.all([
-    import('@/mocks/browser'),
-    import('@/mocks/dev-session'),
-  ])
-  await worker.start({ onUnhandledRequest: 'bypass' })
+  const [{ network }, { handlers }, { initializeMockDevSession }] =
+    await Promise.all([
+      import('virtual:msw'),
+      import('@/mocks/handlers'),
+      import('@/mocks/dev-session'),
+    ])
+
+  network.configure({ handlers, onUnhandledFrame: 'bypass' })
+  await network.enable()
   initializeMockDevSession()
 }
 

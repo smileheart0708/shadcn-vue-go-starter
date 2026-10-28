@@ -1,4 +1,6 @@
 /// <reference types="vite/client" />
+// Declares the `virtual:msw` module provided by the `msw/vite` plugin.
+/// <reference types="msw/vite/client" />
 
 declare module '*.vue' {
   import type { DefineComponent } from 'vue'
