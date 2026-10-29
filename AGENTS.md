@@ -1,65 +1,72 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Project Structure & Module Organization
+This project is a **starting template for new business systems**: it retains only correct, clearly structured final forms, and does not keep compatibility layers, deprecated aliases, dual code paths, or wrappers that serve an outdated structure. When changing the architecture, change it directly to the target state; do not "add compatibility first and migrate later."
 
-- `main.go` is the Go composition root. `frontend_embed.go` embeds the built `web/dist` assets into the server binary.
-- `internal/` contains Go packages for account policies, authentication, authorization, configuration, database access, HTTP API, identity, logging, and setup. Tests live beside code as `*_test.go`.
-- `web/src/` contains the Vue 3 app: `components/`, `views/`, `layouts/`, `router/`, `stores/`, `composables/`, `lib/`, `locales/`, `mocks/`, and `utils/`. Reusable shadcn-vue primitives live under `web/src/components/ui/`.
-- `web/dist/`, `.data/`, `node_modules/`, and compiled executables are generated or local-only files.
+## Technology Stack and Entry Points
 
-## Project-Level Constraints
+- Go 1.26 + `net/http` + `log/slog` + `modernc.org/sqlite` (pure Go driver). The module path is intentionally `main`, and internal packages uniformly use `main/internal/...`; do not change it to a domain-based path.
+- Vue 3 + TypeScript + Vite 8 + Tailwind 4 + shadcn-vue (reka-ui) + Pinia + vue-router + vue-i18n + zod + ky.
+- Production is a single binary: `frontend_embed.go` embeds the frontend via `//go:embed web/dist`; `main.go` is responsible only for dependency assembly and process lifecycle.
 
-This is a starter, not a compatibility layer. Optimize for a clean, current foundation:
+## Commands
 
-- Do not preserve legacy wrappers, deprecated exports, shims, or historical package structure unless requested.
-- Prefer clear boundaries, explicit data flow, and production-safe defaults over speculative flexibility.
-- When contracts change, update callers, tests, mocks, and docs together; add no branches for old callers.
+```powershell
+# Frontend
+pnpm lint
+pnpm typecheck
+pnpm format
+pnpm build
 
-### Intentionally unreferenced code
-
-Two categories look like dead code but are deliberate. Do not delete them as part of an
-unrelated cleanup:
-
-- **`web/src/components/ui/**`** — the shadcn-vue primitive pool. Components here are
-  expected to sit unused until an app feature needs one; that availability is the point of
-  the starter. They are tree-shaken out of the bundle, so an unused primitive costs nothing
-  at runtime. Remove one only when deliberately trimming the kit.
-- **`web/src/components/dashboard/**`** — the dashboard cards and chart. They run on
-  static data and demonstrate the intended UI patterns; replace the data sources when
-  wiring a real dashboard.
-
-Everything else — unreferenced exports, helpers, i18n keys, dependencies — is fair game and
-should be deleted rather than left behind. i18n keys live in three files
-(`locales/schema.ts`, `en-US.ts`, `zh-CN.ts`); the schema is what keeps the two locales in
-lockstep, so add and remove keys in all three together.
-
-## Build, Test, and Development Commands
-
-Run frontend commands in `web/` with pinned `pnpm`:
-
-```text
-pnpm install --frozen-lockfile  # install the locked dependencies
-pnpm dev           # start Vite development mode
-pnpm lint          # run ESLint
-pnpm typecheck     # run vue-tsc
-pnpm format:check  # verify Prettier formatting
-pnpm build         # create web/dist for embedding
+# Backend
+go test ./...
+golangci-lint run
+go build .
 ```
 
-From the repository root, use `go test ./...` for all Go tests and `go build .` for the backend. On Windows, `.\build.ps1` builds the frontend and then produces `app.exe`.
+- Compiling the root package includes `//go:embed web/dist`, while `web/dist` is gitignored. **A freshly cloned repository must run `cd web && pnpm build` first**; otherwise `go build` / `go test ./...` fails immediately due to the embed directive.
+- `pnpm dev` starts Vite only, with `/api` proxied to `http://localhost:8080`. To exercise real API endpoints, run `go run .` in a separate terminal.
+- There is no frontend test framework. Locales and error codes are validated by Go tests (`internal/httpapi/locales_test.go`, `error_codes_test.go`); therefore frontend verification consists of `lint + typecheck + build`, and backend verification consists of `go test ./...`.
+- The repository has no CI or pre-commit hooks. Before considering work complete, the following must be run manually in order: `pnpm lint` → `pnpm typecheck` → `pnpm build` → `go test ./...` (build runs first to ensure the artifacts required by the embed directive are present).
 
-## Coding Style & Naming Conventions
+## Layering and Boundaries
 
-Format Go with `gofmt`; keep business logic out of Vue views when a composable or service boundary exists. Use `PascalCase.vue` components, `use`-prefixed composables, and `*_test.go` tests. Prettier enforces no semicolons, single quotes, trailing commas, LF endings, and one attribute per line.
+### Backend
 
-## Testing Guidelines
+- `main.go` only assembles dependencies and starts or gracefully shuts down the server; business logic never belongs there.
+- `internal/<domain>/service.go` defines both the `Service` and the `Repository` interface. The Service is responsible for validation, orchestration, and domain errors; **transaction boundaries belong to the Repository implementation** (`internal/database/sqlite`). Do not assemble transactions across repositories inside a service.
+- `internal/database/runtime.go` is only a composition-root handle that distributes repositories to domain services; domain services receive only their own `Repository` and must not be injected with the entire `Runtime`.
+- `internal/httpapi` is strictly the transport layer: `decodeJSON` → call the service → `writeSuccessJSON` / `writeError`. State checks, authorization rules, and business branches must not be written into handlers.
+- New routes are registered centrally in `internal/httpapi/server.go`, with the middleware order fixed as `RequireSetupCompleted → RequireAuth → RequireCapability`; `http.ServeMux` uses the `"METHOD /path"` pattern.
+- The integration path for a new domain is: `internal/<domain>` → `internal/database/sqlite/<domain>.go` → `database.Runtime` field → explicit construction in `main.go` → `HandlerOptions` → route.
 
-Add focused Go tests beside behavior changes. No frontend test runner is configured; validate UI changes with `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, and `pnpm build`.
+### Frontend
 
-## Commit & Pull Request Guidelines
+- The data flow is fixed: `views/` page composition → `composables/<domain>/` state and asynchronous flows → `lib/api/<domain>.ts` (ky requests + zod parsing) → backend. `utils/<domain>/` contains pure functions only.
+- `lib/api/client.ts` is the only ky entry point: use `baseApi` for ordinary requests and `authApi` for requests that require an access token. Single-flight 401 refresh and session-invalidation handling live here; business layers must not implement retries or token logic.
+- Every API response must be validated with zod (`successEnvelopeSchema`); ESLint forbids `as` type assertions (except `as const`). Values from external inputs such as `localStorage` must be funneled through `parseExternalValue*` in `lib/external-input.ts`.
+- Session state belongs only in `stores/auth.ts`; page-local state stays in the corresponding composable. Do not put it into a global store for convenience.
+- `components/ui/**` consists of shadcn-vue CLI output, while project-owned components belong in `components/<domain>/`; generate new base components with the CLI rather than hand-writing a parallel set of variants.
 
-Use scoped Conventional Commit subjects such as `feat(sqlite): ...`, `chore(web): ...`, or `fix(httpapi): ...`. PRs should explain the change, list validation, include relevant screenshots, and call out migrations or configuration changes.
+## Contracts That Must Change Together
 
-## Security & Configuration Tips
+- Response envelope: success is `{success:true,data}`, failure is `{success:false,error:{code,message}}`.
+- Adding or removing an error code requires changes in four places simultaneously: `internal/httpapi/error_codes.go`, `apiError.*` in `web/src/locales/zh-CN.json`, `en-US.json`, and `web/src/lib/api/error-messages.ts` (`satisfies` enforces this). A missing change fails `error_codes_test.go` or `pnpm typecheck`.
+- i18n: `zh-CN.json` is the sole source of `MessageSchema`; all user-visible copy must be added to both locale files. ESLint forbids runtime key construction—keys must either be written as `t('literal')` or narrowed through an exhaustive `switch`; otherwise the key is treated as unused.
+- Capabilities: Go-side constants plus `roleCapabilities` (`internal/authorization/service.go`), synchronized with the frontend `CAPABILITY` map (`lib/auth/roles.ts`) and the zod enum (`lib/api/auth.ts`). **The server-side `RequireCapability` is the actual authorization boundary**; the frontend `requiredCapabilities` is responsible only for route interception and hiding entry points.
+- Authentication: the access token is held in memory only (`lib/auth/token.ts`), and the refresh token is stored in an `HttpOnly` cookie; never write the access token to `localStorage` or `sessionStorage`.
+- Database migrations: `internal/database/sqlite/migrations/NNNN_name.sql` are append-only. Applied migrations carry a SHA-256 checksum; changing a single byte prevents startup.
+- Tests: HTTP-related tests use `newTestContext` (`internal/httpapi/server_test.go`) to set up a real SQLite database plus `httptest`; do not introduce mock repositories or a second database.
 
-Use `.env.example` for local configuration. Never commit `.env`, `.data/`, secrets, or build outputs. Treat `JWT_SECRET`, database paths, and `VITE_API_MOCKING` as environment-specific.
+## Known Pitfalls
+
+- The startup order in `main.ts` must not change: mock → pinia → `authStore.bindRouter()` → `authStore.initialize()` → `app.use(router)`. Mounting the router earlier causes the initial route guard to read session state before it is ready.
+- `VITE_API_MOCKING=true` takes effect only in dev and directly injects a mock owner session (`mocks/dev-session.ts`), bypassing the login and guest flows; unmatched API requests `bypass` to the real backend, so the Go server must still be running.
+- The SSE log stream depends on `http.ResponseController` and `statusRecorder.Unwrap()`. Any new `ResponseWriter` wrapper must implement `Unwrap`; otherwise streaming endpoints fail silently.
+- `.data/` stores both `data.db` and the auto-generated `.jwt_secret`; deleting the directory invalidates all sessions. `.env`, `.data/`, `web/dist`, and `*.exe` are not tracked.
+- For non-obvious pitfalls (framework behavior, protocol boundaries, concurrency/timeouts, third-party quirks), write a one-line comment explaining **why** next to the code that triggers it, including when it can be removed; do not pile this knowledge into this file. Do not delete existing pitfall comments.
+
+## Definition of Done
+
+- The minimum closed loop for a new business capability: domain service + repository → SQLite implementation → handler + route → error codes/bilingual locales → frontend api + composable + view + route meta (including capability).
+- Non-trivial logic (branches, parsing, authorization, money, concurrency) requires a small test; purely presentational or copy changes do not.
+- Do not add compatibility branches, `deprecated` aliases, dual-write logic, or configuration for "possible future use"; delete code with no callers outright.
