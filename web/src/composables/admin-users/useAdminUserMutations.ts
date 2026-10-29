@@ -8,7 +8,7 @@ import {
   type ManagedUser,
   updateAdminUser,
 } from '@/lib/api/admin-users'
-import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
 
 interface UseAdminUserMutationsOptions {
   refreshUsers: () => Promise<void>
@@ -90,13 +90,10 @@ export function useAdminUserMutations(options: UseAdminUserMutationsOptions) {
           ? t('adminUsers.feedback.createSuccess')
           : t('adminUsers.feedback.updateSuccess'),
       error: (error: unknown) =>
-        getAPIErrorMessage(
-          t,
-          error,
-          creating
-            ? 'adminUsers.feedback.createFailed'
-            : 'adminUsers.feedback.updateFailed',
-        ),
+        resolveAPIErrorMessage(t, error) ??
+        (creating
+          ? t('adminUsers.feedback.createFailed')
+          : t('adminUsers.feedback.updateFailed')),
     })
 
     try {
@@ -138,13 +135,10 @@ export function useAdminUserMutations(options: UseAdminUserMutationsOptions) {
           ? t('adminUsers.feedback.disableSuccess')
           : t('adminUsers.feedback.enableSuccess'),
       error: (error: unknown) =>
-        getAPIErrorMessage(
-          t,
-          error,
-          disabling
-            ? 'adminUsers.feedback.disableFailed'
-            : 'adminUsers.feedback.enableFailed',
-        ),
+        resolveAPIErrorMessage(t, error) ??
+        (disabling
+          ? t('adminUsers.feedback.disableFailed')
+          : t('adminUsers.feedback.enableFailed')),
     })
 
     try {

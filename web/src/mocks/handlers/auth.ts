@@ -628,11 +628,7 @@ export const authHandlers = [
       (autoOwnerSessionAvailable ? getMockOwner() : null)
     if (user === null) {
       clearSession()
-      return jsonError(
-        401,
-        'invalid_refresh_token',
-        'Refresh token is invalid.',
-      )
+      return jsonError(401, 'invalid_token', 'Refresh token is invalid.')
     }
 
     const sessionResponse = issueSession(user)

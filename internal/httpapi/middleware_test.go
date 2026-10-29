@@ -32,7 +32,7 @@ func TestRequireAuthRecognizesWrappedMissingBearerToken(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
 	}
-	decodeErrorCode(t, rec.Body.Bytes(), "missing_token")
+	decodeErrorCode(t, rec.Body.Bytes(), string(CodeUnauthorized))
 }
 
 func TestRequireAuthAcceptsAuthenticatedActor(t *testing.T) {

@@ -49,6 +49,18 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+// 穷尽 switch：i18n lint 只认 t() 调用里的字面量键。
+function exportFormatLabel(format: SystemLogExportFormat): string {
+  switch (format) {
+    case 'csv':
+      return t('systemLogs.export.formats.csv')
+    case 'txt':
+      return t('systemLogs.export.formats.txt')
+    case 'json':
+      return t('systemLogs.export.formats.json')
+  }
+}
+
 const exportFormat = defineModel<SystemLogExportFormat>('format', {
   default: 'csv',
 })
@@ -122,7 +134,7 @@ function downloadSystemLogs(
                 :key="format"
                 :value="format"
               >
-                {{ t(`systemLogs.export.formats.${format}`) }}
+                {{ exportFormatLabel(format) }}
               </SelectItem>
             </SelectContent>
           </Select>

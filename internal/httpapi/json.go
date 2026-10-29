@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"strings"
 )
 
 const maxJSONBodyBytes int64 = 1 << 20
@@ -68,25 +66,4 @@ func writeSuccessJSON[T any](w http.ResponseWriter, status int, data T) {
 		Success: true,
 		Data:    data,
 	})
-}
-
-func writeAPIError(w http.ResponseWriter, status int, code string, message string) {
-	writeJSON(w, status, errorResponse{
-		Success: false,
-		Error: apiError{
-			Code:    code,
-			Message: message,
-		},
-	})
-}
-
-func describeJSONDecodeError(err error) string {
-	switch {
-	case errors.Is(err, io.EOF):
-		return "request body is required"
-	case strings.Contains(err.Error(), "http: request body too large"):
-		return fmt.Sprintf("request body must be at most %d bytes", maxJSONBodyBytes)
-	default:
-		return "invalid JSON request body"
-	}
 }

@@ -5,9 +5,20 @@ import eslintConfigPrettier from 'eslint-config-prettier'
 import globals from 'globals'
 import betterTailwindcss from 'eslint-plugin-better-tailwindcss'
 import pluginVue from 'eslint-plugin-vue'
+import pluginVueI18n from '@intlify/eslint-plugin-vue-i18n'
 import tseslint from 'typescript-eslint'
 
 const tsconfigRootDir = fileURLToPath(new URL('.', import.meta.url))
+
+// 语言包 JSON 是 i18n 规则的消息来源，本身也必须被 lint：`no-unused-keys` 只在
+// 「被 lint 的语言包文件」上报告未使用键，扫源文件反而不报。
+// 只取插件里针对 JSON 的那份解析配置，并把范围收窄到 locales 目录——否则
+// 所有 *.json（例如 .prettierrc.json）都会被挂上 vue-eslint-parser，与
+// typescript-eslint 的类型感知规则相撞。
+const localeMessageFiles = ['src/locales/*.json']
+const pluginVueI18nJsonConfig = pluginVueI18n.configs['flat/base'].find(
+  (config) => config.files?.some((pattern) => pattern.endsWith('.json')),
+)
 
 export default defineConfig(
   { ignores: ['dist', 'node_modules'] },
@@ -160,6 +171,48 @@ export default defineConfig(
         },
       ],
       'vue/attributes-order': 'error',
+    },
+  },
+
+  {
+    ...pluginVueI18nJsonConfig,
+    files: localeMessageFiles,
+    // JSON 没有类型信息，必须关掉类型感知规则。
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+
+  {
+    // i18n 静态校验：语言包是 JSON，规则才能从磁盘读出键全集。
+    // 四条规则合起来把「键写错」「两语言包不对称」「键没人用」「运行期拼键」都变成
+    // lint error。最后一条是关键：动态拼键对 no-unused-keys 不可见，键会被当成
+    // 没人用而删除，运行时再静默渲染成原始键名——所以运行期拼键必须直接禁止，
+    // 数据驱动的取键只能收敛成穷尽 switch 或内联到定义处。
+    //
+    // 只注册插件、不使用 `configs['flat/base']`：那套配置给**所有** *.json 挂上
+    // vue-eslint-parser（用于直接 lint 语言包文件），会和本项目 typescript-eslint 的
+    // 类型感知规则相撞（.prettierrc.json 等非语言包文件会直接报解析错误）。
+    plugins: {
+      '@intlify/vue-i18n': pluginVueI18n,
+    },
+    settings: {
+      'vue-i18n': {
+        localeDir: './src/locales/*.json',
+        messageSyntaxVersion: '^11.0.0',
+      },
+    },
+    rules: {
+      '@intlify/vue-i18n/no-unused-keys': [
+        'error',
+        {
+          src: './src',
+          extensions: ['.vue', '.ts'],
+          // 自动删除未使用键在有动态键的项目里是灾难，必须人工确认。
+          enableFix: false,
+        },
+      ],
+      '@intlify/vue-i18n/no-missing-keys': 'error',
+      '@intlify/vue-i18n/no-missing-keys-in-other-locales': 'error',
+      '@intlify/vue-i18n/no-dynamic-keys': 'error',
     },
   },
 

@@ -14,7 +14,7 @@ watch(
       return
     }
 
-    toast.error(t('route.feedback.loadFailed'))
+    toast.error(t('common.feedback.loadFailed'))
   },
   { immediate: true },
 )

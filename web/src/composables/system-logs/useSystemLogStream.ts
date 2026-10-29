@@ -2,7 +2,7 @@ import { useDocumentVisibility } from '@vueuse/core'
 import { computed, onWatcherCleanup, ref, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
 import {
   openSystemLogsStream,
   type SystemLogHistoryLimit,
@@ -118,11 +118,9 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
         connected.value = false
         loading.value = false
 
-        const message = getAPIErrorMessage(
-          t,
-          error,
-          'apiError.systemLogStreamFailed',
-        )
+        const message =
+          resolveAPIErrorMessage(t, error) ??
+          t('apiError.system_log_stream_unavailable')
         streamError.value = message
 
         if (!shouldRetryStreamError(error)) {

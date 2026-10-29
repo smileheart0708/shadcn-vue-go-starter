@@ -30,7 +30,6 @@ import type { SystemLogExportFormat } from '@/stores/system-logs-preferences'
 import { useSystemLogViewport } from '@/composables/system-logs/useSystemLogViewport'
 import {
   getConnectionIndicatorClass,
-  getConnectionStatusLabel,
   normalizeHistoryLimitSelectValue,
   selectVisibleSystemLogEntries,
 } from '@/utils/system-logs/console'
@@ -72,9 +71,30 @@ const visibleEntries = computed(() =>
     searchQuery: searchQuery.value,
   }),
 )
-const connectionStatusLabel = computed(() =>
-  getConnectionStatusLabel(props.connecting, props.connected),
-)
+const connectionStatusLabel = computed(() => {
+  if (props.connecting) {
+    return t('systemLogs.connection.connecting')
+  }
+  return props.connected
+    ? t('systemLogs.connection.connected')
+    : t('systemLogs.connection.disconnected')
+})
+
+// 穷尽 switch：i18n lint 只认 t() 调用里的字面量键。
+function historyLimitLabel(limit: SystemLogHistoryLimit): string {
+  switch (limit) {
+    case 'ALL':
+      return t('systemLogs.filters.history.ALL')
+    case 100:
+      return t('systemLogs.filters.history.100')
+    case 200:
+      return t('systemLogs.filters.history.200')
+    case 500:
+      return t('systemLogs.filters.history.500')
+    case 1000:
+      return t('systemLogs.filters.history.1000')
+  }
+}
 const connectionIndicatorClass = computed(() =>
   getConnectionIndicatorClass(props.connecting, props.connected),
 )
@@ -219,7 +239,7 @@ function handleHistoryLimitChange(value: unknown) {
               :key="String(limit)"
               :value="limit"
             >
-              {{ t(`systemLogs.filters.history.${String(limit)}`) }}
+              {{ historyLimitLabel(limit) }}
             </SelectItem>
           </SelectContent>
         </Select>

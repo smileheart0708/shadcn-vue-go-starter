@@ -44,7 +44,7 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 		logStream:     options.LogStream,
 	}
 
-	api := newAPIMux(apiService)
+	api := withErrorLogger(logger)(newAPIMux(apiService))
 	if options.LogAPIRequests {
 		api = Chain(api, requestLogger(logger))
 	}

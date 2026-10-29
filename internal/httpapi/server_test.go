@@ -84,7 +84,7 @@ func TestInstallSetupOnlyRunsOnceAndCreatesOwnerSession(t *testing.T) {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, secondRec.Code, secondRec.Body.String())
 	}
 
-	decodeErrorCode(t, secondRec.Body.Bytes(), "setup_completed")
+	decodeErrorCode(t, secondRec.Body.Bytes(), string(CodeSetupCompleted))
 }
 
 func TestSetupRequiredBlocksNormalAuthRoutesUntilInitialized(t *testing.T) {
@@ -100,7 +100,7 @@ func TestSetupRequiredBlocksNormalAuthRoutesUntilInitialized(t *testing.T) {
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, rec.Code)
 	}
-	decodeErrorCode(t, rec.Body.Bytes(), "setup_required")
+	decodeErrorCode(t, rec.Body.Bytes(), string(CodeSetupRequired))
 }
 
 func TestOwnerCanCreateManagedUserByDefault(t *testing.T) {
@@ -155,7 +155,7 @@ func TestDefaultPoliciesClosePublicRegistrationAndSelfDeletion(t *testing.T) {
 	if registerRec.Code != http.StatusForbidden {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusForbidden, registerRec.Code, registerRec.Body.String())
 	}
-	decodeErrorCode(t, registerRec.Body.Bytes(), "registration_disabled")
+	decodeErrorCode(t, registerRec.Body.Bytes(), string(CodeRegistrationDisabled))
 }
 
 func TestPublicRegistrationToggleControlsRegisterRefreshReplayAndLogoutFlow(t *testing.T) {
@@ -199,7 +199,7 @@ func TestPublicRegistrationToggleControlsRegisterRefreshReplayAndLogoutFlow(t *t
 	if replayRec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, replayRec.Code)
 	}
-	decodeErrorCode(t, replayRec.Body.Bytes(), "invalid_refresh_token")
+	decodeErrorCode(t, replayRec.Body.Bytes(), string(CodeInvalidToken))
 
 	_, latestSessionCookie := loginUser(t, ctx, "member", "member1234")
 	logoutReq := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
@@ -252,7 +252,7 @@ func TestSelfServiceDeletionToggleControlsDeleteFlow(t *testing.T) {
 	if deleteRec.Code != http.StatusForbidden {
 		t.Fatalf("expected status %d, got %d", http.StatusForbidden, deleteRec.Code)
 	}
-	decodeErrorCode(t, deleteRec.Body.Bytes(), "account_delete_forbidden")
+	decodeErrorCode(t, deleteRec.Body.Bytes(), string(CodeAccountDeleteForbidden))
 
 	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"selfServiceAccountDeletionEnabled":true}`)
 

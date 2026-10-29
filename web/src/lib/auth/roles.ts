@@ -22,12 +22,26 @@ export const CAPABILITY = {
   accountDeleteSelf: 'account.delete_self',
 } as const satisfies Record<string, Capability>
 
-export function getUserRoleLabelKey(role: RoleKey | null | undefined) {
+type RoleLabelTranslate = (
+  key: 'common.role.owner' | 'common.role.user',
+) => string
+
+/**
+ * Resolves a role label.
+ *
+ * The `t()` calls must stay literal and inline: `@intlify/vue-i18n/no-unused-keys`
+ * only recognises literal keys inside `t()`, so returning a key for the caller to
+ * translate would make `common.role.*` look unused.
+ */
+export function getUserRoleLabel(
+  t: RoleLabelTranslate,
+  role: RoleKey | null | undefined,
+): string {
   switch (role) {
     case ROLE_KEY.owner:
-      return 'common.role.owner'
+      return t('common.role.owner')
     default:
-      return 'common.role.user'
+      return t('common.role.user')
   }
 }
 

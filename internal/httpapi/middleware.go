@@ -29,11 +29,11 @@ func RequireSetupCompleted(setupService *setup.Service) Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			state, err := setupService.GetState(r.Context())
 			if err != nil {
-				writeAPIError(w, http.StatusInternalServerError, "setup_state_unavailable", "Failed to load install state.")
+				writeError(w, r, CodeInternalError, err)
 				return
 			}
 			if !state.SetupCompleted {
-				writeAPIError(w, http.StatusServiceUnavailable, "setup_required", "The application must be initialized before this endpoint can be used.")
+				writeError(w, r, CodeSetupRequired)
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -51,10 +51,10 @@ func RequireAuthWithAuthenticator(authenticator requestAuthenticator) Middleware
 			actor, err := authenticator.AuthenticateRequest(r.Context(), r.Header.Get("Authorization"))
 			if err != nil {
 				if errors.Is(err, auth.ErrMissingBearerToken) {
-					writeAPIError(w, http.StatusUnauthorized, "missing_token", "Missing bearer token.")
+					writeError(w, r, CodeUnauthorized, err)
 					return
 				}
-				writeAPIError(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token.")
+				writeError(w, r, CodeInvalidToken, err)
 				return
 			}
 
@@ -68,7 +68,7 @@ func RequireCapability(capability string) Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			actor, ok := auth.ActorFromContext(r.Context())
 			if !ok {
-				writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
+				writeError(w, r, CodeUnauthorized)
 				return
 			}
 
@@ -77,7 +77,7 @@ func RequireCapability(capability string) Middleware {
 				return
 			}
 
-			writeAPIError(w, http.StatusForbidden, "forbidden", "You do not have permission to access this resource.")
+			writeError(w, r, CodeForbidden)
 		})
 	}
 }

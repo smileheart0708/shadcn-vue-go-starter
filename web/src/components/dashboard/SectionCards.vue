@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChartArea, Clock, TrendingDown, TrendingUp } from '@lucide/vue'
 
@@ -25,14 +26,46 @@ import LineChart from '@/components/dashboard/LineChart.vue'
 const { t } = useI18n()
 
 // Demo dashboard tiles with static figures. Values stay hardcoded on purpose — swap
-// this array for real data when the metrics endpoint exists; the copy is keyed by
-// metric id under `dashboard.metric.*`.
-const metrics = [
-  { id: 'totalRevenue', value: '$1,250.00', trend: '+12.5%', icon: TrendingUp },
-  { id: 'newCustomers', value: '1,234', trend: '-20%', icon: TrendingDown },
-  { id: 'activeAccounts', value: '45,678', trend: '+12.5%', icon: TrendingUp },
-  { id: 'growthRate', value: '4.5%', trend: '+4.5%', icon: TrendingUp },
-] as const
+// this array for real data when the metrics endpoint exists. Copy is resolved here,
+// not in the template, because `t()` keys must stay literal for the i18n lint rules.
+const metrics = computed(() => [
+  {
+    id: 'totalRevenue',
+    title: t('dashboard.metric.totalRevenue.title'),
+    summary: t('dashboard.metric.totalRevenue.summary'),
+    detail: t('dashboard.metric.totalRevenue.detail'),
+    value: '$1,250.00',
+    trend: '+12.5%',
+    icon: TrendingUp,
+  },
+  {
+    id: 'newCustomers',
+    title: t('dashboard.metric.newCustomers.title'),
+    summary: t('dashboard.metric.newCustomers.summary'),
+    detail: t('dashboard.metric.newCustomers.detail'),
+    value: '1,234',
+    trend: '-20%',
+    icon: TrendingDown,
+  },
+  {
+    id: 'activeAccounts',
+    title: t('dashboard.metric.activeAccounts.title'),
+    summary: t('dashboard.metric.activeAccounts.summary'),
+    detail: t('dashboard.metric.activeAccounts.detail'),
+    value: '45,678',
+    trend: '+12.5%',
+    icon: TrendingUp,
+  },
+  {
+    id: 'growthRate',
+    title: t('dashboard.metric.growthRate.title'),
+    summary: t('dashboard.metric.growthRate.summary'),
+    detail: t('dashboard.metric.growthRate.detail'),
+    value: '4.5%',
+    trend: '+4.5%',
+    icon: TrendingUp,
+  },
+])
 </script>
 
 <template>
@@ -44,9 +77,7 @@ const metrics = [
         class="@container/card gap-4 py-5"
       >
         <CardHeader class="pbe-0">
-          <CardDescription>{{
-            t(`dashboard.metric.${metric.id}.title`)
-          }}</CardDescription>
+          <CardDescription>{{ metric.title }}</CardDescription>
           <CardTitle
             class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl"
           >
@@ -64,14 +95,14 @@ const metrics = [
         </CardHeader>
         <CardFooter class="flex-col items-start gap-1.5 pbs-0 text-sm">
           <div class="line-clamp-1 flex gap-2 font-medium">
-            {{ t(`dashboard.metric.${metric.id}.summary`) }}
+            {{ metric.summary }}
             <component
               :is="metric.icon"
               class="block-4 inline-4"
             />
           </div>
           <div class="text-muted-foreground">
-            {{ t(`dashboard.metric.${metric.id}.detail`) }}
+            {{ metric.detail }}
           </div>
         </CardFooter>
       </Card>

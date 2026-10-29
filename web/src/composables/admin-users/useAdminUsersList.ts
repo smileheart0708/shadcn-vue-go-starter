@@ -1,7 +1,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
 import { listAdminUsers, type ManagedUser } from '@/lib/api/admin-users'
 import { getAdminUsersTotalPages } from '@/utils/admin-users/table'
 
@@ -50,7 +50,7 @@ export function useAdminUsersList() {
     } catch (error) {
       loadFailed.value = true
       toast.error(
-        getAPIErrorMessage(t, error, 'adminUsers.feedback.loadFailed'),
+        resolveAPIErrorMessage(t, error) ?? t('adminUsers.feedback.loadFailed'),
       )
     } finally {
       loading.value = false

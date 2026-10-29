@@ -1,7 +1,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
 import {
   getAdminSystemSettings,
   updateSystemSettings,
@@ -53,7 +53,8 @@ export function useSystemSettings() {
     } catch (error) {
       loadFailed.value = true
       toast.error(
-        getAPIErrorMessage(t, error, 'systemConfig.feedback.loadFailed'),
+        resolveAPIErrorMessage(t, error) ??
+          t('systemConfig.feedback.loadFailed'),
       )
     } finally {
       loading.value = false
@@ -76,7 +77,8 @@ export function useSystemSettings() {
       loading: t('systemConfig.feedback.saving'),
       success: () => t('systemConfig.feedback.saved'),
       error: (error: unknown) =>
-        getAPIErrorMessage(t, error, 'systemConfig.feedback.saveFailed'),
+        resolveAPIErrorMessage(t, error) ??
+        t('systemConfig.feedback.saveFailed'),
     })
 
     try {

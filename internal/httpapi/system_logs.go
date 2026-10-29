@@ -17,13 +17,13 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 	logger := api.loggerOrDefault()
 
 	if api.logStream == nil {
-		writeAPIError(w, http.StatusServiceUnavailable, "system_log_stream_unavailable", "System log stream is unavailable.")
+		writeError(w, r, CodeSystemLogStreamUnavailable)
 		return
 	}
 
 	actor, authenticated := api.currentActor(r.Context())
 	if !authenticated {
-		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
+		writeError(w, r, CodeUnauthorized)
 		return
 	}
 
@@ -47,7 +47,7 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := stream.Flush(); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "streaming_unsupported", "Streaming is not supported by this server.")
+		writeError(w, r, CodeInternalError, err)
 		return
 	}
 

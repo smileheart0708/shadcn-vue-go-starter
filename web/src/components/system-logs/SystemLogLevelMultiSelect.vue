@@ -32,6 +32,20 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+// 穷尽 switch：i18n lint 只认 t() 调用里的字面量键，模板字符串键会被判为未使用。
+function levelLabel(level: SystemLogLevel): string {
+  switch (level) {
+    case 'DEBUG':
+      return t('systemLogs.filters.level.DEBUG')
+    case 'INFO':
+      return t('systemLogs.filters.level.INFO')
+    case 'WARN':
+      return t('systemLogs.filters.level.WARN')
+    case 'ERROR':
+      return t('systemLogs.filters.level.ERROR')
+  }
+}
+
 const selectedLevels = computed(() => new Set(props.modelValue))
 const orderedSelectedLevels = computed(() =>
   SYSTEM_LOG_LEVEL_VALUES.filter((level) => selectedLevels.value.has(level)),
@@ -43,9 +57,7 @@ const triggerLabel = computed(() => {
   if (orderedSelectedLevels.value.length === 0) {
     return t('systemLogs.filters.level.noneSelected')
   }
-  return orderedSelectedLevels.value
-    .map((level) => t(`systemLogs.filters.level.${level}`))
-    .join(', ')
+  return orderedSelectedLevels.value.map(levelLabel).join(', ')
 })
 
 function updateLevel(level: SystemLogLevel, selected: boolean) {
@@ -88,7 +100,7 @@ function updateLevel(level: SystemLogLevel, selected: boolean) {
         @select.prevent
         @update:model-value="updateLevel(level, $event === true)"
       >
-        {{ t(`systemLogs.filters.level.${level}`) }}
+        {{ levelLabel(level) }}
       </DropdownMenuCheckboxItem>
     </DropdownMenuContent>
   </DropdownMenu>

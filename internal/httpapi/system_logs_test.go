@@ -10,7 +10,7 @@ import (
 
 // Regression: requestLogger wraps the ResponseWriter in statusRecorder. Without
 // an Unwrap method, http.ResponseController could not reach the underlying
-// Flusher and the SSE log stream failed with "streaming_unsupported" whenever
+// Flusher and the SSE log stream failed with a 500 error whenever
 // API_REQUEST_LOG_ENABLED was true.
 func TestRequestLoggerKeepsResponseControllerFlushable(t *testing.T) {
 	t.Parallel()

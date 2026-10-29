@@ -144,19 +144,6 @@ export function getLevelBadgeVariant(
   }
 }
 
-export function getConnectionStatusLabel(
-  connecting: boolean,
-  connected: boolean,
-): string {
-  if (connecting) {
-    return 'Connecting'
-  }
-  if (connected) {
-    return 'Connected'
-  }
-  return 'Disconnected'
-}
-
 export function getConnectionIndicatorClass(
   connecting: boolean,
   connected: boolean,

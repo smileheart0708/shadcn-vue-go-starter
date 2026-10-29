@@ -29,7 +29,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
-import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
 import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
@@ -63,7 +63,9 @@ async function loadPolicy() {
     loadFailed.value = false
   } catch (error) {
     loadFailed.value = true
-    toast.error(getAPIErrorMessage(t, error, 'auth.signUp.policyLoadFailed'))
+    toast.error(
+      resolveAPIErrorMessage(t, error) ?? t('auth.signUp.policyLoadFailed'),
+    )
   } finally {
     loadingPolicy.value = false
   }
@@ -89,7 +91,7 @@ async function handleSubmit() {
     loading: t('auth.signUp.creating'),
     success: () => t('auth.signUp.registerSuccess'),
     error: (error: unknown) =>
-      getAPIErrorMessage(t, error, 'auth.signUp.registerFailed'),
+      resolveAPIErrorMessage(t, error) ?? t('auth.signUp.registerFailed'),
   })
 
   try {

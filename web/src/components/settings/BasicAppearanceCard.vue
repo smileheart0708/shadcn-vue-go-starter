@@ -41,12 +41,10 @@ const { t } = useI18n()
         @update:model-value="emit('update:theme', $event)"
       >
         <TabsList>
-          <TabsTrigger value="light">{{
-            t('settings.basic.light')
-          }}</TabsTrigger>
-          <TabsTrigger value="dark">{{ t('settings.basic.dark') }}</TabsTrigger>
+          <TabsTrigger value="light">{{ t('common.theme.light') }}</TabsTrigger>
+          <TabsTrigger value="dark">{{ t('common.theme.dark') }}</TabsTrigger>
           <TabsTrigger value="system">{{
-            t('settings.basic.system')
+            t('common.theme.system')
           }}</TabsTrigger>
         </TabsList>
       </Tabs>

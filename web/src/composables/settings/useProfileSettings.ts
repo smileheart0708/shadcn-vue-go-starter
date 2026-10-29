@@ -2,8 +2,8 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { getAPIErrorMessage } from '@/lib/api/error-messages'
-import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
+import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
+import { getUserRoleBadgeVariant, getUserRoleLabel } from '@/lib/auth/roles'
 import { AVATAR_ACCEPTED_FILE_TYPES, getAvatarFallbackText } from '@/lib/avatar'
 import { useAccountStore } from '@/stores/account'
 import { useAuthStore } from '@/stores/auth'
@@ -50,7 +50,7 @@ export function useProfileSettings() {
     () =>
       pendingAvatarPreviewURL.value ?? currentIdentity.value?.avatarUrl ?? null,
   )
-  const roleLabel = computed(() => t(getUserRoleLabelKey(currentRoleKey.value)))
+  const roleLabel = computed(() => getUserRoleLabel(t, currentRoleKey.value))
   const roleBadgeVariant = computed(() =>
     getUserRoleBadgeVariant(currentRoleKey.value),
   )
@@ -133,11 +133,8 @@ export function useProfileSettings() {
       toast.success(t('settings.account.profileUpdated'))
       editDialogOpen.value = false
     } catch (error) {
-      const message = getAPIErrorMessage(
-        t,
-        error,
-        'apiError.profileUpdateFailed',
-      )
+      const message =
+        resolveAPIErrorMessage(t, error) ?? t('apiError.internal_error')
       profileError.value = message
       toast.error(message)
     } finally {

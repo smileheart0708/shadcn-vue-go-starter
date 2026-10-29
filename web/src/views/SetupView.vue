@@ -17,7 +17,7 @@ import {
   StepperTitle,
   StepperTrigger,
 } from '@/components/ui/stepper'
-import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
 import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
@@ -38,6 +38,12 @@ const steps: SetupStep[] = [
 ]
 
 const totalSteps = steps.length
+
+// 键必须字面量出现在 t() 里：i18n lint 只认字面量，`t(step.titleKey)` 会让
+// setup.step* 被判为未使用。
+function stepTitle(titleKey: SetupStep['titleKey']): string {
+  return titleKey === 'setup.step1' ? t('setup.step1') : t('setup.step2')
+}
 
 const username = ref('')
 const password = ref('')
@@ -116,7 +122,7 @@ async function submit() {
     transitionDirection.value = 'forward'
     currentStep.value = totalSteps
   } catch (error: unknown) {
-    toast.error(getAPIErrorMessage(t, error, 'setup.failed'))
+    toast.error(resolveAPIErrorMessage(t, error) ?? t('setup.failed'))
   } finally {
     submitting.value = false
   }
@@ -166,7 +172,7 @@ async function goToDashboard() {
             </StepperTrigger>
 
             <StepperTitle class="text-sm font-medium text-foreground">
-              {{ t(step.titleKey) }}
+              {{ stepTitle(step.titleKey) }}
             </StepperTitle>
           </StepperItem>
         </Stepper>

@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { z } from 'zod'
-import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
 import { parseExternalValue } from '@/lib/external-input'
 import { useAuthStore } from '@/stores/auth'
 
@@ -55,7 +55,7 @@ async function handleSubmit() {
     loading: t('auth.signIn.signingIn'),
     success: () => t('auth.signIn.loginSuccess'),
     error: (error: unknown) =>
-      getAPIErrorMessage(t, error, 'auth.signIn.loginFailed'),
+      resolveAPIErrorMessage(t, error) ?? t('auth.signIn.loginFailed'),
   })
 
   try {

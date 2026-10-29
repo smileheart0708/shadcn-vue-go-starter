@@ -24,7 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { ManagedUser } from '@/lib/api/admin-users'
-import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
+import { getUserRoleBadgeVariant, getUserRoleLabel } from '@/lib/auth/roles'
 import {
   createAdminUserDateFormatter,
   formatNullableAdminUserDateTime,
@@ -153,7 +153,7 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
               }}</TableCell>
               <TableCell>
                 <Badge :variant="getUserRoleBadgeVariant(user.role)">
-                  {{ t(getUserRoleLabelKey(user.role)) }}
+                  {{ getUserRoleLabel(t, user.role) }}
                 </Badge>
               </TableCell>
               <TableCell>

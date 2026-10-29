@@ -5,14 +5,14 @@ import { useI18n } from 'vue-i18n'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import ModeToggle from '@/components/theme/ModeToggle.vue'
-import { getRouteTitleKey } from '@/router/route-title'
+import { getRouteTitleKey, translateRouteTitle } from '@/router/route-title'
 
 const route = useRoute()
 const { t } = useI18n()
 
 const title = computed(() => {
   const titleKey = getRouteTitleKey(route)
-  return titleKey ? t(titleKey) : t('app.name')
+  return titleKey ? translateRouteTitle(titleKey) : t('app.name')
 })
 </script>
 

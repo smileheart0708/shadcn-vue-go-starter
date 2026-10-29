@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useThemeStore } from '@/stores/theme'
+import type { ThemePreference } from '@/stores/theme'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -15,6 +16,18 @@ const themeStore = useThemeStore()
 
 const icon = { light: Sun, dark: Moon, system: Monitor }
 const themes = ['light', 'dark', 'system'] as const
+
+// 穷尽 switch：i18n lint 只认 t() 里的字面量键，模板字符串键会被判为未使用。
+function themeLabel(theme: ThemePreference): string {
+  switch (theme) {
+    case 'light':
+      return t('common.theme.light')
+    case 'dark':
+      return t('common.theme.dark')
+    case 'system':
+      return t('common.theme.system')
+  }
+}
 </script>
 
 <template>
@@ -41,7 +54,7 @@ const themes = ['light', 'dark', 'system'] as const
           :is="icon[theme]"
           class="me-2 block-4 inline-4"
         />
-        {{ t(`theme.${theme}`) }}
+        {{ themeLabel(theme) }}
       </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>

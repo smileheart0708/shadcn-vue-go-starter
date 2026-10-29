@@ -30,7 +30,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
-import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
+import { getUserRoleBadgeVariant, getUserRoleLabel } from '@/lib/auth/roles'
 import type { RoleKey } from '@/lib/api/auth'
 import { useI18n } from 'vue-i18n'
 import {
@@ -54,7 +54,7 @@ const emit = defineEmits<{ logout: [] }>()
 const { isMobile } = useSidebar()
 const { t } = useI18n()
 const localeStore = useLocaleStore()
-const roleLabel = computed(() => t(getUserRoleLabelKey(props.user.role)))
+const roleLabel = computed(() => getUserRoleLabel(t, props.user.role))
 const roleBadgeVariant = computed(() =>
   getUserRoleBadgeVariant(props.user.role),
 )

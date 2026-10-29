@@ -43,7 +43,7 @@ type updateManagementUserRequest struct {
 func (api *API) getAccountPoliciesHandler(w http.ResponseWriter, r *http.Request) {
 	policies, err := api.policies.Get(r.Context())
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "account_policies_unavailable", "Failed to load account policies.")
+		writeError(w, r, CodeInternalError, err)
 		return
 	}
 	writeSuccessJSON(w, http.StatusOK, toAccountPoliciesResponse(policies))
@@ -52,7 +52,7 @@ func (api *API) getAccountPoliciesHandler(w http.ResponseWriter, r *http.Request
 func (api *API) updateAccountPoliciesHandler(w http.ResponseWriter, r *http.Request) {
 	var payload updateAccountPoliciesRequest
 	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
-		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
+		writeError(w, r, CodeInvalidRequest, err)
 		return
 	}
 
@@ -61,7 +61,7 @@ func (api *API) updateAccountPoliciesHandler(w http.ResponseWriter, r *http.Requ
 		SelfServiceAccountDeletionEnabled: payload.SelfServiceAccountDeletionEnabled,
 	})
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "account_policies_update_failed", "Failed to update account policies.")
+		writeError(w, r, CodeInternalError, err)
 		return
 	}
 
@@ -71,7 +71,7 @@ func (api *API) updateAccountPoliciesHandler(w http.ResponseWriter, r *http.Requ
 func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Request) {
 	actor, ok := api.currentActor(r.Context())
 	if !ok {
-		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
+		writeError(w, r, CodeUnauthorized)
 		return
 	}
 
@@ -82,7 +82,7 @@ func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Reques
 		PageSize: parsePositiveIntQuery(r, "pageSize", 20),
 	})
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "management_users_unavailable", "Failed to load users.")
+		writeError(w, r, CodeInternalError, err)
 		return
 	}
 
@@ -113,27 +113,27 @@ func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Reques
 func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Request) {
 	actor, ok := api.currentActor(r.Context())
 	if !ok {
-		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
+		writeError(w, r, CodeUnauthorized)
 		return
 	}
 
 	var payload createManagementUserRequest
 	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
-		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
+		writeError(w, r, CodeInvalidRequest, err)
 		return
 	}
 	if strings.TrimSpace(payload.Username) == "" {
-		writeAPIError(w, http.StatusBadRequest, "username_required", "Username is required.")
+		writeError(w, r, CodeUsernameRequired)
 		return
 	}
 	if len(strings.TrimSpace(payload.Password)) < auth.MinPasswordLength {
-		writeAPIError(w, http.StatusBadRequest, "password_too_short", "Password must be at least 8 characters.")
+		writeError(w, r, CodePasswordTooShort)
 		return
 	}
 
 	passwordHash, err := auth.HashPassword(payload.Password)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "user_create_failed", "Failed to create user.")
+		writeError(w, r, CodeInternalError, err)
 		return
 	}
 
@@ -147,11 +147,11 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		switch {
 		case errors.Is(err, identity.ErrUsernameTaken):
-			writeAPIError(w, http.StatusConflict, "username_taken", "Username is already in use.")
+			writeError(w, r, CodeUsernameTaken)
 		case errors.Is(err, identity.ErrEmailTaken):
-			writeAPIError(w, http.StatusConflict, "email_taken", "Email is already in use.")
+			writeError(w, r, CodeEmailTaken)
 		default:
-			writeAPIError(w, http.StatusInternalServerError, "user_create_failed", "Failed to create user.")
+			writeError(w, r, CodeInternalError, err)
 		}
 		return
 	}
@@ -162,7 +162,7 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Request) {
 	actor, ok := api.currentActor(r.Context())
 	if !ok {
-		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
+		writeError(w, r, CodeUnauthorized)
 		return
 	}
 
@@ -176,17 +176,17 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if !api.authorization.CanManageUser(actorTarget, targetTarget, authorization.UserActionUpdate) {
-		writeAPIError(w, http.StatusForbidden, "forbidden", "You do not have permission to update this user.")
+		writeError(w, r, CodeForbidden)
 		return
 	}
 
 	var payload updateManagementUserRequest
 	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
-		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
+		writeError(w, r, CodeInvalidRequest, err)
 		return
 	}
 	if strings.TrimSpace(payload.Username) == "" {
-		writeAPIError(w, http.StatusBadRequest, "username_required", "Username is required.")
+		writeError(w, r, CodeUsernameRequired)
 		return
 	}
 
@@ -197,11 +197,11 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		switch {
 		case errors.Is(err, identity.ErrUsernameTaken):
-			writeAPIError(w, http.StatusConflict, "username_taken", "Username is already in use.")
+			writeError(w, r, CodeUsernameTaken)
 		case errors.Is(err, identity.ErrEmailTaken):
-			writeAPIError(w, http.StatusConflict, "email_taken", "Email is already in use.")
+			writeError(w, r, CodeEmailTaken)
 		default:
-			writeAPIError(w, http.StatusInternalServerError, "user_update_failed", "Failed to update user.")
+			writeError(w, r, CodeInternalError, err)
 		}
 		return
 	}
@@ -224,7 +224,7 @@ func (api *API) enableManagementUserHandler(w http.ResponseWriter, r *http.Reque
 func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Request, status string, action authorization.UserAction) {
 	actor, ok := api.currentActor(r.Context())
 	if !ok {
-		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
+		writeError(w, r, CodeUnauthorized)
 		return
 	}
 
@@ -238,13 +238,13 @@ func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if !api.authorization.CanManageUser(actorTarget, targetTarget, action) {
-		writeAPIError(w, http.StatusForbidden, "forbidden", "You do not have permission to update this user.")
+		writeError(w, r, CodeForbidden)
 		return
 	}
 
 	updated, err := api.identities.SetUserStatus(r.Context(), targetUser.ID, status)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "user_status_update_failed", "Failed to update user status.")
+		writeError(w, r, CodeInternalError, err)
 		return
 	}
 
@@ -259,9 +259,9 @@ func (api *API) loadManagedUserTargets(w http.ResponseWriter, r *http.Request, a
 	targetUser, err := api.identities.GetUserByID(r.Context(), targetID)
 	if err != nil {
 		if errors.Is(err, identity.ErrUserNotFound) {
-			writeAPIError(w, http.StatusNotFound, "user_not_found", "User not found.")
+			writeError(w, r, CodeUserNotFound)
 		} else {
-			writeAPIError(w, http.StatusInternalServerError, "user_unavailable", "Failed to load user.")
+			writeError(w, r, CodeInternalError, err)
 		}
 		return identity.User{}, authorization.UserTarget{}, authorization.UserTarget{}, false
 	}
@@ -303,7 +303,7 @@ func parseInt64PathValue(w http.ResponseWriter, r *http.Request, key string) (in
 	raw := strings.TrimSpace(r.PathValue(key))
 	parsed, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil || parsed <= 0 {
-		writeAPIError(w, http.StatusBadRequest, "invalid_id", "Invalid resource identifier.")
+		writeError(w, r, CodeInvalidID)
 		return 0, false
 	}
 	return parsed, true

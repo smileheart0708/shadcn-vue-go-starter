@@ -13,7 +13,8 @@ const bannerDivider = "=========================================================
 
 func NewWithStream(options StreamOptions) (*slog.Logger, *Stream) {
 	stream := NewStream(options)
-	consoleHandler := tint.NewHandler(os.Stdout, &tint.Options{
+	// tint.NewHandler is deprecated (marked //go:fix inline): NewTextHandler is its replacement.
+	consoleHandler := tint.NewTextHandler(os.Stdout, &tint.Options{
 		NoColor: !isatty.IsTerminal(os.Stdout.Fd()),
 	})
 
