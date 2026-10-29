@@ -20,10 +20,7 @@ export function installDocumentMetadata(router: Router) {
       : i18n.global.t('app.title', { name: appName })
   }
 
-  watchEffect(() => {
-    // Touch the locale ref's value (not the ref object) so the effect re-runs on every
-    // language switch; `t()` alone would not register a dependency on the active locale.
-    void i18n.global.locale.value
-    updateDocumentTitle()
-  })
+  // `t()` reads the composer's `locale` ref, so this effect already re-runs on every
+  // language switch; the route is tracked through `router.currentRoute`.
+  watchEffect(updateDocumentTitle)
 }
