@@ -5,7 +5,7 @@
 ## 项目定位
 
 - Go 服务负责配置加载、JWT 会话、角色与 capability 授权、SQLite 持久化、HTTP API 和前端静态资源托管。
-- Vue 应用提供登录、注册、初始化设置、Dashboard、个人设置、系统设置、用户管理、任务页和系统日志等可运行页面。
+- Vue 应用提供登录、注册、初始化设置、Dashboard、个人设置、系统设置、用户管理和系统日志等可运行页面；站点根路径直接进入 Dashboard，未登录或未初始化时由路由守卫接管。
 - 前端使用 Pinia、Vue Router、Vue I18n、Tailwind CSS 和 shadcn-vue 风格组件；`MSW` 可通过 `VITE_API_MOCKING=true` 提供登录相关 mock。
 - 生产构建会把 `web/dist` 嵌入 Go 二进制，适合从一个仓库继续发展为独立业务应用。
 

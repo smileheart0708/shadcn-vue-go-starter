@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { CAPABILITY } from '@/lib/auth/roles'
+import { useAccountStore } from '@/stores/account'
 import { useAuthStore } from '@/stores/auth'
 
 const DELETE_COUNTDOWN_SECONDS = 3
@@ -13,6 +14,7 @@ export function useDeleteAccountFlow() {
   const { t } = useI18n()
   const router = useRouter()
   const authStore = useAuthStore()
+  const accountStore = useAccountStore()
 
   const deleteDialogOpen = ref(false)
   const deleteAccountConfirmed = ref(false)
@@ -66,7 +68,7 @@ export function useDeleteAccountFlow() {
     isDeletingAccount.value = true
 
     try {
-      await authStore.deleteAccount()
+      await accountStore.deleteAccount()
       closeDeleteAccountFlow()
       toast.success(t('settings.account.deleteAccountSuccess'))
       await router.push({ name: 'login' })

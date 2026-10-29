@@ -1,13 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Router } from 'vue-router'
-import type { ChangePasswordInput, UpdateProfileInput } from '@/lib/api/account'
-import {
-  deleteAccount as deleteAccountRequest,
-  updatePassword as updatePasswordRequest,
-  updateProfile as updateProfileRequest,
-  uploadAvatar as uploadAvatarRequest,
-} from '@/lib/api/account'
 import type {
   Capability,
   InstallState,
@@ -219,28 +212,6 @@ export const useAuthStore = defineStore('auth', () => {
     return response
   }
 
-  async function saveProfile(profile: UpdateProfileInput) {
-    const nextViewer = await updateProfileRequest(profile)
-    applyViewer(nextViewer)
-    return nextViewer
-  }
-
-  async function uploadAvatar(file: File) {
-    const nextViewer = await uploadAvatarRequest(file)
-    applyViewer(nextViewer)
-    return nextViewer
-  }
-
-  async function changePassword(input: ChangePasswordInput) {
-    await updatePasswordRequest(input)
-    resetSession(true)
-  }
-
-  async function deleteAccount() {
-    await deleteAccountRequest()
-    resetSession(true)
-  }
-
   async function logout() {
     try {
       await logoutRequest()
@@ -295,10 +266,6 @@ export const useAuthStore = defineStore('auth', () => {
     completeSetup,
     login,
     register,
-    saveProfile,
-    uploadAvatar,
-    changePassword,
-    deleteAccount,
     logout,
     resetSession,
     can,

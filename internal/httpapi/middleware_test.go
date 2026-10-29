@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"main/internal/auth"
-	"main/internal/authorization"
 	"main/internal/identity"
 )
 
@@ -41,7 +40,7 @@ func TestRequireAuthAcceptsAuthenticatedActor(t *testing.T) {
 
 	authenticator := staticAuthenticator{actor: auth.Actor{
 		Principal: auth.Principal{UserID: 1, SessionID: "session", SecurityVersion: 1},
-		User:      identity.User{ID: 1, Username: "owner", Role: authorization.RoleOwner, Status: identity.StatusActive, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		User:      identity.User{ID: 1, Username: "owner", Role: identity.RoleOwner, Status: identity.StatusActive, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 	}}
 	handler := RequireAuthWithAuthenticator(authenticator)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := auth.ActorFromContext(r.Context()); !ok {

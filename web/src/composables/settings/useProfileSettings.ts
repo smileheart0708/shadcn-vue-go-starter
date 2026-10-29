@@ -5,6 +5,7 @@ import { toast } from 'vue-sonner'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
 import { AVATAR_ACCEPTED_FILE_TYPES, getAvatarFallbackText } from '@/lib/avatar'
+import { useAccountStore } from '@/stores/account'
 import { useAuthStore } from '@/stores/auth'
 import { compressAvatarFile, validateAvatarFile } from '@/utils/settings/avatar'
 import { normalizeOptionalEmail } from '@/utils/settings/preferences'
@@ -12,6 +13,7 @@ import { normalizeOptionalEmail } from '@/utils/settings/preferences'
 export function useProfileSettings() {
   const { t } = useI18n()
   const authStore = useAuthStore()
+  const accountStore = useAccountStore()
 
   const editDialogOpen = ref(false)
   const editForm = ref({
@@ -118,13 +120,13 @@ export function useProfileSettings() {
     profileError.value = ''
 
     try {
-      await authStore.saveProfile({
+      await accountStore.saveProfile({
         username,
         email: normalizeOptionalEmail(editForm.value.email),
       })
 
       if (pendingAvatarFile.value !== null) {
-        await authStore.uploadAvatar(pendingAvatarFile.value)
+        await accountStore.uploadAvatar(pendingAvatarFile.value)
         pendingAvatarFile.value = null
       }
 

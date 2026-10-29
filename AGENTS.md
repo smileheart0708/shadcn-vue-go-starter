@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 
 - `main.go` is the Go composition root. `frontend_embed.go` embeds the built `web/dist` assets into the server binary.
-- `internal/` contains Go packages for authentication, authorization, database access, HTTP handlers, identity, logging, setup, and users. Tests live beside code as `*_test.go`.
+- `internal/` contains Go packages for account policies, authentication, authorization, configuration, database access, HTTP API, identity, logging, and setup. Tests live beside code as `*_test.go`.
 - `web/src/` contains the Vue 3 app: `components/`, `views/`, `layouts/`, `router/`, `stores/`, `composables/`, `lib/`, `locales/`, `mocks/`, and `utils/`. Reusable shadcn-vue primitives live under `web/src/components/ui/`.
 - `web/dist/`, `.data/`, `node_modules/`, and compiled executables are generated or local-only files.
 
@@ -24,9 +24,9 @@ unrelated cleanup:
   expected to sit unused until an app feature needs one; that availability is the point of
   the starter. They are tree-shaken out of the bundle, so an unused primitive costs nothing
   at runtime. Remove one only when deliberately trimming the kit.
-- **Demo pages and fixtures** — `views/TasksView.vue`, `views/HomeView.vue`,
-  `components/dashboard/`, and `fixtures/`. These demonstrate the intended UI patterns
-  against static data. Each is commented with what to replace when wiring real data.
+- **`web/src/components/dashboard/**`** — the dashboard cards and chart. They run on
+  static data and demonstrate the intended UI patterns; replace the data sources when
+  wiring a real dashboard.
 
 Everything else — unreferenced exports, helpers, i18n keys, dependencies — is fair game and
 should be deleted rather than left behind. i18n keys live in three files

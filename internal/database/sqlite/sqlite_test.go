@@ -141,7 +141,7 @@ func TestStoreRepositoriesKeepDomainWritesAtomic(t *testing.T) {
 	user, err := identityService.CreateUser(ctx, identity.CreateUserParams{
 		Username:     "member",
 		PasswordHash: "hash",
-		Role:         "user",
+		Role:         identity.RoleUser,
 	})
 	if err != nil {
 		t.Fatalf("create member: %v", err)
@@ -149,7 +149,7 @@ func TestStoreRepositoriesKeepDomainWritesAtomic(t *testing.T) {
 	if _, err := identityService.CreateUser(ctx, identity.CreateUserParams{
 		Username:     "member",
 		PasswordHash: "hash",
-		Role:         "user",
+		Role:         identity.RoleUser,
 	}); !errors.Is(err, identity.ErrUsernameTaken) {
 		t.Fatalf("duplicate user error = %v, want ErrUsernameTaken", err)
 	}
@@ -180,7 +180,7 @@ func TestStoreRepositoriesKeepDomainWritesAtomic(t *testing.T) {
 	passwordUser, err := identityService.CreateUser(ctx, identity.CreateUserParams{
 		Username:     "password-user",
 		PasswordHash: "old-hash",
-		Role:         "user",
+		Role:         identity.RoleUser,
 	})
 	if err != nil {
 		t.Fatalf("create password user: %v", err)

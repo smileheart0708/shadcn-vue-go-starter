@@ -64,7 +64,6 @@ export interface MessageSchema {
     register: string
     setup: string
     systemLogs: string
-    tasks: string
     feedback: { loadFailed: string }
   }
   systemConfig: {
@@ -252,52 +251,6 @@ export interface MessageSchema {
       enableFailed: string
     }
   }
-  /** Shared data-table chrome (column toggle + pagination). */
-  table: {
-    action: { view: string }
-    pagination: {
-      rowsPerPage: string
-      pageOf: string
-      goToFirstPage: string
-      goToPreviousPage: string
-      goToNextPage: string
-      goToLastPage: string
-      rowSelected: string
-    }
-  }
-  /** Demo page shipped with the starter; see TasksView.vue. */
-  tasks: {
-    title: string
-    description: string
-    filterPlaceholder: string
-    selectAllAriaLabel: string
-    selectRowAriaLabel: string
-    openMenuAriaLabel: string
-    column: {
-      task: string
-      title: string
-      status: string
-      priority: string
-    }
-    action: { viewTask: string; copyId: string; archive: string }
-    filter: { status: string; priority: string }
-    label: { documentation: string; bug: string; feature: string }
-    status: {
-      backlog: string
-      todo: string
-      inProgress: string
-      done: string
-      canceled: string
-    }
-    priority: { low: string; medium: string; high: string }
-  }
-  home: {
-    announcement: string
-    title: string
-    description: string
-    getStarted: string
-    viewComponents: string
-  }
   dashboard: {
     metric: {
       totalRevenue: { title: string; summary: string; detail: string }
@@ -364,7 +317,6 @@ export interface MessageSchema {
   nav: {
     main: {
       dashboard: string
-      tasks: string
       lifecycle: string
       analytics: string
       projects: string

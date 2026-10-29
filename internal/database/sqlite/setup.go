@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"main/internal/authorization"
 	"main/internal/identity"
 	"main/internal/setup"
 )
@@ -78,7 +77,7 @@ func (s *Store) CompleteInitialOwner(ctx context.Context, owner setup.InitialOwn
 			) VALUES (?, NULL, NULL, ?, ?, 1, NULL, ?, ?)`,
 			owner.Username,
 			identity.StatusActive,
-			authorization.RoleOwner,
+			identity.RoleOwner,
 			now.Unix(),
 			now.Unix(),
 		)

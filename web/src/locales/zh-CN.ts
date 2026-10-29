@@ -63,7 +63,6 @@ const zhCN = {
     register: '注册',
     setup: '初始化',
     systemLogs: '系统日志',
-    tasks: '任务',
     feedback: { loadFailed: '页面加载失败，请刷新页面后重试。' },
   },
   systemConfig: {
@@ -262,55 +261,6 @@ const zhCN = {
       enableFailed: '启用用户失败。',
     },
   },
-  table: {
-    action: { view: '视图' },
-    pagination: {
-      rowsPerPage: '每页行数',
-      pageOf: '第 {page} 页，共 {total} 页',
-      goToFirstPage: '跳转到第一页',
-      goToPreviousPage: '上一页',
-      goToNextPage: '下一页',
-      goToLastPage: '跳转到最后一页',
-      rowSelected: '已选择 {selected} / {total} 行',
-    },
-  },
-  tasks: {
-    title: '欢迎回来！',
-    description: '以下是你本月的任务列表。',
-    filterPlaceholder: '筛选任务…',
-    selectAllAriaLabel: '选择当前页全部任务',
-    selectRowAriaLabel: '选择任务',
-    openMenuAriaLabel: '打开菜单',
-    column: {
-      task: '任务',
-      title: '标题',
-      status: '状态',
-      priority: '优先级',
-    },
-    action: { viewTask: '查看任务', copyId: '复制 ID', archive: '归档' },
-    filter: { status: '状态', priority: '优先级' },
-    label: {
-      documentation: '文档',
-      bug: '缺陷',
-      feature: '功能',
-    },
-    status: {
-      backlog: '待办池',
-      todo: '待处理',
-      inProgress: '进行中',
-      done: '已完成',
-      canceled: '已取消',
-    },
-    priority: { low: '低', medium: '中', high: '高' },
-  },
-  home: {
-    announcement: '新组件：Field、Input Group、Item 等',
-    title: '你的设计系统基石',
-    description:
-      '一套设计精良的组件，可自由定制、扩展与构建。从这里开始，让它成为你自己的。开源代码，开放实现。',
-    getStarted: '开始使用',
-    viewComponents: '查看组件',
-  },
   dashboard: {
     metric: {
       totalRevenue: {
@@ -406,7 +356,6 @@ const zhCN = {
   nav: {
     main: {
       dashboard: '仪表盘',
-      tasks: '任务',
       lifecycle: '生命周期',
       analytics: '分析',
       projects: '项目',

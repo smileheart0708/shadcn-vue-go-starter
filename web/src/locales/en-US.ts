@@ -64,7 +64,6 @@ const enUS = {
     register: 'Register',
     setup: 'Setup',
     systemLogs: 'System Logs',
-    tasks: 'Tasks',
     feedback: {
       loadFailed: 'Failed to load the page. Please refresh and try again.',
     },
@@ -275,55 +274,6 @@ const enUS = {
       enableFailed: 'Failed to enable user.',
     },
   },
-  table: {
-    action: { view: 'View' },
-    pagination: {
-      rowsPerPage: 'Rows per page',
-      pageOf: 'Page {page} of {total}',
-      goToFirstPage: 'Go to first page',
-      goToPreviousPage: 'Go to previous page',
-      goToNextPage: 'Go to next page',
-      goToLastPage: 'Go to last page',
-      rowSelected: '{selected} of {total} row(s) selected.',
-    },
-  },
-  tasks: {
-    title: 'Welcome back!',
-    description: "Here's a list of your tasks for this month.",
-    filterPlaceholder: 'Filter tasks...',
-    selectAllAriaLabel: 'Select all tasks on the current page',
-    selectRowAriaLabel: 'Select task',
-    openMenuAriaLabel: 'Open menu',
-    column: {
-      task: 'Task',
-      title: 'Title',
-      status: 'Status',
-      priority: 'Priority',
-    },
-    action: { viewTask: 'View task', copyId: 'Copy id', archive: 'Archive' },
-    filter: { status: 'Status', priority: 'Priority' },
-    label: {
-      documentation: 'Documentation',
-      bug: 'Bug',
-      feature: 'Feature',
-    },
-    status: {
-      backlog: 'Backlog',
-      todo: 'Todo',
-      inProgress: 'In Progress',
-      done: 'Done',
-      canceled: 'Canceled',
-    },
-    priority: { low: 'Low', medium: 'Medium', high: 'High' },
-  },
-  home: {
-    announcement: 'New Components: Field, Input Group, Item and more',
-    title: 'The Foundation for your Design System',
-    description:
-      'A set of beautifully designed components that you can customize, extend, and build on. Start here then make it your own. Open Source. Open Code.',
-    getStarted: 'Get Started',
-    viewComponents: 'View Components',
-  },
   dashboard: {
     metric: {
       totalRevenue: {
@@ -419,7 +369,6 @@ const enUS = {
   nav: {
     main: {
       dashboard: 'Dashboard',
-      tasks: 'Tasks',
       lifecycle: 'Lifecycle',
       analytics: 'Analytics',
       projects: 'Projects',

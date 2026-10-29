@@ -8,7 +8,6 @@ import type { RouteTitleKey } from '@/router/route-title'
 const AppShellLayout = async () => import('@/layouts/AppShellLayout.vue')
 const BlankLayout = async () => import('@/layouts/BlankLayout.vue')
 const Dashboard = async () => import('@/views/DashboardView.vue')
-const Home = async () => import('@/views/HomeView.vue')
 const Setup = async () => import('@/views/SetupView.vue')
 const Login = async () => import('@/views/LoginView.vue')
 const Register = async () => import('@/views/RegisterView.vue')
@@ -16,7 +15,6 @@ const Settings = async () => import('@/views/SettingsView.vue')
 const AdminSettings = async () => import('@/views/AdminSettingsView.vue')
 const AdminUsers = async () => import('@/views/AdminUsersView.vue')
 const SystemLogs = async () => import('@/views/SystemLogsView.vue')
-const Tasks = async () => import('@/views/TasksView.vue')
 const NotFound = async () => import('@/views/NotFoundView.vue')
 
 function defineAppShellRoute<
@@ -61,12 +59,6 @@ const appShellRoutes = [
     },
   }),
   defineAppShellRoute({
-    path: 'tasks',
-    name: 'tasks',
-    component: Tasks,
-    meta: { titleKey: 'route.tasks', requiresAuth: true },
-  }),
-  defineAppShellRoute({
     path: 'system-logs',
     name: 'system-logs',
     component: SystemLogs,
@@ -84,13 +76,13 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: Home,
-    },
-    {
-      path: '/',
       component: AppShellLayout,
-      children: appShellRoutes,
+      children: [
+        // The site root lands on the workspace; the auth guard sends guests to
+        // /login and uninitialized installs to /setup.
+        { path: '', redirect: { name: 'dashboard' } },
+        ...appShellRoutes,
+      ],
     },
     {
       path: '/setup',

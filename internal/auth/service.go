@@ -222,7 +222,7 @@ func (s *Service) Register(ctx context.Context, params RegisterParams, ip string
 		Username:     params.Username,
 		Email:        params.Email,
 		PasswordHash: passwordHash,
-		Role:         authorization.RoleUser,
+		Role:         identity.RoleUser,
 	})
 	if err != nil {
 		return SessionResult{}, err
@@ -508,7 +508,7 @@ func (s *Service) buildViewerAuthorization(ctx context.Context, role string) (au
 		return authorization.ViewerAuthorization{}, err
 	}
 
-	allowSelfDelete := policies.SelfServiceAccountDeletionEnabled && role != authorization.RoleOwner
+	allowSelfDelete := policies.SelfServiceAccountDeletionEnabled && role != identity.RoleOwner
 
 	return s.authorization.ViewerAuthorization(role, authorization.ViewerOptions{
 		AllowSelfDelete: allowSelfDelete,

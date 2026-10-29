@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"main/internal/identity"
 )
 
 func TestViewerAuthorizationAppliesDynamicCapabilities(t *testing.T) {
@@ -11,7 +13,7 @@ func TestViewerAuthorizationAppliesDynamicCapabilities(t *testing.T) {
 
 	service := NewService()
 
-	viewer := service.ViewerAuthorization(RoleUser, ViewerOptions{
+	viewer := service.ViewerAuthorization(identity.RoleUser, ViewerOptions{
 		AllowSelfDelete: true,
 	})
 
@@ -28,7 +30,7 @@ func TestViewerAuthorizationAlwaysEncodesEmptyCapabilitiesAsArray(t *testing.T) 
 
 	service := NewService()
 
-	viewer := service.ViewerAuthorization(RoleUser, ViewerOptions{})
+	viewer := service.ViewerAuthorization(identity.RoleUser, ViewerOptions{})
 	if viewer.Capabilities == nil {
 		t.Fatal("expected empty capabilities slice to be non-nil")
 	}
@@ -47,9 +49,9 @@ func TestCanManageUserEnforcesOwnerBoundaries(t *testing.T) {
 
 	service := NewService()
 
-	owner := UserTarget{UserID: 1, Role: RoleOwner, Status: "active"}
-	user := UserTarget{UserID: 2, Role: RoleUser, Status: "active"}
-	otherOwner := UserTarget{UserID: 3, Role: RoleOwner, Status: "active"}
+	owner := UserTarget{UserID: 1, Role: identity.RoleOwner, Status: identity.StatusActive}
+	user := UserTarget{UserID: 2, Role: identity.RoleUser, Status: identity.StatusActive}
+	otherOwner := UserTarget{UserID: 3, Role: identity.RoleOwner, Status: identity.StatusActive}
 
 	if service.CanManageUser(user, owner, UserActionUpdate) {
 		t.Fatal("expected regular users to be unable to manage owner")

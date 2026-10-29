@@ -71,7 +71,7 @@ func TestInstallSetupOnlyRunsOnceAndCreatesOwnerSession(t *testing.T) {
 	if refreshCookie == nil {
 		t.Fatal("expected refresh cookie after setup")
 	}
-	if session.Viewer.Authorization.Role != authorization.RoleOwner {
+	if session.Viewer.Authorization.Role != identity.RoleOwner {
 		t.Fatalf("expected owner role after setup, got %+v", session.Viewer.Authorization.Role)
 	}
 
@@ -110,8 +110,8 @@ func TestOwnerCanCreateManagedUserByDefault(t *testing.T) {
 	ownerSession, _ := performSetup(t, ctx)
 
 	rec := createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"member","password":"member1234"}`)
-	if rec.Role != authorization.RoleUser {
-		t.Fatalf("expected created user role %q, got %q", authorization.RoleUser, rec.Role)
+	if rec.Role != identity.RoleUser {
+		t.Fatalf("expected created user role %q, got %q", identity.RoleUser, rec.Role)
 	}
 }
 
@@ -180,7 +180,7 @@ func TestPublicRegistrationToggleControlsRegisterRefreshReplayAndLogoutFlow(t *t
 	}
 	var refreshedEnvelope testSuccessEnvelope[sessionResponse]
 	decodeJSONResponse(t, refreshRec.Body.Bytes(), &refreshedEnvelope)
-	if refreshedEnvelope.Data.Viewer.Authorization.Role != authorization.RoleUser {
+	if refreshedEnvelope.Data.Viewer.Authorization.Role != identity.RoleUser {
 		t.Fatalf("expected user role after registration, got %+v", refreshedEnvelope.Data.Viewer.Authorization.Role)
 	}
 	if strings.Contains(refreshRec.Body.String(), "roleKeys") {

@@ -3,11 +3,8 @@ package authorization
 import (
 	"slices"
 	"sort"
-)
 
-const (
-	RoleOwner = "owner"
-	RoleUser  = "user"
+	"main/internal/identity"
 )
 
 const (
@@ -52,7 +49,7 @@ func NewService() *Service {
 }
 
 var roleCapabilities = map[string][]string{
-	RoleOwner: {
+	identity.RoleOwner: {
 		CapabilitySystemSettingsRead,
 		CapabilitySystemSettingsUpdate,
 		CapabilityManagementUsersRead,
@@ -62,7 +59,7 @@ var roleCapabilities = map[string][]string{
 		CapabilityManagementUsersEnable,
 		CapabilityManagementSystemLogsRead,
 	},
-	RoleUser: {},
+	identity.RoleUser: {},
 }
 
 func (s *Service) ViewerAuthorization(role string, options ViewerOptions) ViewerAuthorization {
@@ -98,10 +95,10 @@ func (s *Service) CanManageUser(actor UserTarget, target UserTarget, action User
 	if target.Role == "" {
 		return false
 	}
-	if actor.Role != RoleOwner {
+	if actor.Role != identity.RoleOwner {
 		return false
 	}
-	if target.Role == RoleOwner {
+	if target.Role == identity.RoleOwner {
 		return false
 	}
 
@@ -114,11 +111,11 @@ func (s *Service) ManagedUserActions(actor UserTarget, target UserTarget) []stri
 		actions = append(actions, string(UserActionUpdate))
 	}
 	switch target.Status {
-	case "active":
+	case identity.StatusActive:
 		if s.CanManageUser(actor, target, UserActionDisable) {
 			actions = append(actions, string(UserActionDisable))
 		}
-	case "disabled":
+	case identity.StatusDisabled:
 		if s.CanManageUser(actor, target, UserActionEnable) {
 			actions = append(actions, string(UserActionEnable))
 		}

@@ -7,11 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"main/internal/authorization"
 )
 
+// Roles and statuses are part of the identity model: authorization policies and
+// storage layers both read them from here, so there is exactly one source.
 const (
+	RoleOwner = "owner"
+	RoleUser  = "user"
+
 	StatusActive   = "active"
 	StatusDisabled = "disabled"
 )
@@ -250,10 +253,10 @@ func normalizeStatus(status string) string {
 
 func normalizeRole(role string) string {
 	switch strings.TrimSpace(role) {
-	case authorization.RoleOwner:
-		return authorization.RoleOwner
-	case authorization.RoleUser:
-		return authorization.RoleUser
+	case RoleOwner:
+		return RoleOwner
+	case RoleUser:
+		return RoleUser
 	default:
 		return ""
 	}

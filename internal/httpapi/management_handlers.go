@@ -141,7 +141,7 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		Username:         payload.Username,
 		Email:            payload.Email,
 		PasswordHash:     passwordHash,
-		Role:             authorization.RoleUser,
+		Role:             identity.RoleUser,
 		AssignedByUserID: new(actor.User.ID),
 	})
 	if err != nil {
