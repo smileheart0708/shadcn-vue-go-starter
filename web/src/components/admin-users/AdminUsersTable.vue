@@ -180,11 +180,13 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
                 )
               }}</TableCell>
               <TableCell>
+                <!-- Read-only is decided by the server's action list, not by role:
+                     it already encodes "cannot act on self / peers / higher rank". -->
                 <div
-                  v-if="user.role === 'owner'"
+                  v-if="user.actions.length === 0"
                   class="text-end text-sm text-muted-foreground"
                 >
-                  {{ t('adminUsers.table.ownerReadonly') }}
+                  {{ t('adminUsers.table.readonly') }}
                 </div>
                 <div
                   v-else

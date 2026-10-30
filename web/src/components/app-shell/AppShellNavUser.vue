@@ -45,7 +45,8 @@ const props = defineProps<{
     username: string
     email: string | null
     avatarUrl: string | null
-    role: RoleKey
+    // Null until the viewer is loaded: the badge must not guess a role.
+    role: RoleKey | null
   }
 }>()
 

@@ -1,26 +1,9 @@
-import type { Capability, RoleKey } from '@/lib/api/auth'
+import type { RoleKey } from '@/lib/api/auth'
 
-const ROLE_KEY = {
+export const ROLE_KEY = {
   owner: 'owner',
   user: 'user',
 } as const satisfies Record<string, RoleKey>
-
-/**
- * Named handles for the capability strings the backend grants in `viewer.authorization`.
- * Always reference capabilities through this object — a bare string literal type-checks
- * (the type is a string-literal union) but silently drifts if the backend renames one.
- */
-export const CAPABILITY = {
-  systemSettingsRead: 'system.settings.read',
-  systemSettingsUpdate: 'system.settings.update',
-  managementUsersRead: 'management.users.read',
-  managementUsersCreate: 'management.users.create',
-  managementUsersUpdate: 'management.users.update',
-  managementUsersDisable: 'management.users.disable',
-  managementUsersEnable: 'management.users.enable',
-  managementSystemLogsRead: 'management.system_logs.read',
-  accountDeleteSelf: 'account.delete_self',
-} as const satisfies Record<string, Capability>
 
 type RoleLabelTranslate = (
   key: 'common.role.owner' | 'common.role.user',

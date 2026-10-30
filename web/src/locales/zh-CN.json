@@ -227,7 +227,7 @@
       "actions": "操作",
       "empty": "没有匹配的用户。",
       "noEmail": "未设置邮箱",
-      "ownerReadonly": "所有者账号仅展示",
+      "readonly": "该账号仅可查看",
       "pageSummary": "第 {page} / {totalPages} 页，共 {total} 个用户"
     },
     "status": {

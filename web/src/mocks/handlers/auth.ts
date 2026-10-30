@@ -1,12 +1,16 @@
 import { http, HttpResponse } from 'msw'
-import type { Capability, RoleKey, ViewerIdentity } from '@/lib/api/auth'
+import type { RoleKey, ViewerIdentity } from '@/lib/api/auth'
+import { CAPABILITY, type Capability } from '@/lib/auth/capabilities.generated'
+import { ROLE_KEY } from '@/lib/auth/roles'
 
 /**
  * In-memory backend stand-in for `pnpm dev` with `VITE_API_MOCKING=true`.
  *
  * Domain types are imported from `lib/api/auth` rather than redeclared so that a schema
  * change breaks this file at compile time instead of silently drifting from the client
- * contract it is supposed to emulate.
+ * contract it is supposed to emulate. The role matrix below mirrors
+ * `internal/authorization/policy.go`; `satisfies Record<RoleKey, ...>` makes a new
+ * backend role a typecheck failure here until the mock is taught about it.
  */
 
 type UserStatus = ViewerIdentity['status']
@@ -199,25 +203,30 @@ function getCurrentUserFromSession() {
   return user
 }
 
+const ROLE_CAPABILITIES = {
+  [ROLE_KEY.owner]: [
+    CAPABILITY.systemSettingsRead,
+    CAPABILITY.systemSettingsUpdate,
+    CAPABILITY.managementUsersRead,
+    CAPABILITY.managementUsersCreate,
+    CAPABILITY.managementUsersUpdate,
+    CAPABILITY.managementUsersDisable,
+    CAPABILITY.managementUsersEnable,
+    CAPABILITY.managementSystemLogsRead,
+  ],
+  [ROLE_KEY.user]: [],
+} as const satisfies Record<RoleKey, readonly Capability[]>
+
 function capabilitiesFor(user: MockUser): Capability[] {
-  const capabilities = new Set<Capability>()
+  const capabilities = new Set<Capability>(ROLE_CAPABILITIES[user.role])
 
-  if (user.role === 'owner') {
-    capabilities.add('system.settings.read')
-    capabilities.add('system.settings.update')
-    capabilities.add('management.users.read')
-    capabilities.add('management.users.create')
-    capabilities.add('management.users.update')
-    capabilities.add('management.users.disable')
-    capabilities.add('management.users.enable')
-    capabilities.add('management.system_logs.read')
-  }
-
+  // Mirrors the server rule: self-deletion is policy-driven and never granted to
+  // the owner, who could otherwise delete the only administrative account.
   if (
     state.accountPolicies.selfServiceAccountDeletionEnabled &&
-    user.role !== 'owner'
+    user.role !== ROLE_KEY.owner
   ) {
-    capabilities.add('account.delete_self')
+    capabilities.add(CAPABILITY.accountDeleteSelf)
   }
 
   return [...capabilities].sort()
@@ -266,7 +275,7 @@ function getMockOwner() {
     state.users.find(
       (entry) =>
         entry.id === state.installState.ownerUserId &&
-        entry.role === 'owner' &&
+        entry.role === ROLE_KEY.owner &&
         entry.status === 'active',
     ) ?? null
   )
@@ -347,11 +356,11 @@ function canManageUser(
     return false
   }
 
-  if (actor.role !== 'owner') {
+  if (actor.role !== ROLE_KEY.owner) {
     return false
   }
 
-  return target.role !== 'owner'
+  return target.role !== ROLE_KEY.owner
 }
 
 function managedUserActions(actor: MockUser, target: MockUser) {
@@ -730,7 +739,7 @@ export const authHandlers = [
     if (error) {
       return error
     }
-    if (!hasCapability(user, 'account.delete_self')) {
+    if (!hasCapability(user, CAPABILITY.accountDeleteSelf)) {
       return jsonError(
         403,
         'account_delete_forbidden',
@@ -748,7 +757,7 @@ export const authHandlers = [
     if (error) {
       return error
     }
-    if (!hasCapability(user, 'system.settings.read')) {
+    if (!hasCapability(user, CAPABILITY.systemSettingsRead)) {
       return jsonError(403, 'forbidden', 'Forbidden.')
     }
 
@@ -760,7 +769,7 @@ export const authHandlers = [
     if (error) {
       return error
     }
-    if (!hasCapability(user, 'system.settings.update')) {
+    if (!hasCapability(user, CAPABILITY.systemSettingsUpdate)) {
       return jsonError(403, 'forbidden', 'Forbidden.')
     }
 
@@ -786,7 +795,7 @@ export const authHandlers = [
     if (error) {
       return error
     }
-    if (!hasCapability(user, 'management.users.read')) {
+    if (!hasCapability(user, CAPABILITY.managementUsersRead)) {
       return jsonError(403, 'forbidden', 'Forbidden.')
     }
 
@@ -829,7 +838,7 @@ export const authHandlers = [
     if (error) {
       return error
     }
-    if (!hasCapability(user, 'management.users.create')) {
+    if (!hasCapability(user, CAPABILITY.managementUsersCreate)) {
       return jsonError(403, 'forbidden', 'Forbidden.')
     }
 
@@ -968,7 +977,7 @@ export const authHandlers = [
     if (error) {
       return error
     }
-    if (!hasCapability(user, 'management.system_logs.read')) {
+    if (!hasCapability(user, CAPABILITY.managementSystemLogsRead)) {
       return jsonError(403, 'forbidden', 'Forbidden.')
     }
 

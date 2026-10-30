@@ -1,6 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
-import { CAPABILITY } from '@/lib/auth/roles'
+import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { installAuthGuard } from '@/middleware/auth'
 import { installRouteLoading } from '@/router/route-loading'
 import type { RouteTitleKey } from '@/router/route-title'

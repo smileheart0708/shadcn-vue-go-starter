@@ -1,72 +1,38 @@
 package authorization
 
-import (
-	"slices"
-	"sort"
+import "slices"
 
-	"main/internal/identity"
-)
-
-const (
-	CapabilitySystemSettingsRead       = "system.settings.read"
-	CapabilitySystemSettingsUpdate     = "system.settings.update"
-	CapabilityManagementUsersRead      = "management.users.read"
-	CapabilityManagementUsersCreate    = "management.users.create"
-	CapabilityManagementUsersUpdate    = "management.users.update"
-	CapabilityManagementUsersDisable   = "management.users.disable"
-	CapabilityManagementUsersEnable    = "management.users.enable"
-	CapabilityManagementSystemLogsRead = "management.system_logs.read"
-	CapabilityAccountDeleteSelf        = "account.delete_self"
-)
-
+// ViewerAuthorization is the domain view of what a role may do right now.
+//
+// It deliberately carries no JSON tags: transport shapes belong to httpapi, so
+// renaming a response field never reaches into the permission model.
 type ViewerAuthorization struct {
-	Role         string   `json:"role"`
-	Capabilities []string `json:"capabilities"`
+	Role         string
+	Capabilities []Capability
 }
 
+// ViewerOptions carries request-time policy inputs that are not part of the
+// static role matrix.
 type ViewerOptions struct {
 	AllowSelfDelete bool
 }
 
-type UserAction string
-
-const (
-	UserActionUpdate  UserAction = "update"
-	UserActionDisable UserAction = "disable"
-	UserActionEnable  UserAction = "enable"
-)
-
-type UserTarget struct {
-	UserID int64
-	Role   string
-	Status string
-}
-
+// Service is the only way to turn a role into capabilities. It is stateless and
+// side-effect free so permission changes take effect on the next request without
+// cache invalidation.
 type Service struct{}
 
 func NewService() *Service {
 	return &Service{}
 }
 
-var roleCapabilities = map[string][]string{
-	identity.RoleOwner: {
-		CapabilitySystemSettingsRead,
-		CapabilitySystemSettingsUpdate,
-		CapabilityManagementUsersRead,
-		CapabilityManagementUsersCreate,
-		CapabilityManagementUsersUpdate,
-		CapabilityManagementUsersDisable,
-		CapabilityManagementUsersEnable,
-		CapabilityManagementSystemLogsRead,
-	},
-	identity.RoleUser: {},
-}
-
+// ViewerAuthorization resolves the capabilities granted to role plus any
+// capability enabled by request-time policy.
 func (s *Service) ViewerAuthorization(role string, options ViewerOptions) ViewerAuthorization {
 	capabilities := s.CapabilitiesForRole(role)
 	if options.AllowSelfDelete && !slices.Contains(capabilities, CapabilityAccountDeleteSelf) {
 		capabilities = append(capabilities, CapabilityAccountDeleteSelf)
-		sort.Strings(capabilities)
+		slices.Sort(capabilities)
 	}
 
 	return ViewerAuthorization{
@@ -75,50 +41,14 @@ func (s *Service) ViewerAuthorization(role string, options ViewerOptions) Viewer
 	}
 }
 
-func (s *Service) CapabilitiesForRole(role string) []string {
-	capabilities := append([]string(nil), roleCapabilities[role]...)
-	sort.Strings(capabilities)
-	if len(capabilities) == 0 {
-		return []string{}
-	}
+// CapabilitiesForRole returns a sorted copy of the role matrix entry. Unknown
+// roles yield no capabilities, which keeps the model fail-closed.
+func (s *Service) CapabilitiesForRole(role string) []Capability {
+	capabilities := slices.Clone(roleCapabilities[role])
+	slices.Sort(capabilities)
 	return capabilities
 }
 
-func (s *Service) HasCapability(capabilities []string, capability string) bool {
+func (s *Service) HasCapability(capabilities []Capability, capability Capability) bool {
 	return slices.Contains(capabilities, capability)
-}
-
-func (s *Service) CanManageUser(actor UserTarget, target UserTarget, action UserAction) bool {
-	if actor.UserID == target.UserID {
-		return false
-	}
-	if target.Role == "" {
-		return false
-	}
-	if actor.Role != identity.RoleOwner {
-		return false
-	}
-	if target.Role == identity.RoleOwner {
-		return false
-	}
-
-	return action == UserActionUpdate || action == UserActionDisable || action == UserActionEnable
-}
-
-func (s *Service) ManagedUserActions(actor UserTarget, target UserTarget) []string {
-	actions := make([]string, 0, 2)
-	if s.CanManageUser(actor, target, UserActionUpdate) {
-		actions = append(actions, string(UserActionUpdate))
-	}
-	switch target.Status {
-	case identity.StatusActive:
-		if s.CanManageUser(actor, target, UserActionDisable) {
-			actions = append(actions, string(UserActionDisable))
-		}
-	case identity.StatusDisabled:
-		if s.CanManageUser(actor, target, UserActionEnable) {
-			actions = append(actions, string(UserActionEnable))
-		}
-	}
-	return actions
 }

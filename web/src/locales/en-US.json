@@ -227,7 +227,7 @@
       "actions": "Actions",
       "empty": "No matching users found.",
       "noEmail": "No email",
-      "ownerReadonly": "Owner account is read-only",
+      "readonly": "This account is read-only",
       "pageSummary": "Page {page} of {totalPages} · {total} total user(s)"
     },
     "status": {

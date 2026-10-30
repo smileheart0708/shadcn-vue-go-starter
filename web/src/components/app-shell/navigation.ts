@@ -13,7 +13,7 @@ import {
   Settings,
   Users,
 } from '@lucide/vue'
-import { CAPABILITY } from '@/lib/auth/roles'
+import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { useAuthStore } from '@/stores/auth'
 
 export interface AppShellNavItem {

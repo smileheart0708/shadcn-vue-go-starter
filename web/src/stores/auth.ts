@@ -2,7 +2,6 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Router } from 'vue-router'
 import type {
-  Capability,
   InstallState,
   LoginCredentials,
   PublicAuthConfig,
@@ -25,6 +24,8 @@ import {
   clearAuthClientHandlers,
   registerAuthClientHandlers,
 } from '@/lib/api/client'
+import { hasCapability } from '@/lib/auth/authorize'
+import type { Capability } from '@/lib/auth/capabilities.generated'
 import { clearAuthToken, readAuthToken, writeAuthToken } from '@/lib/auth/token'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -242,7 +243,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function can(capability: Capability) {
-    return capabilities.value.includes(capability)
+    return hasCapability(capabilities.value, capability)
   }
 
   return {

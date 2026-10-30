@@ -1,4 +1,5 @@
 import type { RouteLocationNormalized, Router } from 'vue-router'
+import { hasAllCapabilities } from '@/lib/auth/authorize'
 import pinia from '@/stores/pinia'
 import { useAuthStore } from '@/stores/auth'
 
@@ -56,7 +57,7 @@ export function installAuthGuard(router: Router) {
 
     if (
       requiredCapabilities.length > 0 &&
-      !requiredCapabilities.every((capability) => authStore.can(capability))
+      !hasAllCapabilities(authStore.capabilities, requiredCapabilities)
     ) {
       if (maskUnauthorizedAsNotFound) {
         return resolveNotFoundLocation(to)

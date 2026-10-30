@@ -5,10 +5,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"main/internal/auth"
+	"main/internal/authorization"
 	"main/internal/identity"
 )
 
@@ -95,6 +97,59 @@ func TestChainAppliesMiddlewaresInDeclaredOrder(t *testing.T) {
 		if call != want[i] {
 			t.Fatalf("expected calls %v, got %v", want, calls)
 		}
+	}
+}
+
+func TestRequireCapabilityGatesOnGrantedCapabilities(t *testing.T) {
+	t.Parallel()
+
+	actor := auth.Actor{
+		Principal: auth.Principal{UserID: 7, SessionID: "session", SecurityVersion: 1},
+		User:      identity.User{ID: 7, Username: "member", Role: identity.RoleUser, Status: identity.StatusActive},
+		Authorization: authorization.ViewerAuthorization{
+			Role:         identity.RoleUser,
+			Capabilities: []authorization.Capability{authorization.CapabilityAccountDeleteSelf},
+		},
+	}
+
+	var reached bool
+	handler := Chain(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			reached = true
+			w.WriteHeader(http.StatusNoContent)
+		}),
+		RequireAuthWithAuthenticator(staticAuthenticator{actor: actor}),
+		RequireCapability(authorization.CapabilityManagementUsersRead),
+	)
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/management/users", nil))
+
+	if reached {
+		t.Fatal("expected the guarded handler to be skipped")
+	}
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
+	}
+	decodeErrorCode(t, rec.Body.Bytes(), string(CodeForbidden))
+	if strings.Contains(rec.Body.String(), string(authorization.CapabilityManagementUsersRead)) {
+		t.Fatalf("expected the response to hide the required capability, got %s", rec.Body.String())
+	}
+
+	granted := actor
+	granted.Authorization.Capabilities = append(granted.Authorization.Capabilities, authorization.CapabilityManagementUsersRead)
+	allowedHandler := Chain(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}),
+		RequireAuthWithAuthenticator(staticAuthenticator{actor: granted}),
+		RequireCapability(authorization.CapabilityManagementUsersRead),
+	)
+
+	allowedRec := httptest.NewRecorder()
+	allowedHandler.ServeHTTP(allowedRec, httptest.NewRequest(http.MethodGet, "/api/management/users", nil))
+	if allowedRec.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, allowedRec.Code)
 	}
 }
 

@@ -157,6 +157,11 @@ func (api *API) deleteAccountHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, CodeUnauthorized)
 		return
 	}
+	// Deliberately checked here instead of via RequireCapability middleware:
+	// account.delete_self is derived from account_policies at request time, and a
+	// denial must surface CodeAccountDeleteForbidden rather than a generic 403 so
+	// the UI can explain which policy is off. Do not "unify" this into the
+	// middleware without keeping both behaviours.
 	if !api.authorization.HasCapability(actor.Authorization.Capabilities, authorization.CapabilityAccountDeleteSelf) {
 		writeError(w, r, CodeAccountDeleteForbidden)
 		return

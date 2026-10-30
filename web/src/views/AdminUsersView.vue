@@ -7,7 +7,7 @@ import AdminUserStatusConfirmDialog from '@/components/admin-users/AdminUserStat
 import AdminUsersFilters from '@/components/admin-users/AdminUsersFilters.vue'
 import AdminUsersTable from '@/components/admin-users/AdminUsersTable.vue'
 import { Button } from '@/components/ui/button'
-import { CAPABILITY } from '@/lib/auth/roles'
+import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { useAuthStore } from '@/stores/auth'
 import { useAdminUsersList } from '@/composables/admin-users/useAdminUsersList'
 import { useAdminUserMutations } from '@/composables/admin-users/useAdminUserMutations'

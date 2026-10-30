@@ -18,11 +18,13 @@ const router = useRouter()
 const authStore = useAuthStore()
 const navigation = useAppShellNavigation()
 
+// No fallback role: before the viewer is loaded the sidebar must not claim to be
+// the owner, so the label resolves through the "unknown" branch instead.
 const currentUser = computed(() => ({
-  username: authStore.viewer?.identity.username ?? 'owner',
+  username: authStore.viewer?.identity.username ?? '',
   email: authStore.viewer?.identity.email ?? null,
   avatarUrl: authStore.viewer?.identity.avatarUrl ?? null,
-  role: authStore.viewer?.authorization.role ?? 'owner',
+  role: authStore.viewer?.authorization.role ?? null,
 }))
 
 async function handleLogout() {

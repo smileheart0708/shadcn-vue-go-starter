@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import SystemLogConsolePanel from '@/components/system-logs/SystemLogConsolePanel.vue'
 import SystemLogsPageHeader from '@/components/system-logs/SystemLogsPageHeader.vue'
 import { useSystemLogStream } from '@/composables/system-logs/useSystemLogStream'
-import { CAPABILITY } from '@/lib/auth/roles'
+import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { useAuthStore } from '@/stores/auth'
 import { useSystemLogsPreferencesStore } from '@/stores/system-logs-preferences'
 

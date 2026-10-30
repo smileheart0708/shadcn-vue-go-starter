@@ -1,3 +1,5 @@
 dist
 node_modules
 pnpm-lock.yaml
+# Generated from the Go capability catalog; `go test` compares it byte for byte.
+src/lib/auth/capabilities.generated.ts

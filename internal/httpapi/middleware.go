@@ -3,10 +3,12 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 
 	"main/internal/auth"
+	"main/internal/authorization"
 	"main/internal/setup"
 )
 
@@ -63,7 +65,10 @@ func RequireAuthWithAuthenticator(authenticator requestAuthenticator) Middleware
 	}
 }
 
-func RequireCapability(capability string) Middleware {
+// RequireCapability rejects the request unless the authenticated actor holds
+// capability. It only enforces "may this actor perform this class of action";
+// "may this actor act on this particular object" belongs to the owning domain.
+func RequireCapability(capability authorization.Capability) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			actor, ok := auth.ActorFromContext(r.Context())
@@ -77,7 +82,12 @@ func RequireCapability(capability string) Middleware {
 				return
 			}
 
-			writeError(w, r, CodeForbidden)
+			// The cause is logged, never returned: the client keeps the generic
+			// forbidden message so policy details do not leak.
+			writeError(w, r, CodeForbidden, fmt.Errorf(
+				"capability %q not granted to user %d with role %q",
+				capability, actor.User.ID, actor.User.Role,
+			))
 		})
 	}
 }

@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
-import { CAPABILITY } from '@/lib/auth/roles'
+import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { useAccountStore } from '@/stores/account'
 import { useAuthStore } from '@/stores/auth'
 

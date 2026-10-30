@@ -34,9 +34,19 @@ type viewerIdentityResponse struct {
 	Status    string  `json:"status"`
 }
 
+// viewerAuthorizationResponse is the transport shape of a permission set.
+//
+// It is a separate type from authorization.ViewerAuthorization on purpose: the
+// domain model stores typed capabilities, while the wire contract stays a list of
+// strings. Renaming a JSON field therefore never reaches the permission model.
+type viewerAuthorizationResponse struct {
+	Role         string   `json:"role"`
+	Capabilities []string `json:"capabilities"`
+}
+
 type viewerResponse struct {
-	Identity      viewerIdentityResponse            `json:"identity"`
-	Authorization authorization.ViewerAuthorization `json:"authorization"`
+	Identity      viewerIdentityResponse      `json:"identity"`
+	Authorization viewerAuthorizationResponse `json:"authorization"`
 }
 
 type sessionResponse struct {
@@ -59,6 +69,18 @@ type managedUserResponse struct {
 	Actions      []string   `json:"actions"`
 }
 
+func toViewerAuthorizationResponse(viewer authorization.ViewerAuthorization) viewerAuthorizationResponse {
+	capabilities := make([]string, len(viewer.Capabilities))
+	for index, capability := range viewer.Capabilities {
+		capabilities[index] = string(capability)
+	}
+
+	return viewerAuthorizationResponse{
+		Role:         viewer.Role,
+		Capabilities: capabilities,
+	}
+}
+
 type installStateResponse struct {
 	SetupState     string     `json:"setupState"`
 	SetupCompleted bool       `json:"setupCompleted"`
@@ -79,7 +101,7 @@ func (api *API) toViewerResponse(viewer auth.Viewer) viewerResponse {
 			AvatarURL: api.toAvatarURL(viewer.User.AvatarPath),
 			Status:    viewer.User.Status,
 		},
-		Authorization: viewer.Authorization,
+		Authorization: toViewerAuthorizationResponse(viewer.Authorization),
 	}
 }
 
@@ -92,7 +114,7 @@ func (api *API) toSessionResponse(result auth.SessionResult) sessionResponse {
 	}
 }
 
-func (api *API) toManagedUserResponse(user identity.User, actions []string) managedUserResponse {
+func (api *API) toManagedUserResponse(user identity.User, actions []identity.ManagedUserAction) managedUserResponse {
 	return managedUserResponse{
 		ID:           user.ID,
 		Username:     user.Username,
@@ -103,8 +125,19 @@ func (api *API) toManagedUserResponse(user identity.User, actions []string) mana
 		LastActiveAt: user.LastActiveAt,
 		CreatedAt:    user.CreatedAt,
 		UpdatedAt:    user.UpdatedAt,
-		Actions:      cloneStringSlice(actions),
+		Actions:      managedUserActionsToStrings(actions),
 	}
+}
+
+// managedUserActionsToStrings always returns a non-nil slice so the response
+// encodes an empty array instead of null.
+func managedUserActionsToStrings(actions []identity.ManagedUserAction) []string {
+	values := make([]string, len(actions))
+	for index, action := range actions {
+		values[index] = string(action)
+	}
+
+	return values
 }
 
 func (api *API) toAvatarURL(avatarPath *string) *string {
@@ -117,12 +150,4 @@ func (api *API) toAvatarURL(avatarPath *string) *string {
 	}
 	url := "/api/avatars/" + filename
 	return &url
-}
-
-func cloneStringSlice(values []string) []string {
-	if len(values) == 0 {
-		return []string{}
-	}
-
-	return append([]string(nil), values...)
 }

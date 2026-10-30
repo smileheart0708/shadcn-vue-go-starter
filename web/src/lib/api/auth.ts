@@ -1,19 +1,9 @@
 import { z } from 'zod'
 import { authApi, baseApi, normalizeAPIError } from '@/lib/api/client'
 import { successEnvelopeSchema } from '@/lib/api/envelope'
+import { capabilitySchema } from '@/lib/auth/capabilities.generated'
 
 export const roleKeySchema = z.enum(['owner', 'user'])
-export const capabilitySchema = z.enum([
-  'system.settings.read',
-  'system.settings.update',
-  'management.users.read',
-  'management.users.create',
-  'management.users.update',
-  'management.users.disable',
-  'management.users.enable',
-  'management.system_logs.read',
-  'account.delete_self',
-])
 
 export const viewerIdentitySchema = z.object({
   id: z.number().int().positive(),
@@ -56,7 +46,6 @@ const logoutPayloadSchema = z.object({
 })
 
 export type RoleKey = z.infer<typeof roleKeySchema>
-export type Capability = z.infer<typeof capabilitySchema>
 export type ViewerIdentity = z.infer<typeof viewerIdentitySchema>
 export type ViewerAuthorization = z.infer<typeof viewerAuthorizationSchema>
 export type Viewer = z.infer<typeof viewerSchema>

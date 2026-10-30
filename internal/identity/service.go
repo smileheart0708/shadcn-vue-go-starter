@@ -9,12 +9,10 @@ import (
 	"time"
 )
 
-// Roles and statuses are part of the identity model: authorization policies and
-// storage layers both read them from here, so there is exactly one source.
+// Statuses are part of the identity model: authorization policies and storage
+// layers both read them from here, so there is exactly one source. Roles live in
+// role.go together with their rank.
 const (
-	RoleOwner = "owner"
-	RoleUser  = "user"
-
 	StatusActive   = "active"
 	StatusDisabled = "disabled"
 )
@@ -246,17 +244,6 @@ func normalizeStatus(status string) string {
 		return StatusActive
 	case StatusDisabled:
 		return StatusDisabled
-	default:
-		return ""
-	}
-}
-
-func normalizeRole(role string) string {
-	switch strings.TrimSpace(role) {
-	case RoleOwner:
-		return RoleOwner
-	case RoleUser:
-		return RoleUser
 	default:
 		return ""
 	}

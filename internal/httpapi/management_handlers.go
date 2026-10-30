@@ -8,7 +8,6 @@ import (
 
 	"main/internal/accountpolicies"
 	"main/internal/auth"
-	"main/internal/authorization"
 	"main/internal/identity"
 )
 
@@ -86,7 +85,7 @@ func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	actorTarget := authorization.UserTarget{
+	actorTarget := identity.ManagedUserTarget{
 		UserID: actor.User.ID,
 		Role:   actor.User.Role,
 		Status: actor.User.Status,
@@ -94,12 +93,12 @@ func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Reques
 
 	items := make([]managedUserResponse, 0, len(result.Items))
 	for _, item := range result.Items {
-		target := authorization.UserTarget{
+		target := identity.ManagedUserTarget{
 			UserID: item.ID,
 			Role:   item.Role,
 			Status: item.Status,
 		}
-		items = append(items, api.toManagedUserResponse(item, api.authorization.ManagedUserActions(actorTarget, target)))
+		items = append(items, api.toManagedUserResponse(item, identity.ManagedUserActions(actorTarget, target)))
 	}
 
 	writeSuccessJSON(w, http.StatusOK, managementUsersPageResponse{
@@ -156,7 +155,9 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeSuccessJSON(w, http.StatusCreated, api.toManagedUserResponse(created, []string{}))
+	// A freshly created account is not manageable by the actor: the actor cannot
+	// act on itself, and every other case is filtered by ManagedUserActions.
+	writeSuccessJSON(w, http.StatusCreated, api.toManagedUserResponse(created, []identity.ManagedUserAction{}))
 }
 
 func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +176,7 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 	if !ok {
 		return
 	}
-	if !api.authorization.CanManageUser(actorTarget, targetTarget, authorization.UserActionUpdate) {
+	if !identity.CanManageUser(actorTarget, targetTarget, identity.ManagedUserActionUpdate) {
 		writeError(w, r, CodeForbidden)
 		return
 	}
@@ -206,7 +207,7 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeSuccessJSON(w, http.StatusOK, api.toManagedUserResponse(updated, api.authorization.ManagedUserActions(actorTarget, authorization.UserTarget{
+	writeSuccessJSON(w, http.StatusOK, api.toManagedUserResponse(updated, identity.ManagedUserActions(actorTarget, identity.ManagedUserTarget{
 		UserID: updated.ID,
 		Role:   updated.Role,
 		Status: updated.Status,
@@ -214,14 +215,14 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (api *API) disableManagementUserHandler(w http.ResponseWriter, r *http.Request) {
-	api.setManagementUserStatusHandler(w, r, identity.StatusDisabled, authorization.UserActionDisable)
+	api.setManagementUserStatusHandler(w, r, identity.StatusDisabled, identity.ManagedUserActionDisable)
 }
 
 func (api *API) enableManagementUserHandler(w http.ResponseWriter, r *http.Request) {
-	api.setManagementUserStatusHandler(w, r, identity.StatusActive, authorization.UserActionEnable)
+	api.setManagementUserStatusHandler(w, r, identity.StatusActive, identity.ManagedUserActionEnable)
 }
 
-func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Request, status string, action authorization.UserAction) {
+func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Request, status string, action identity.ManagedUserAction) {
 	actor, ok := api.currentActor(r.Context())
 	if !ok {
 		writeError(w, r, CodeUnauthorized)
@@ -237,7 +238,7 @@ func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Re
 	if !ok {
 		return
 	}
-	if !api.authorization.CanManageUser(actorTarget, targetTarget, action) {
+	if !identity.CanManageUser(actorTarget, targetTarget, action) {
 		writeError(w, r, CodeForbidden)
 		return
 	}
@@ -248,14 +249,14 @@ func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	writeSuccessJSON(w, http.StatusOK, api.toManagedUserResponse(updated, api.authorization.ManagedUserActions(actorTarget, authorization.UserTarget{
+	writeSuccessJSON(w, http.StatusOK, api.toManagedUserResponse(updated, identity.ManagedUserActions(actorTarget, identity.ManagedUserTarget{
 		UserID: updated.ID,
 		Role:   updated.Role,
 		Status: updated.Status,
 	})))
 }
 
-func (api *API) loadManagedUserTargets(w http.ResponseWriter, r *http.Request, actor auth.Actor, targetID int64) (identity.User, authorization.UserTarget, authorization.UserTarget, bool) {
+func (api *API) loadManagedUserTargets(w http.ResponseWriter, r *http.Request, actor auth.Actor, targetID int64) (identity.User, identity.ManagedUserTarget, identity.ManagedUserTarget, bool) {
 	targetUser, err := api.identities.GetUserByID(r.Context(), targetID)
 	if err != nil {
 		if errors.Is(err, identity.ErrUserNotFound) {
@@ -263,15 +264,15 @@ func (api *API) loadManagedUserTargets(w http.ResponseWriter, r *http.Request, a
 		} else {
 			writeError(w, r, CodeInternalError, err)
 		}
-		return identity.User{}, authorization.UserTarget{}, authorization.UserTarget{}, false
+		return identity.User{}, identity.ManagedUserTarget{}, identity.ManagedUserTarget{}, false
 	}
 
-	actorTarget := authorization.UserTarget{
+	actorTarget := identity.ManagedUserTarget{
 		UserID: actor.User.ID,
 		Role:   actor.User.Role,
 		Status: actor.User.Status,
 	}
-	targetTarget := authorization.UserTarget{
+	targetTarget := identity.ManagedUserTarget{
 		UserID: targetUser.ID,
 		Role:   targetUser.Role,
 		Status: targetUser.Status,
