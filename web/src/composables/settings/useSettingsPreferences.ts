@@ -31,12 +31,14 @@ export function useSettingsPreferences() {
     ),
   )
 
-  // Acquires the same ref-counted task the app shell already runs, so that changing the
-  // interval here can restart it immediately instead of waiting out the current tick.
+  // The same ref-counted task the app shell runs, so this page only observes it instead of
+  // starting a second timer.
   const currentUserPolling = useCurrentViewerPolling()
 
   // The shared task only polls on its interval, so ask for one immediate refresh when this
-  // page mounts: it is the only place that surfaces a failing viewer refresh.
+  // page mounts: it is the only place that surfaces a failing viewer refresh. Ordering
+  // with `usePollingTask`'s own `onMounted` does not matter — the manager keeps a pending
+  // request until the task starts.
   onMounted(() => {
     currentUserPolling.refreshNow()
   })
@@ -50,9 +52,12 @@ export function useSettingsPreferences() {
   )
 
   watch(
-    () => currentUserPolling.error.value,
-    (error) => {
-      if (error === null) {
+    () => currentUserPolling.consecutiveFailures.value,
+    (failures) => {
+      // Announce only the first failure of a streak. The task keeps retrying with
+      // backoff, so reacting to `error` (a new object per attempt) would stack several
+      // toasts for a single network blip.
+      if (failures !== 1) {
         return
       }
 
@@ -97,13 +102,8 @@ export function useSettingsPreferences() {
     }
 
     pollingStore.setCurrentUserIntervalSeconds(nextSeconds)
-
-    if (!currentUserPolling.running.value) {
-      return
-    }
-
-    currentUserPolling.pause()
-    currentUserPolling.resume()
+    // No pause/resume dance here: the manager watches `intervalMs` and re-arms the next
+    // tick itself, so a manual restart would only add a redundant request.
   }
 
   return {

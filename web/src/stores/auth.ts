@@ -27,6 +27,7 @@ import {
 import { hasCapability } from '@/lib/auth/authorize'
 import type { Capability } from '@/lib/auth/capabilities.generated'
 import { clearAuthToken, readAuthToken, writeAuthToken } from '@/lib/auth/token'
+import { isSameViewer } from '@/utils/auth/viewer'
 
 export const useAuthStore = defineStore('auth', () => {
   const initialized = ref(false)
@@ -95,6 +96,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function applyViewer(nextViewer: Viewer | null) {
+    // Background polling returns an equal-but-new object on every tick. Replacing the ref
+    // for an unchanged payload would invalidate every viewer-derived computed and re-render
+    // the shell (and make a future `watch(viewer)` fire on each tick), so the reference is
+    // kept stable while the payload is identical — see `isSameViewer`.
+    if (isSameViewer(viewer.value, nextViewer)) {
+      return
+    }
+
     viewer.value = nextViewer
   }
 

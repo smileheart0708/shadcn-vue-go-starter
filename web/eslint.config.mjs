@@ -224,6 +224,16 @@ export default defineConfig(
   },
 
   {
+    // 测试替身天然返回 Promise（`vi.fn<FetchStub>(() => pending.promise)`）：强制写成
+    // `async () => pending.promise` 只是多包一层，一个真实缺陷也抓不到。只关这一条，
+    // `require-await` 保留——它抓的是「async 了却没有 await」的假异步，测试里正是缺陷。
+    files: ['src/**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/promise-function-async': 'off',
+    },
+  },
+
+  {
     files: ['**/*.{ts,tsx,mts,cts,js,mjs,cjs,vue}'],
     plugins: {
       'better-tailwindcss': betterTailwindcss,

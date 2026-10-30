@@ -1,10 +1,11 @@
-import { fileURLToPath, URL } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { msw } from 'msw/vite'
 import { defineConfig, loadEnv } from 'vite'
 import { compression, defineAlgorithm } from 'vite-plugin-compression2'
 import vueDevTools from 'vite-plugin-vue-devtools'
+// Extension required: Vite's native config loader cannot resolve an extensionless import.
+import { resolveAlias } from './build/alias.ts'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -27,11 +28,7 @@ export default defineConfig(({ mode }) => {
         skipIfLargerOrEqual: true,
       }),
     ],
-    resolve: {
-      alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
-      },
-    },
+    resolve: { alias: resolveAlias },
     server: { proxy: { '/api': { target: 'http://localhost:8080' } } },
     build: { target: 'es2022' },
   }
