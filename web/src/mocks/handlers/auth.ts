@@ -36,7 +36,6 @@ interface MockSession {
 
 interface MockState {
   installState: {
-    setupState: 'pending' | 'completed'
     setupCompleted: boolean
     ownerUserId: number | null
     completedAt: string | null
@@ -112,7 +111,6 @@ function createInitialState(): MockState {
 
   return {
     installState: {
-      setupState: 'completed',
       setupCompleted: true,
       ownerUserId: MOCK_OWNER_USER_ID,
       completedAt: MOCK_FIXTURE_CREATED_AT,
@@ -521,7 +519,6 @@ export const authHandlers = [
 
     state.users = [owner]
     state.installState = {
-      setupState: 'completed',
       setupCompleted: true,
       ownerUserId: owner.id,
       completedAt: createdAt,

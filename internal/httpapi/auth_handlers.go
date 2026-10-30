@@ -42,7 +42,6 @@ func (api *API) installStateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeSuccessJSON(w, http.StatusOK, installStateResponse{
-		SetupState:     state.SetupState,
 		SetupCompleted: state.SetupCompleted,
 		OwnerUserID:    state.OwnerUserID,
 		CompletedAt:    state.SetupCompletedAt,

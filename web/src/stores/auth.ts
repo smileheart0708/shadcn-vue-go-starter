@@ -192,7 +192,6 @@ export const useAuthStore = defineStore('auth', () => {
     const response = await completeSetupRequest(input)
     applySession(response)
     installState.value = {
-      setupState: 'completed',
       setupCompleted: true,
       ownerUserId: response.viewer.identity.id,
       completedAt: new Date().toISOString(),

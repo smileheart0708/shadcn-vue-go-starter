@@ -4,14 +4,14 @@
 
 ## 项目定位
 
-- Go 服务负责配置加载、JWT 会话、角色与 capability 授权、SQLite 持久化、HTTP API 和前端静态资源托管。
+- Go 服务负责配置加载、JWT 会话、角色与 capability 授权、Bun + SQLite 持久化、HTTP API 和前端静态资源托管。
 - Vue 应用提供登录、注册、初始化设置、Dashboard、个人设置、系统设置、用户管理和系统日志等可运行页面；站点根路径直接进入 Dashboard，未登录或未初始化时由路由守卫接管。
 - 前端使用 Pinia、Vue Router、Vue I18n、Tailwind CSS 和 shadcn-vue 风格组件；`MSW` 可通过 `VITE_API_MOCKING=true` 提供登录相关 mock。
 - 生产构建会把 `web/dist` 嵌入 Go 二进制，适合从一个仓库继续发展为独立业务应用。
 
 ## 技术栈
 
-- Backend: Go 1.26.3, SQLite, `net/http`
+- Backend: Go 1.26.3, Bun ORM (`uptrace/bun`) + SQLite（`modernc.org/sqlite`，纯 Go 无 CGO）, `net/http`
 - Frontend: Vue 3, TypeScript, Vite 8, Tailwind CSS 4
 - Tooling: pnpm 11, ESLint, Prettier, `vue-tsc`
 
@@ -55,7 +55,10 @@ go build .
 ## 目录与扩展方式
 
 - `internal/`：后端领域服务、数据库、HTTP API、认证和基础设施。
+- `internal/database/` 分三层：`dialect/`（数据库方言适配：连接、PRAGMA/连接池、错误码、该方言的迁移目录）、`migrate/`（带 checksum 账本的迁移执行器）、`store/`（bun 仓储实现与行模型）。新增 PostgreSQL 只需实现 `dialect.Driver` 并提供该方言的迁移目录，`store/` 与领域层不用改。
 - `web/src/views/`：页面；`web/src/components/`：可复用组件；`web/src/lib/api/`：前端 API 客户端；`web/src/locales/`：多语言资源。
 - 新领域功能应同时明确后端边界、API 契约、前端状态和页面职责；不要为了兼容旧结构增加包装层。
 
 运行数据默认位于 `.data/`，JWT secret 会从 `JWT_SECRET` 读取；未配置时应用会在数据目录生成并保存随机 secret。不要提交 `.env`、`.data/`、secret 或构建产物。
+
+首次启动会按 `internal/database/dialect/sqlite/migrations/` 自动建表。已发布的迁移文件不可修改（启动时会校验 SHA-256）；如果改了迁移，删除 `.data/data.db` 重新创建即可。

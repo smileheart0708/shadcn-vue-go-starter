@@ -1,18 +1,28 @@
+// Package database is the composition root of persistence: it selects a dialect,
+// opens it, applies that dialect's migrations and hands the resulting
+// repositories to the domain services.
 package database
 
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
+	"github.com/uptrace/bun"
 	"main/internal/accountpolicies"
 	"main/internal/auth"
-	"main/internal/database/sqlite"
+	"main/internal/database/dialect"
+	"main/internal/database/dialect/sqlite"
+	"main/internal/database/migrate"
+	"main/internal/database/store"
 	"main/internal/identity"
 	"main/internal/setup"
 )
 
-const DriverSQLite = "sqlite"
+// DriverSQLite is the only dialect compiled into this binary. Adding another one
+// means adding its package and a case in selectDriver.
+const DriverSQLite = sqlite.Name
 
 type Config struct {
 	Driver string
@@ -23,7 +33,7 @@ type Config struct {
 // Domain services receive their own repository instead of this aggregate.
 type Runtime struct {
 	driver          string
-	close           func() error
+	db              *bun.DB
 	Identity        identity.Repository
 	Sessions        auth.SessionRepository
 	Setup           setup.Repository
@@ -31,43 +41,56 @@ type Runtime struct {
 }
 
 func Open(ctx context.Context, config Config) (*Runtime, error) {
-	driver := strings.ToLower(strings.TrimSpace(config.Driver))
-	if driver == "" {
-		driver = DriverSQLite
+	driver, err := selectDriver(config.Driver)
+	if err != nil {
+		return nil, err
 	}
 
-	switch driver {
-	case DriverSQLite:
-		store, err := sqlite.Open(ctx, config.DSN)
-		if err != nil {
-			return nil, fmt.Errorf("database: open SQLite adapter: %w", err)
-		}
-		return &Runtime{
-			driver:          DriverSQLite,
-			close:           store.Close,
-			Identity:        store,
-			Sessions:        store,
-			Setup:           store,
-			AccountPolicies: store,
-		}, nil
-	default:
-		return nil, fmt.Errorf("database: driver %q is not compiled into this binary", driver)
+	sqldb, err := driver.Open(ctx, config.DSN)
+	if err != nil {
+		return nil, err
 	}
+
+	bunDB := bun.NewDB(sqldb, driver.BunDialect())
+	if migrateErr := migrate.Run(ctx, bunDB, driver.Migrations()); migrateErr != nil {
+		closeAfterFailedOpen(bunDB)
+		return nil, migrateErr
+	}
+
+	repository := store.New(bunDB, driver)
+	return &Runtime{
+		driver:          driver.Name(),
+		db:              bunDB,
+		Identity:        repository,
+		Sessions:        repository,
+		Setup:           repository,
+		AccountPolicies: repository,
+	}, nil
 }
 
 func (r *Runtime) Driver() string {
-	if r == nil {
-		return ""
-	}
 	return r.driver
 }
 
 func (r *Runtime) Close() error {
-	if r == nil || r.close == nil {
-		return nil
-	}
-	if err := r.close(); err != nil {
+	if err := r.db.Close(); err != nil {
 		return fmt.Errorf("database: close runtime: %w", err)
 	}
 	return nil
+}
+
+func selectDriver(name string) (dialect.Driver, error) {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	switch normalized {
+	case "", sqlite.Name:
+		return sqlite.New(), nil
+	default:
+		return nil, fmt.Errorf("database: driver %q is not compiled into this binary", normalized)
+	}
+}
+
+func closeAfterFailedOpen(db *bun.DB) {
+	if err := db.Close(); err != nil {
+		slog.Error("failed to close database after failed startup", "error", err)
+	}
 }

@@ -24,7 +24,6 @@ export const viewerSchema = z.object({
 })
 
 export const installStateSchema = z.object({
-  setupState: z.enum(['pending', 'completed']),
   setupCompleted: z.boolean(),
   ownerUserId: z.number().int().positive().nullable(),
   completedAt: z.string().nullable(),

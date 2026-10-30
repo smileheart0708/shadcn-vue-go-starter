@@ -4,7 +4,7 @@ This project is a **starting template for new business systems**: it retains onl
 
 ## Technology Stack and Entry Points
 
-- Go 1.26 + `net/http` + `log/slog` + `modernc.org/sqlite` (pure Go driver). The module path is intentionally `main`, and internal packages uniformly use `main/internal/...`; do not change it to a domain-based path.
+- Go 1.26 + `net/http` + `log/slog` + `github.com/uptrace/bun` on top of `modernc.org/sqlite` (pure Go, no CGO). The module path is intentionally `main`, and internal packages uniformly use `main/internal/...`; do not change it to a domain-based path.
 - Vue 3 + TypeScript + Vite 8 + Tailwind 4 + shadcn-vue (reka-ui) + Pinia + vue-router + vue-i18n + zod + ky.
 - Production is a single binary: `frontend_embed.go` embeds the frontend via `//go:embed web/dist`; `main.go` is responsible only for dependency assembly and process lifecycle.
 
@@ -36,11 +36,12 @@ go build .
 ### Backend
 
 - `main.go` only assembles dependencies and starts or gracefully shuts down the server; business logic never belongs there.
-- `internal/<domain>/service.go` defines both the `Service` and the `Repository` interface. The Service is responsible for validation, orchestration, and domain errors; **transaction boundaries belong to the Repository implementation** (`internal/database/sqlite`). Do not assemble transactions across repositories inside a service.
-- `internal/database/runtime.go` is only a composition-root handle that distributes repositories to domain services; domain services receive only their own `Repository` and must not be injected with the entire `Runtime`.
+- `internal/<domain>/service.go` defines both the `Service` and the `Repository` interface. The Service is responsible for validation, orchestration, and domain errors; **transaction boundaries belong to the Repository implementation** (`internal/database/store`, via `(*bun.DB).RunInTx`). Do not assemble transactions across repositories inside a service.
+- `internal/database` has exactly three parts: `dialect` (the `Driver` interface plus one adapter per database: DSN handling, pragmas/pool, SQLite error decoding, migration filesystem), `migrate` (the checksum ledger runner), and `store` (bun row models plus one file per domain repository). `runtime.go` is only the composition root: it selects a dialect, opens it, runs its migrations and distributes repositories to domain services; domain services receive only their own `Repository` and must not be injected with the entire `Runtime`.
+- `dialect.Driver` is the only place allowed to know database-specific SQL. Repositories must not contain dialect-specific SQL; case-insensitive matching goes through `CaseInsensitiveEqual`/`CaseInsensitiveLike` and constraint decoding through `UniqueViolation`. Adding PostgreSQL means adding one adapter package plus its `migrations/` directory — `store`, `migrate` and the domain packages must not change.
 - `internal/httpapi` is strictly the transport layer: `decodeJSON` → call the service → `writeSuccessJSON` / `writeError`. State checks, authorization rules, and business branches must not be written into handlers.
 - New routes are registered centrally in `internal/httpapi/server.go`, with the middleware order fixed as `RequireSetupCompleted → RequireAuth → RequireCapability`; `http.ServeMux` uses the `"METHOD /path"` pattern.
-- The integration path for a new domain is: `internal/<domain>` → `internal/database/sqlite/<domain>.go` → `database.Runtime` field → explicit construction in `main.go` → `HandlerOptions` → route.
+- The integration path for a new domain is: `internal/<domain>` → `internal/database/store/<domain>.go` (row models in `models.go`) → `database.Runtime` field → explicit construction in `main.go` → `HandlerOptions` → route.
 - `internal/authorization` is a business-free permission model split by concern: `capability.go` (the capability catalog and its declaration order), `policy.go` (the role → capability matrix), `service.go` (pure resolution). **Never add `CanManageXxx`-style object-level rules there**; the package must stay reusable across projects.
 - Object-level rules belong to the domain that owns the object and only encode relationships: `internal/identity/management.go` answers "may this actor act on this target" from role ranks (`internal/identity/role.go`), never from role names. Whether the actor may perform that class of action is `RequireCapability`'s job; the two checks must stay disjoint.
 - Adding a role takes two backend edits: one entry in `identity.roleOrder` (its rank) and one entry in `authorization.roleCapabilities` (its grants). A third backend place means the two layers have started duplicating each other. The frontend role enum is **not** generated, so a new role additionally needs `roleKeySchema` (`web/src/lib/api/auth.ts`), `ROLE_KEY` plus the label switches (`web/src/lib/auth/roles.ts`), `common.role.*` in both locales, and `ROLE_CAPABILITIES` in the dev mock (its `satisfies Record<RoleKey, …>` catches that one); a role missing from `roleKeySchema` makes `/api/auth/me` fail zod parsing and silently logs the role out.
@@ -60,11 +61,21 @@ go build .
 - i18n: `zh-CN.json` is the sole source of `MessageSchema`; all user-visible copy must be added to both locale files. ESLint forbids runtime key construction—keys must either be written as `t('literal')` or narrowed through an exhaustive `switch`; otherwise the key is treated as unused.
 - Capabilities have exactly one source: `internal/authorization/capability.go` (catalog + `roleCapabilities` in `policy.go`). The frontend module `web/src/lib/auth/capabilities.generated.ts` (schema, `Capability` type, `CAPABILITY` handles) is generated from it — never edit it by hand, and never reintroduce a hand-written capability list. Adding a capability is: declare it, grant it in the matrix or add it to `expectedPolicyDerived` in `capability_test.go`, run `go generate ./internal/authorization`. `gen/main_test.go` fails on drift, `capability_test.go` fails on a capability that is declared but unreachable or granted but undeclared. **The server-side `RequireCapability` is the actual authorization boundary**; the frontend `hasCapability` / `hasAllCapabilities` (`lib/auth/authorize.ts`) is the single frontend decision point, responsible only for route interception and hiding entry points.
 - Authentication: the access token is held in memory only (`lib/auth/token.ts`), and the refresh token is stored in an `HttpOnly` cookie; never write the access token to `localStorage` or `sessionStorage`.
-- Database migrations: `internal/database/sqlite/migrations/NNNN_name.sql` are append-only. Applied migrations carry a SHA-256 checksum; changing a single byte prevents startup.
+- Database migrations: `internal/database/dialect/<dialect>/migrations/NNNN_name.sql` are append-only and belong to their dialect. Applied migrations carry a SHA-256 checksum in `schema_migrations`; changing a single byte or dropping a file that the ledger already records prevents startup, so fix forward with a new file.
 - Tests: HTTP-related tests use `newTestContext` (`internal/httpapi/server_test.go`) to set up a real SQLite database plus `httptest`; do not introduce mock repositories or a second database.
+
+## Adding a Database Dialect
+
+1. Create `internal/database/dialect/<dialect>/` with a `Driver` implementing `dialect.Driver`: `Name`, `Open` (DSN validation, pool, settings verification), `Migrations`, `BunDialect`, `UniqueViolation`, `CaseInsensitiveEqual`, `CaseInsensitiveLike`.
+2. Add `internal/database/dialect/<dialect>/migrations/NNNN_name.sql` holding the full schema for that database, plus a `migrations.go` embed holder. Table and column names must match the row models in `internal/database/store/models.go`.
+3. Add one case to `selectDriver` in `internal/database/runtime.go` and the driver's DSN to `internal/config` if it needs one. Nothing in `store`, `migrate` or the domain packages changes.
+4. Verify with the same tests: `go test ./internal/database/...` plus a store test run against the new dialect before trusting it.
 
 ## Known Pitfalls
 
+- `ColumnExpr` on a bun select **replaces** the default column list instead of extending it. A listing that adds a computed column must also spell out the row columns (see `userColumns` in `internal/database/store/identity.go`), otherwise the model scans zeros with no error.
+- bun does not fill `autoincrement` primary keys automatically when the dialect supports `RETURNING` (SQLite and PostgreSQL do). Inserts that need the generated id must call `.Returning("id")`.
+- `.data/data.db` is created from the current migration set. When a migration file changes, the checksum guard makes startup fail on purpose: delete the local database instead of disabling the guard.
 - The startup order in `main.ts` must not change: mock → pinia → `authStore.bindRouter()` → `authStore.initialize()` → `app.use(router)`. Mounting the router earlier causes the initial route guard to read session state before it is ready.
 - `VITE_API_MOCKING=true` takes effect only in dev and directly injects a mock owner session (`mocks/dev-session.ts`), bypassing the login and guest flows; unmatched API requests `bypass` to the real backend, so the Go server must still be running.
 - The SSE log stream depends on `http.ResponseController` and `statusRecorder.Unwrap()`. Any new `ResponseWriter` wrapper must implement `Unwrap`; otherwise streaming endpoints fail silently.
@@ -75,6 +86,6 @@ go build .
 
 ## Definition of Done
 
-- The minimum closed loop for a new business capability: domain service + repository → SQLite implementation → handler + route → capability catalog + `go generate` → error codes/bilingual locales → frontend api + composable + view + route meta (including capability).
+- The minimum closed loop for a new business capability: domain service + repository → store implementation + row model → dialect migration → handler + route → capability catalog + `go generate` → error codes/bilingual locales → frontend api + composable + view + route meta (including capability).
 - Non-trivial logic (branches, parsing, authorization, money, concurrency) requires a small test; purely presentational or copy changes do not.
 - Do not add compatibility branches, `deprecated` aliases, dual-write logic, or configuration for "possible future use"; delete code with no callers outright.

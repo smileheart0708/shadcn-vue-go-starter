@@ -82,7 +82,6 @@ func toViewerAuthorizationResponse(viewer authorization.ViewerAuthorization) vie
 }
 
 type installStateResponse struct {
-	SetupState     string     `json:"setupState"`
 	SetupCompleted bool       `json:"setupCompleted"`
 	OwnerUserID    *int64     `json:"ownerUserId"`
 	CompletedAt    *time.Time `json:"completedAt"`

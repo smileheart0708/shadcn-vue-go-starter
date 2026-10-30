@@ -11,15 +11,9 @@ import (
 	"main/internal/identity"
 )
 
-const (
-	StatePending   = "pending"
-	StateCompleted = "completed"
-)
-
 var ErrAlreadyCompleted = errors.New("setup: install already completed")
 
 type State struct {
-	SetupState       string     `json:"setupState"`
 	SetupCompleted   bool       `json:"setupCompleted"`
 	OwnerUserID      *int64     `json:"ownerUserId"`
 	SetupCompletedAt *time.Time `json:"setupCompletedAt"`
