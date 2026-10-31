@@ -53,7 +53,7 @@ go build .
 - `lib/api/client.ts` is the only ky entry point: use `baseApi` for ordinary requests and `authApi` for requests that require an access token. Single-flight 401 refresh and session-invalidation handling live here; business layers must not implement retries or token logic.
 - Every API response must be validated with zod (`successEnvelopeSchema`); ESLint forbids `as` type assertions (except `as const`). Values from external inputs such as `localStorage` must be funneled through `parseExternalValue*` in `lib/external-input.ts`.
 - Session state belongs only in `stores/auth.ts`; page-local state stays in the corresponding composable. Do not put it into a global store for convenience.
-- `components/ui/**` consists of shadcn-vue CLI output, while project-owned components belong in `components/<domain>/`; generate new base components with the CLI rather than hand-writing a parallel set of variants.
+- `components/ui/**` holds the base primitives. They started as shadcn-vue CLI output and are now maintained locally: changing classes and the variant set is expected and normal, but primitives must stay business-free (no store, router or API imports). `components.json` is deliberately removed — upstream sync is not a goal, so `shadcn-vue add` must not be reintroduced; write a new primitive in the same shape as its neighbours instead. Project-owned components belong in `components/<domain>/`.
 
 ## Contracts That Must Change Together
 

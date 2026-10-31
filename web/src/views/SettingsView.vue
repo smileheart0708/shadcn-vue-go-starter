@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import PageHeader from '@/components/app/PageHeader.vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import AccountSettingsTab from '@/components/settings/AccountSettingsTab.vue'
 import BasicSettingsTab from '@/components/settings/BasicSettingsTab.vue'
@@ -9,12 +10,10 @@ const { t } = useI18n()
 
 <template>
   <div class="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-    <div>
-      <h1 class="text-2xl font-semibold">{{ t('settings.title') }}</h1>
-      <p class="text-sm text-muted-foreground">
-        {{ t('settings.description') }}
-      </p>
-    </div>
+    <PageHeader
+      :title="t('settings.title')"
+      :description="t('settings.description')"
+    />
 
     <Tabs
       default-value="basic"

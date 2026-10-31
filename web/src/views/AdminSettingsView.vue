@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { CircleAlert } from '@lucide/vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -11,8 +13,8 @@ import {
 import {
   Empty,
   EmptyContent,
-  EmptyDescription,
   EmptyHeader,
+  EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -35,12 +37,10 @@ const {
 
 <template>
   <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-    <section class="space-y-1">
-      <h1 class="text-2xl font-semibold">{{ t('systemConfig.title') }}</h1>
-      <p class="text-sm text-muted-foreground">
-        {{ t('systemConfig.description') }}
-      </p>
-    </section>
+    <PageHeader
+      :title="t('systemConfig.title')"
+      :description="t('systemConfig.description')"
+    />
 
     <Card v-if="loading">
       <CardHeader>
@@ -56,26 +56,27 @@ const {
       </CardContent>
     </Card>
 
-    <div
-      v-else-if="loadFailed"
-      class="rounded-xl border bg-card p-4"
-    >
-      <Empty>
-        <EmptyHeader>
-          <EmptyTitle>{{
-            t('systemConfig.feedback.loadFailedTitle')
-          }}</EmptyTitle>
-          <EmptyDescription>{{
-            t('systemConfig.feedback.loadFailed')
-          }}</EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
-          <Button @click="loadSettings">{{
-            t('systemConfig.actions.retry')
-          }}</Button>
-        </EmptyContent>
-      </Empty>
-    </div>
+    <!--
+      No bordered card wraps this placeholder, and it carries no error description:
+      the cause is already raised as a toast by `useSystemSettings`, so repeating it
+      here would report the same failure twice. The retry action stays inline because
+      the toast disappears on its own.
+    -->
+    <Empty v-else-if="loadFailed">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <CircleAlert />
+        </EmptyMedia>
+        <EmptyTitle>{{
+          t('systemConfig.feedback.loadFailedTitle')
+        }}</EmptyTitle>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button @click="loadSettings">{{
+          t('systemConfig.actions.retry')
+        }}</Button>
+      </EmptyContent>
+    </Empty>
 
     <Card v-else>
       <CardHeader>

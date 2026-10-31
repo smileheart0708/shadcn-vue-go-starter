@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import AppShellNavManagement from '@/components/app-shell/AppShellNavManagement.vue'
-import AppShellNavMain from '@/components/app-shell/AppShellNavMain.vue'
-import AppShellNavSecondary from '@/components/app-shell/AppShellNavSecondary.vue'
+import AppShellNavGroup from '@/components/app-shell/AppShellNavGroup.vue'
 import AppShellNavUser from '@/components/app-shell/AppShellNavUser.vue'
 import { useAppShellNavigation } from '@/components/app-shell/navigation'
 import {
@@ -16,6 +15,7 @@ import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 const navigation = useAppShellNavigation()
 
 // No fallback role: before the viewer is loaded the sidebar must not claim to be
@@ -49,9 +49,12 @@ async function handleLogout() {
       </RouterLink>
     </SidebarHeader>
     <SidebarContent>
-      <AppShellNavMain :items="navigation.main" />
-      <AppShellNavManagement :items="navigation.management" />
-      <AppShellNavSecondary
+      <AppShellNavGroup :items="navigation.main" />
+      <AppShellNavGroup
+        :items="navigation.management"
+        :label="t('nav.management.label')"
+      />
+      <AppShellNavGroup
         :items="navigation.secondary"
         class="mbs-auto"
       />

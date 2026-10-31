@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ShieldBan, ShieldCheck } from '@lucide/vue'
+import { CircleAlert, ShieldBan, ShieldCheck } from '@lucide/vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
   EmptyContent,
-  EmptyDescription,
   EmptyHeader,
+  EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -93,24 +93,25 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
     </Table>
   </div>
 
-  <div
-    v-else-if="loadFailed"
-    class="rounded-xl border bg-card p-4"
-  >
-    <Empty>
-      <EmptyHeader>
-        <EmptyTitle>{{ t('adminUsers.feedback.loadFailedTitle') }}</EmptyTitle>
-        <EmptyDescription>{{
-          t('adminUsers.feedback.loadFailed')
-        }}</EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button @click="emit('retry')">{{
-          t('adminUsers.actions.retry')
-        }}</Button>
-      </EmptyContent>
-    </Empty>
-  </div>
+  <!--
+    No bordered card wraps this placeholder, and it carries no error description:
+    the cause is already raised as a toast by `useAdminUsersList`, so repeating it
+    here would report the same failure twice. The retry action stays inline because
+    the toast disappears on its own.
+  -->
+  <Empty v-else-if="loadFailed">
+    <EmptyHeader>
+      <EmptyMedia variant="icon">
+        <CircleAlert />
+      </EmptyMedia>
+      <EmptyTitle>{{ t('adminUsers.feedback.loadFailedTitle') }}</EmptyTitle>
+    </EmptyHeader>
+    <EmptyContent>
+      <Button @click="emit('retry')">{{
+        t('adminUsers.actions.retry')
+      }}</Button>
+    </EmptyContent>
+  </Empty>
 
   <div
     v-else

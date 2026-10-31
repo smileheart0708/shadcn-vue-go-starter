@@ -4,7 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import type { AppShellNavItem } from '@/components/app-shell/navigation'
 import { SidebarMenuButton } from '@/components/ui/sidebar'
 
-const props = defineProps<{ item: AppShellNavItem; tooltip?: string }>()
+const props = defineProps<{ item: AppShellNavItem }>()
 
 const route = useRoute()
 const router = useRouter()
@@ -33,7 +33,6 @@ const isDisabled = computed(
   <SidebarMenuButton
     v-if="hasTarget && !isDisabled"
     as-child
-    :tooltip="tooltip"
     :is-active="isActive"
   >
     <RouterLink :to="navigationTarget">
@@ -47,7 +46,6 @@ const isDisabled = computed(
 
   <SidebarMenuButton
     v-else
-    :tooltip="tooltip"
     :disabled="isDisabled"
     class="text-sidebar-foreground/70 disabled:pointer-events-none disabled:opacity-50"
   >

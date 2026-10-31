@@ -6,6 +6,7 @@ import AdminUserFormDialog from '@/components/admin-users/AdminUserFormDialog.vu
 import AdminUserStatusConfirmDialog from '@/components/admin-users/AdminUserStatusConfirmDialog.vue'
 import AdminUsersFilters from '@/components/admin-users/AdminUsersFilters.vue'
 import AdminUsersTable from '@/components/admin-users/AdminUsersTable.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 import { Button } from '@/components/ui/button'
 import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { useAuthStore } from '@/stores/auth'
@@ -56,22 +57,20 @@ const {
 
 <template>
   <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-    <section class="flex items-start justify-between gap-4">
-      <div class="space-y-1">
-        <h2 class="text-2xl font-semibold">{{ t('adminUsers.title') }}</h2>
-        <p class="text-sm text-muted-foreground">
-          {{ t('adminUsers.description') }}
-        </p>
-      </div>
-
-      <Button
-        :disabled="!canCreateUsers"
-        @click="openCreateDialog"
-      >
-        <UserPlus class="me-2 block-4 inline-4" />
-        {{ t('adminUsers.actions.createUser') }}
-      </Button>
-    </section>
+    <PageHeader
+      :title="t('adminUsers.title')"
+      :description="t('adminUsers.description')"
+    >
+      <template #actions>
+        <Button
+          :disabled="!canCreateUsers"
+          @click="openCreateDialog"
+        >
+          <UserPlus class="me-2 block-4 inline-4" />
+          {{ t('adminUsers.actions.createUser') }}
+        </Button>
+      </template>
+    </PageHeader>
 
     <AdminUsersFilters
       v-model:search-query="searchQuery"
