@@ -30,9 +30,9 @@ func TestCapabilityCatalogHasNoDuplicates(t *testing.T) {
 	}
 }
 
-// TestRoleMatrixUsesDeclaredRolesAndCapabilities keeps the matrix honest: a role
-// renamed in identity or a capability typo'd here would otherwise produce a
-// permission that is silently never granted.
+// TestRoleMatrixUsesDeclaredRolesAndCapabilities keeps the two role declarations in
+// sync: every grant must reference a declared role and capability, and every declared
+// role must appear in the matrix (otherwise it silently receives no capabilities).
 func TestRoleMatrixUsesDeclaredRolesAndCapabilities(t *testing.T) {
 	t.Parallel()
 
@@ -44,6 +44,12 @@ func TestRoleMatrixUsesDeclaredRolesAndCapabilities(t *testing.T) {
 	declaredCapabilities := make(map[Capability]struct{}, len(capabilityOrder))
 	for _, capability := range capabilityOrder {
 		declaredCapabilities[capability] = struct{}{}
+	}
+
+	for role := range declaredRoles {
+		if _, granted := roleCapabilities[role]; !granted {
+			t.Fatalf("role %q is declared in identity.Roles() but has no matrix entry", role)
+		}
 	}
 
 	for role, capabilities := range roleCapabilities {

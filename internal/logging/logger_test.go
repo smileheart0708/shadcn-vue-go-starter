@@ -48,6 +48,53 @@ func TestStreamKeepsEntriesWithinByteBudget(t *testing.T) {
 	}
 }
 
+// TestStreamSnapshotsLiveWindowAfterPruning covers the index arithmetic that only
+// misbehaves once entries have been dropped: dropped slots keep occupying the
+// backing slice until compaction, so Snapshot must start at headIndex instead of
+// the beginning of the slice.
+func TestStreamSnapshotsLiveWindowAfterPruning(t *testing.T) {
+	t.Parallel()
+
+	// Every entry below is exactly 73 bytes (64 base + "INFO" + "m" + "t" + "app"),
+	// so a 20-entry budget makes each publish past the 20th drop exactly one entry.
+	// Publishing 25 leaves headIndex at 5 with plenty of stale slots in front of it,
+	// which is the state compactIfNeededLocked deliberately defers until headIndex
+	// reaches half the slice.
+	const (
+		entryBudget  = 73 * 20
+		totalEntries = 25
+		liveEntries  = 20
+		firstLiveID  = totalEntries - liveEntries + 1
+	)
+
+	stream := NewStream(StreamOptions{MaxBytes: entryBudget})
+	for range totalEntries {
+		stream.Publish(StreamEntry{
+			Level:   "INFO",
+			Message: "m",
+			Text:    "t",
+			Source:  "app",
+		})
+	}
+
+	if dropped := len(stream.entries) - stream.activeLenLocked(); dropped != totalEntries-liveEntries {
+		t.Fatalf("expected %d dropped slots retained in the backing slice, got %d", totalEntries-liveEntries, dropped)
+	}
+	if stream.headIndex == 0 {
+		t.Fatal("expected pruning to advance headIndex, so Snapshot has to honour it")
+	}
+
+	all := stream.Snapshot(0)
+	if len(all) != liveEntries || all[0].ID != firstLiveID || all[liveEntries-1].ID != totalEntries {
+		t.Fatalf("expected entries %d..%d after pruning, got %d entries starting at %d", firstLiveID, totalEntries, len(all), all[0].ID)
+	}
+
+	tail := stream.Snapshot(3)
+	if len(tail) != 3 || tail[0].ID != totalEntries-2 || tail[2].ID != totalEntries {
+		t.Fatalf("expected the newest three entries after pruning, got %+v", tail)
+	}
+}
+
 func TestStreamSnapshotTail(t *testing.T) {
 	t.Parallel()
 

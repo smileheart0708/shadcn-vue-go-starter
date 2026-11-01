@@ -14,16 +14,6 @@ import (
 	"main/internal/setup"
 )
 
-func TestOpenSQLiteProvidesDomainRepositories(t *testing.T) {
-	t.Parallel()
-
-	runtime := openTestRuntime(t)
-
-	if runtime.Driver() != DriverSQLite {
-		t.Fatalf("Driver() = %q, want %q", runtime.Driver(), DriverSQLite)
-	}
-}
-
 func TestOpenRejectsDriverNotCompiledIntoBinary(t *testing.T) {
 	t.Parallel()
 

@@ -33,6 +33,12 @@ type StreamOptions struct {
 	Retention time.Duration
 }
 
+// Stream is an in-memory buffer of recent log entries served to the UI.
+//
+// Exactly two rules drop entries: the retention window and the byte budget
+// (maxBytes). There is deliberately no entry-count cap: the byte budget already
+// bounds memory, so a second bound would only make pruning depend on message
+// size twice.
 type Stream struct {
 	mu          sync.RWMutex
 	nextEntryID int64
@@ -41,6 +47,9 @@ type Stream struct {
 	retention   time.Duration
 	entries     []StreamEntry
 	entrySizes  []int
+	// headIndex is the first live entry. Slots before it are dropped but still
+	// occupy the backing slice until compactIfNeededLocked reclaims them, so
+	// every read must start here rather than at entries[0].
 	headIndex   int
 	buffered    int
 	subscribers map[int64]*StreamSubscription
