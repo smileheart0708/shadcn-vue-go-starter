@@ -129,8 +129,7 @@ func (api *API) toManagedUserResponse(user identity.User, actions []identity.Man
 	}
 }
 
-// managedUserActionsToStrings always returns a non-nil slice so the response
-// encodes an empty array instead of null.
+// managedUserActionsToStrings converts the actions to their wire strings.
 func managedUserActionsToStrings(actions []identity.ManagedUserAction) []string {
 	values := make([]string, len(actions))
 	for index, action := range actions {

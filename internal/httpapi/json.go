@@ -2,9 +2,7 @@ package httpapi
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"io"
+	jsonv2 "encoding/json/v2"
 	"log/slog"
 	"net/http"
 )
@@ -26,6 +24,12 @@ type successResponse[T any] struct {
 	Data    T    `json:"data"`
 }
 
+// decodeJSON decodes the single JSON value in the request body through
+// encoding/json/v2 rather than encoding/json. v2 rejects duplicate member names
+// and invalid UTF-8, and it requires the input to hold exactly one JSON value
+// followed by optional whitespace. That last property is why the hand-written
+// "must contain a single JSON object" check the v1 decoder needed is gone: v2
+// reports trailing bytes as an error by itself.
 func decodeJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, dst any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
 	defer func() {
@@ -34,30 +38,29 @@ func decodeJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, dst
 		}
 	}()
 
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-
-	if err := decoder.Decode(dst); err != nil {
-		return err
-	}
-
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return errors.New("request body must contain a single JSON object")
-	}
-
-	return nil
+	return jsonv2.UnmarshalRead(r.Body, dst, jsonv2.RejectUnknownMembers(true))
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(status)
-
-	if payload == nil {
+	// Marshal before touching the header: once WriteHeader has put the status
+	// line on the wire, an encoding failure can no longer become a clean 500.
+	// This branch is reachable: v2 refuses a value it has no encoding for, such
+	// as invalid UTF-8 in a string or a time.Duration (which lost its numeric
+	// v1 default), so it must not be deleted as dead code.
+	data, err := jsonv2.Marshal(payload)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+
+	// The status is already committed, so a failed write cannot change the
+	// response any more; the access log records the request, and this line keeps
+	// the write failure from disappearing entirely.
+	if _, writeErr := w.Write(data); writeErr != nil {
+		slog.Warn("failed to write JSON response", "error", writeErr)
 	}
 }
 

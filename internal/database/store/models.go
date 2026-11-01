@@ -17,8 +17,8 @@ import (
 // layout; the mapping below is the only place where storage and domain meet.
 
 // userFields maps the users table and is embedded in every row that reads it, so
-// a column is declared once. Literals have to name the embedded field explicitly
-// because go.mod pins Go 1.26, which does not accept promoted keys.
+// a column is declared once. Literals write its columns as promoted keys, which
+// needs the Go 1.27 language version go.mod pins.
 type userFields struct {
 	ID              int64   `bun:"id,pk,autoincrement"`
 	Username        string  `bun:"username,notnull"`

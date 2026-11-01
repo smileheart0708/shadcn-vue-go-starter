@@ -25,7 +25,7 @@ func (s *Store) CreateUser(ctx context.Context, params identity.CreateUserParams
 	now := time.Now().UTC()
 	var created identity.User
 	err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		user := &userRow{userFields: userFields{
+		user := &userRow{
 			Username:        params.Username,
 			Email:           params.Email,
 			Status:          identity.StatusActive,
@@ -33,7 +33,7 @@ func (s *Store) CreateUser(ctx context.Context, params identity.CreateUserParams
 			SecurityVersion: 1,
 			CreatedAt:       unixSeconds(now),
 			UpdatedAt:       unixSeconds(now),
-		}}
+		}
 		// Returning is explicit: bun only fills an autoincrement primary key
 		// automatically for identity columns, while SQLite and PostgreSQL both
 		// support RETURNING.

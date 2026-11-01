@@ -166,8 +166,8 @@ func TestRotateSessionRequiresMatchingHashAndActiveSession(t *testing.T) {
 		LastUsedAt:       now,
 		ExpiresAt:        now.Add(time.Hour),
 		IdleExpiresAt:    now.Add(time.Hour),
-		IP:               ptr("127.0.0.1"),
-		UserAgent:        ptr("test-agent"),
+		IP:               new("127.0.0.1"),
+		UserAgent:        new("test-agent"),
 	}); err != nil {
 		t.Fatalf("CreateSession() error = %v", err)
 	}
@@ -272,8 +272,4 @@ func newTestStore(t *testing.T) *Store {
 		t.Fatalf("apply migrations: %v", migrateErr)
 	}
 	return New(db, driver)
-}
-
-func ptr[T any](value T) *T {
-	return &value
 }

@@ -42,14 +42,14 @@ func (s *Store) CompleteInitialOwner(ctx context.Context, owner setup.InitialOwn
 		}
 
 		now := time.Now().UTC()
-		user := &userRow{userFields: userFields{
+		user := &userRow{
 			Username:        owner.Username,
 			Status:          identity.StatusActive,
 			Role:            identity.RoleOwner,
 			SecurityVersion: 1,
 			CreatedAt:       unixSeconds(now),
 			UpdatedAt:       unixSeconds(now),
-		}}
+		}
 		if _, insertErr := tx.NewInsert().Model(user).Returning("id").Exec(ctx); insertErr != nil {
 			return s.identityWriteError(insertErr)
 		}

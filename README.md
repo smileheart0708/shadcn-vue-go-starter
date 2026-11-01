@@ -11,13 +11,13 @@
 
 ## 技术栈
 
-- Backend: Go 1.26.3, Bun ORM (`uptrace/bun`) + SQLite（`modernc.org/sqlite`，纯 Go 无 CGO）, `net/http`
+- Backend: Go 1.27.3, Bun ORM (`uptrace/bun`) + SQLite（`modernc.org/sqlite`，纯 Go 无 CGO）, `net/http`
 - Frontend: Vue 3, TypeScript, Vite 8, Tailwind CSS 4
 - Tooling: pnpm 11, ESLint, Prettier, `vue-tsc`
 
 ## 快速开始
 
-需要 Go 1.26.3、Node.js 和仓库指定版本的 pnpm。首次运行时可按需复制配置模板：
+需要 Go 1.27.3、Node.js 和仓库指定版本的 pnpm。首次运行时可按需复制配置模板：
 
 ```powershell
 Copy-Item .env.example .env

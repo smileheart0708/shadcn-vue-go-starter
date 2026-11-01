@@ -104,8 +104,8 @@ func TestRequireCapabilityGatesOnGrantedCapabilities(t *testing.T) {
 	t.Parallel()
 
 	actor := auth.Actor{
-		Principal: auth.Principal{UserID: 7, SessionID: "session", SecurityVersion: 1},
-		User:      identity.User{ID: 7, Username: "member", Role: identity.RoleUser, Status: identity.StatusActive},
+		UserID: 7, SessionID: "session", SecurityVersion: 1,
+		User: identity.User{ID: 7, Username: "member", Role: identity.RoleUser, Status: identity.StatusActive},
 		Authorization: authorization.ViewerAuthorization{
 			Role:         identity.RoleUser,
 			Capabilities: []authorization.Capability{authorization.CapabilityAccountDeleteSelf},

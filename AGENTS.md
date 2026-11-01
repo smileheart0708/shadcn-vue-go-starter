@@ -4,7 +4,7 @@ This project is a **starting template for new business systems**: it retains onl
 
 ## Technology Stack and Entry Points
 
-- Go 1.26 + `net/http` + `log/slog` + `github.com/uptrace/bun` on top of `modernc.org/sqlite` (pure Go, no CGO). The module path is intentionally `main`, and internal packages uniformly use `main/internal/...`; do not change it to a domain-based path.
+- Go 1.27 + `net/http` + `log/slog` + `github.com/uptrace/bun` on top of `modernc.org/sqlite` (pure Go, no CGO). The module path is intentionally `main`, and internal packages uniformly use `main/internal/...`; do not change it to a domain-based path.
 - Vue 3 + TypeScript + Vite 8 + Tailwind 4 + shadcn-vue (reka-ui) + Pinia + vue-router + vue-i18n + zod + ky.
 - Production is a single binary: `frontend_embed.go` embeds the frontend via `//go:embed web/dist`; `main.go` is responsible only for dependency assembly and process lifecycle.
 
@@ -59,6 +59,7 @@ go build .
 ## Contracts That Must Change Together
 
 - Response envelope: success is `{success:true,data}`, failure is `{success:false,error:{code,message}}`.
+- The envelope codec is `encoding/json/v2` (`internal/httpapi/json.go`), not `encoding/json`: a request body is rejected when it carries an unknown member, a duplicate member name or invalid UTF-8, member names match case-sensitively (a differently-cased member counts as unknown), and the body must hold exactly one JSON value. The envelope written by `writeJSON` encodes a nil slice as `[]` and does not HTML-escape strings. Do not move it back to v1 without accepting silent last-value-wins duplicate keys.
 - Adding or removing an error code requires changes in four places simultaneously: `internal/httpapi/error_codes.go`, `apiError.*` in `web/src/locales/zh-CN.json`, `en-US.json`, and `web/src/lib/api/error-messages.ts` (`satisfies` enforces this). A missing change fails `error_codes_test.go` or `pnpm typecheck`.
 - New domain errors resolve through `domainErrorMappings` in `error_codes.go` (`writeDomainError`, matched with `errors.Is`), never through a fresh `switch` in a handler. Two documented exceptions stay out of the table because the same error needs a different code by context: session invalidation (`auth_handlers.go`) and the own-account endpoints (`writeOwnAccountError`, where a missing row means a dead session rather than a 404).
 - i18n: `zh-CN.json` is the sole source of `MessageSchema`; all user-visible copy must be added to both locale files. ESLint forbids runtime key construction—keys must either be written as `t('literal')` or narrowed through an exhaustive `switch`; otherwise the key is treated as unused.

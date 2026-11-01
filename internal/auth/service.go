@@ -589,12 +589,10 @@ func (s *Service) issueAccessToken(user identity.User, sessionID string) (string
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims{
 		SessionID:       sessionID,
 		SecurityVersion: user.SecurityVersion,
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   strconv.FormatInt(user.ID, 10),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
-		},
+		Subject:         strconv.FormatInt(user.ID, 10),
+		IssuedAt:        jwt.NewNumericDate(now),
+		NotBefore:       jwt.NewNumericDate(now),
+		ExpiresAt:       jwt.NewNumericDate(expiresAt),
 	})
 
 	encoded, err := token.SignedString(s.secret)
