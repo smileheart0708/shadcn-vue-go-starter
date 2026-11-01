@@ -19,8 +19,6 @@ const (
 	CapabilityAccountDeleteSelf        Capability = "account.delete_self"
 )
 
-//go:generate go run ./gen
-
 // capabilityOrder is the authoritative list of every declared capability.
 //
 // The order is part of the contract: the frontend module is generated from it,

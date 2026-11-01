@@ -1,16 +1,15 @@
 import { z } from 'zod'
 import { authApi, baseApi, normalizeAPIError } from '@/lib/api/client'
+import { roleKeySchema, userStatusSchema } from '@/lib/api/contract.generated'
 import { successEnvelopeSchema } from '@/lib/api/envelope'
 import { capabilitySchema } from '@/lib/auth/capabilities.generated'
-
-export const roleKeySchema = z.enum(['owner', 'user'])
 
 export const viewerIdentitySchema = z.object({
   id: z.number().int().positive(),
   username: z.string(),
   email: z.email().nullable(),
   avatarUrl: z.string().nullable(),
-  status: z.enum(['active', 'disabled']),
+  status: userStatusSchema,
 })
 
 export const viewerAuthorizationSchema = z.object({
@@ -44,7 +43,6 @@ const logoutPayloadSchema = z.object({
   loggedOut: z.boolean(),
 })
 
-export type RoleKey = z.infer<typeof roleKeySchema>
 export type ViewerIdentity = z.infer<typeof viewerIdentitySchema>
 export type ViewerAuthorization = z.infer<typeof viewerAuthorizationSchema>
 export type Viewer = z.infer<typeof viewerSchema>

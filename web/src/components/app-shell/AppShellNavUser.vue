@@ -30,8 +30,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import type { RoleKey } from '@/lib/api/contract.generated'
 import { getUserRoleBadgeVariant, getUserRoleLabel } from '@/lib/auth/roles'
-import type { RoleKey } from '@/lib/api/auth'
 import { useI18n } from 'vue-i18n'
 import {
   isSupportedLocale,

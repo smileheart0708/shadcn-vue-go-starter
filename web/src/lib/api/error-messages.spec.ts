@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { APIError } from '@/lib/api/client'
+import { APIError, isApiErrorCode } from '@/lib/api/client'
 import {
   resolveAPIErrorMessage,
   resolveErrorMessageOrInternal,
@@ -24,12 +24,13 @@ describe('resolveErrorMessageOrInternal', () => {
     )
   })
 
-  it('falls back to the generic copy for a code the frontend does not know', () => {
-    const error = new APIError(500, 'boom', 'code_from_a_newer_backend')
-
-    expect(resolveErrorMessageOrInternal(translate, error)).toBe(
-      'apiError.internal_error',
-    )
+  // A newer backend can send a code this build does not translate. The client drops it at
+  // the parse boundary, which is what keeps `APIError.code` a closed union and the
+  // resolver total; here only the narrowing itself can be asserted.
+  it('narrows only the codes the frontend can translate', () => {
+    expect(isApiErrorCode('username_taken')).toBe(true)
+    expect(isApiErrorCode('code_from_a_newer_backend')).toBe(false)
+    expect(isApiErrorCode(undefined)).toBe(false)
   })
 
   it('falls back to the generic copy when the APIError carries no code', () => {

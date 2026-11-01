@@ -1,5 +1,7 @@
 package identity
 
+import "slices"
+
 // ManagedUserAction is an action an operator can perform on another account.
 type ManagedUserAction string
 
@@ -8,6 +10,26 @@ const (
 	ManagedUserActionDisable ManagedUserAction = "disable"
 	ManagedUserActionEnable  ManagedUserAction = "enable"
 )
+
+// managedUserActionOrder is the authoritative list of every action the API carries, in
+// the order the generated frontend enum follows.
+//
+// Keep it in sync with the const block above: Go cannot reflect constants, so an action
+// missing from this list still compiles and passes every test while the frontend never
+// learns about it.
+var managedUserActionOrder = []ManagedUserAction{
+	ManagedUserActionUpdate,
+	ManagedUserActionDisable,
+	ManagedUserActionEnable,
+}
+
+// AllManagedUserActions returns every declared action in declaration order.
+//
+// Exported for the frontend contract generator; no production code calls it. The
+// per-target subset is ManagedUserActions, which is a rule and not a catalog.
+func AllManagedUserActions() []ManagedUserAction {
+	return slices.Clone(managedUserActionOrder)
+}
 
 // ManagedUserTarget is the minimum a rule needs to know about an actor or a
 // target account. Status is only read to decide which status toggle applies.

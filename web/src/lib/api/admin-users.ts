@@ -1,7 +1,12 @@
 import { z } from 'zod'
 import { authApi, normalizeAPIError } from '@/lib/api/client'
+import {
+  managedUserActionSchema,
+  roleKeySchema,
+  userStatusSchema,
+  type UserStatus,
+} from '@/lib/api/contract.generated'
 import { successEnvelopeSchema } from '@/lib/api/envelope'
-import { roleKeySchema } from '@/lib/api/auth'
 
 export const managedUserSchema = z.object({
   id: z.number().int().positive(),
@@ -9,18 +14,18 @@ export const managedUserSchema = z.object({
   email: z.email().nullable(),
   avatarUrl: z.string().nullable(),
   role: roleKeySchema,
-  status: z.enum(['active', 'disabled']),
+  status: userStatusSchema,
   lastActiveAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
-  actions: z.array(z.enum(['update', 'disable', 'enable'])),
+  actions: z.array(managedUserActionSchema),
 })
 
 export type ManagedUser = z.infer<typeof managedUserSchema>
 
 export interface ListManagedUsersParams {
   q?: string
-  status?: 'active' | 'disabled' | null
+  status?: UserStatus | null
   page?: number
   pageSize?: number
 }

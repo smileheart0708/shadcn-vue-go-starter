@@ -1,6 +1,5 @@
-import type { RoleKey } from '@/lib/api/auth'
+import { ROLE_KEY, type RoleKey } from '@/lib/api/contract.generated'
 import { CAPABILITY, type Capability } from '@/lib/auth/capabilities.generated'
-import { ROLE_KEY } from '@/lib/auth/roles'
 import { state, type MockUser } from '@/mocks/handlers/state'
 
 /**

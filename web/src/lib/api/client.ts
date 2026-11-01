@@ -6,10 +6,33 @@ import type {
   RetryOptions,
 } from 'ky'
 import { readAuthToken } from '@/lib/auth/token'
+import type { MessageSchema } from '@/locales'
+import zhCNMessages from '@/locales/zh-CN.json'
 import { BACKGROUND_REQUEST_HEADER, trackedFetch } from '@/router/route-loading'
 
 interface APIErrorPayload {
   error?: { code?: string; message?: string }
+}
+
+/**
+ * Every error code this build can translate: exactly the `apiError` block of the locale
+ * bundle, which `internal/httpapi`'s tests keep in lockstep with the Go registry.
+ */
+export type ApiErrorCode = keyof MessageSchema['apiError']
+
+/**
+ * Narrows a wire error code to the ones this build knows.
+ *
+ * A code from a newer backend is not an error: it is dropped at the parse boundary so
+ * every message lookup stays total and callers fall back to their own copy. Keeping the
+ * narrowing here is what lets `APIError.code` be a closed union instead of `string`, so a
+ * hand-written code at a construction site is a compile error.
+ */
+export function isApiErrorCode(value: unknown): value is ApiErrorCode {
+  return (
+    typeof value === 'string' &&
+    Object.prototype.hasOwnProperty.call(zhCNMessages.apiError, value)
+  )
 }
 
 interface APIClientContext {
@@ -26,13 +49,17 @@ let refreshPromise: Promise<string> | null = null
 
 export class APIError extends Error {
   status: number
-  code?: string
+  /**
+   * A code this build can translate, or undefined when the backend sent one it does not
+   * know. The raw wire value stays available in `payload` for diagnostics.
+   */
+  code?: ApiErrorCode
   payload?: unknown
 
   constructor(
     status: number,
     message: string,
-    code?: string,
+    code?: ApiErrorCode,
     payload?: unknown,
   ) {
     super(message)
@@ -145,12 +172,13 @@ export const authApi = baseApi.extend({
 async function toAPIError(error: HTTPError): Promise<APIError> {
   const payload = await readResponsePayload(error.response.clone())
   const errorPayload = isAPIErrorPayload(payload) ? payload : undefined
+  const code = errorPayload?.error?.code
 
   return new APIError(
     error.response.status,
     errorPayload?.error?.message ??
       `Request failed with status ${String(error.response.status)}`,
-    errorPayload?.error?.code,
+    isApiErrorCode(code) ? code : undefined,
     payload,
   )
 }

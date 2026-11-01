@@ -1,9 +1,4 @@
-import type { RoleKey } from '@/lib/api/auth'
-
-export const ROLE_KEY = {
-  owner: 'owner',
-  user: 'user',
-} as const satisfies Record<string, RoleKey>
+import { ROLE_KEY, type RoleKey } from '@/lib/api/contract.generated'
 
 type RoleLabelTranslate = (
   key: 'common.role.owner' | 'common.role.user',

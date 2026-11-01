@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -15,6 +16,26 @@ const (
 	StatusActive   = "active"
 	StatusDisabled = "disabled"
 )
+
+// statusOrder is the authoritative list of every status the API carries, in the order
+// the generated frontend enum follows.
+//
+// It is read by normalizeStatus as well as by the contract generator, so one entry makes a
+// status acceptable to the service and visible to the frontend at once. Go cannot reflect
+// constants, so the const block above and this list still have to be edited together — a
+// constant that never reaches this list fails closed (the service rejects the value)
+// instead of being accepted and then dropped downstream.
+var statusOrder = []string{
+	StatusActive,
+	StatusDisabled,
+}
+
+// Statuses returns every declared status in declaration order.
+//
+// Exported for the frontend contract generator; no production code calls it.
+func Statuses() []string {
+	return slices.Clone(statusOrder)
+}
 
 var (
 	ErrUserNotFound       = errors.New("identity: user not found")
@@ -242,15 +263,22 @@ func normalizeListParams(params ListUsersParams) ListUsersParams {
 	return params
 }
 
+// normalizeStatus returns the canonical spelling of status, or "" when statusOrder does
+// not declare it.
+//
+// It scans the catalog instead of repeating a switch: the accepted set and the generated
+// frontend enum then have exactly one source, which is the same shape as RoleRank reading
+// roleOrder. "" is what the repository reads as "no filter", so an unrecognised filter is
+// dropped rather than matched.
 func normalizeStatus(status string) string {
-	switch strings.TrimSpace(status) {
-	case StatusActive:
-		return StatusActive
-	case StatusDisabled:
-		return StatusDisabled
-	default:
-		return ""
+	trimmed := strings.TrimSpace(status)
+	for _, candidate := range statusOrder {
+		if candidate == trimmed {
+			return candidate
+		}
 	}
+
+	return ""
 }
 
 func normalizeUsername(value string) string {

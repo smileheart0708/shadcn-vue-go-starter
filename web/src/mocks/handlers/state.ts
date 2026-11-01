@@ -1,15 +1,13 @@
 import { HttpResponse } from 'msw'
-import type { RoleKey, ViewerIdentity } from '@/lib/api/auth'
+import type { RoleKey, UserStatus } from '@/lib/api/contract.generated'
 
 /**
  * In-memory backend state for `pnpm dev` with `VITE_API_MOCKING=true`.
  *
- * Domain types are imported from `lib/api/auth` rather than redeclared so that a schema
- * change breaks the mocks at compile time instead of silently drifting from the client
- * contract they emulate.
+ * Domain types come from the generated contract rather than being redeclared, so a Go
+ * catalog or zod change breaks the mocks at compile time instead of silently drifting
+ * from the contract they emulate.
  */
-
-type UserStatus = ViewerIdentity['status']
 
 export interface MockUser {
   id: number

@@ -1,12 +1,4 @@
-import { APIError } from '@/lib/api/client'
-import type { MessageSchema } from '@/locales'
-
-/**
- * Backend error codes are the contract: this union is derived from the `apiError`
- * block of the locale files, which `internal/httpapi/error_codes_test.go` keeps in
- * lockstep with the Go registry.
- */
-type ApiErrorCode = keyof MessageSchema['apiError']
+import { APIError, type ApiErrorCode } from '@/lib/api/client'
 
 type ApiErrorMessageKey = `apiError.${ApiErrorCode}`
 
@@ -68,7 +60,7 @@ export function resolveAPIErrorMessage(
   }
 
   const code = error.code
-  if (code === undefined || !isApiErrorCode(code)) {
+  if (code === undefined) {
     return null
   }
 
@@ -89,8 +81,4 @@ export function resolveErrorMessageOrInternal(
   error: unknown,
 ): string {
   return resolveAPIErrorMessage(t, error) ?? t('apiError.internal_error')
-}
-
-function isApiErrorCode(code: string): code is ApiErrorCode {
-  return Object.prototype.hasOwnProperty.call(API_ERROR_MESSAGES, code)
 }

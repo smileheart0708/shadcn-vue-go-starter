@@ -1,6 +1,6 @@
 import { http } from 'msw'
+import { ROLE_KEY, type ManagedUserAction } from '@/lib/api/contract.generated'
 import { CAPABILITY } from '@/lib/auth/capabilities.generated'
-import { ROLE_KEY } from '@/lib/auth/roles'
 import { hasCapability } from '@/mocks/handlers/permissions'
 import { clearSession, requireAuthenticated } from '@/mocks/handlers/session'
 import {
@@ -14,8 +14,6 @@ import {
   usernameTaken,
   type MockUser,
 } from '@/mocks/handlers/state'
-
-type ManagedUserAction = 'update' | 'disable' | 'enable'
 
 /**
  * Object-level rule, mirroring `identity.CanManageUser`: an actor never acts on itself,
