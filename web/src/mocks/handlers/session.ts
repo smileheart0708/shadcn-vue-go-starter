@@ -108,8 +108,7 @@ export function requireSetupCompleted(): Response | null {
 // `if (error) return error` and then use `user`, which only narrows to a non-null user
 // when the two fields are correlated in the type.
 type AuthenticatedResult =
-  | { error: Response; user: null }
-  | { error: null; user: MockUser }
+  { error: Response; user: null } | { error: null; user: MockUser }
 
 export function requireAuthenticated(request: Request): AuthenticatedResult {
   const setupResponse = requireSetupCompleted()
