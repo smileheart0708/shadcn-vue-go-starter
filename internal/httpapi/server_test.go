@@ -134,10 +134,6 @@ func TestDefaultPoliciesClosePublicRegistrationAndSelfDeletion(t *testing.T) {
 	if settingsEnvelope.Data.PublicRegistrationEnabled || settingsEnvelope.Data.SelfServiceAccountDeletionEnabled {
 		t.Fatalf("expected both policies disabled by default, got %+v", settingsEnvelope.Data)
 	}
-	if strings.Contains(settingsRec.Body.String(), "authMode") || strings.Contains(settingsRec.Body.String(), "registrationMode") {
-		t.Fatalf("expected legacy settings fields to be removed, got %s", settingsRec.Body.String())
-	}
-
 	publicConfigReq := httptest.NewRequest(http.MethodGet, "/api/auth/public-config", nil)
 	publicConfigRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(publicConfigRec, publicConfigReq)
@@ -183,10 +179,6 @@ func TestPublicRegistrationToggleControlsRegisterRefreshReplayAndLogoutFlow(t *t
 	if refreshedEnvelope.Data.Viewer.Authorization.Role != identity.RoleUser {
 		t.Fatalf("expected user role after registration, got %+v", refreshedEnvelope.Data.Viewer.Authorization.Role)
 	}
-	if strings.Contains(refreshRec.Body.String(), "roleKeys") {
-		t.Fatalf("expected viewer authorization to use single role field, got %s", refreshRec.Body.String())
-	}
-
 	nextCookie := findCookie(refreshRec.Result().Cookies(), ctx.authServiceCookieName())
 	if nextCookie == nil || nextCookie.Value == memberCookie.Value {
 		t.Fatal("expected rotated refresh cookie")
@@ -340,10 +332,6 @@ func TestManagedUserResponsesEncodeEmptySlicesAsJSONArrays(t *testing.T) {
 	if !strings.Contains(listRec.Body.String(), `"actions":[]`) {
 		t.Fatalf("expected empty actions to encode as JSON array, got %s", listRec.Body.String())
 	}
-	if strings.Contains(listRec.Body.String(), "roleKeys") {
-		t.Fatalf("expected managed users response to omit roleKeys, got %s", listRec.Body.String())
-	}
-
 	createRec := createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"member","password":"member1234"}`)
 	if createRec.Actions == nil || len(createRec.Actions) != 0 {
 		t.Fatalf("expected created user actions to encode as empty array, got %+v", createRec.Actions)

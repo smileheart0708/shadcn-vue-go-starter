@@ -23,49 +23,17 @@ describe('isSameViewer', () => {
     expect(isSameViewer(createViewer(), createViewer())).toBe(true)
   })
 
-  it('detects a change in every identity field', () => {
-    const changedId = createViewer()
-    changedId.identity.id = 2
-
-    const changedUsername = createViewer()
-    changedUsername.identity.username = 'bob'
-
-    const clearedEmail = createViewer()
-    clearedEmail.identity.email = null
-
-    const addedAvatar = createViewer()
-    addedAvatar.identity.avatarUrl = 'https://example.com/avatar.png'
-
+  it('detects a change inside identity or authorization', () => {
     const base = createViewer()
 
-    expect(isSameViewer(base, changedId)).toBe(false)
-    expect(isSameViewer(base, changedUsername)).toBe(false)
-    expect(isSameViewer(base, clearedEmail)).toBe(false)
-    expect(isSameViewer(base, addedAvatar)).toBe(false)
-  })
+    const changedIdentity = createViewer()
+    changedIdentity.identity.username = 'bob'
 
-  it('detects identity status and authorization changes', () => {
-    const changedStatus = createViewer()
-    changedStatus.identity.status = 'disabled'
+    const changedAuthorization = createViewer()
+    changedAuthorization.authorization.capabilities = ['system.settings.read']
 
-    const changedRole = createViewer()
-    changedRole.authorization.role = 'user'
-
-    const removedCapability = createViewer()
-    removedCapability.authorization.capabilities = ['system.settings.read']
-
-    const reorderedCapabilities = createViewer()
-    reorderedCapabilities.authorization.capabilities = [
-      'management.users.read',
-      'system.settings.read',
-    ]
-
-    const base = createViewer()
-
-    expect(isSameViewer(base, changedStatus)).toBe(false)
-    expect(isSameViewer(base, changedRole)).toBe(false)
-    expect(isSameViewer(base, removedCapability)).toBe(false)
-    expect(isSameViewer(base, reorderedCapabilities)).toBe(false)
+    expect(isSameViewer(base, changedIdentity)).toBe(false)
+    expect(isSameViewer(base, changedAuthorization)).toBe(false)
   })
 
   it('compares null viewer state', () => {

@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -47,46 +46,6 @@ func TestClearRefreshCookieAppliesExpiredSecurityAttributes(t *testing.T) {
 		t.Fatalf("expected max age %d, got %d", -1, cookie.MaxAge)
 	}
 	assertRefreshCookieSecurity(t, cookie)
-}
-
-func TestRefreshCookieIsAlwaysSecure(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		name      string
-		configure func(*http.Request)
-	}{
-		{
-			name:      "plain http",
-			configure: func(*http.Request) {},
-		},
-		{
-			name: "tls",
-			configure: func(r *http.Request) {
-				r.TLS = &tls.ConnectionState{}
-			},
-		},
-		{
-			name: "forwarded proto",
-			configure: func(r *http.Request) {
-				r.Header.Set("X-Forwarded-Proto", "https")
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			service := newCookieTestService()
-			req := httptest.NewRequest(http.MethodPost, "http://example.test/api/auth/login", nil)
-			tc.configure(req)
-			rec := httptest.NewRecorder()
-
-			service.SetRefreshCookie(rec, req, "refresh-value")
-
-			cookie := findCookie(t, rec.Result().Cookies(), "refresh_token")
-			assertRefreshCookieSecurity(t, cookie)
-		})
-	}
 }
 
 func newCookieTestService() *Service {

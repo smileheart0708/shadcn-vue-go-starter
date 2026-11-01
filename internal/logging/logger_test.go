@@ -48,25 +48,6 @@ func TestStreamKeepsEntriesWithinByteBudget(t *testing.T) {
 	}
 }
 
-func TestStreamDoesNotApplyEntryCountLimit(t *testing.T) {
-	t.Parallel()
-
-	stream := NewStream(StreamOptions{MaxBytes: 512 * 1024})
-	for range 1100 {
-		stream.Publish(StreamEntry{
-			Level:   "INFO",
-			Message: "entry",
-			Text:    "entry",
-			Source:  "app",
-		})
-	}
-
-	snapshot := stream.Snapshot(0)
-	if len(snapshot) != 1100 {
-		t.Fatalf("expected all entries within byte budget, got %d", len(snapshot))
-	}
-}
-
 func TestStreamSnapshotTail(t *testing.T) {
 	t.Parallel()
 

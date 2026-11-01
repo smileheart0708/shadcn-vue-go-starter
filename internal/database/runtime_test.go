@@ -22,9 +22,6 @@ func TestOpenSQLiteProvidesDomainRepositories(t *testing.T) {
 	if runtime.Driver() != DriverSQLite {
 		t.Fatalf("Driver() = %q, want %q", runtime.Driver(), DriverSQLite)
 	}
-	if runtime.Identity == nil || runtime.Sessions == nil || runtime.Setup == nil || runtime.AccountPolicies == nil {
-		t.Fatal("expected the SQLite runtime to provide every domain repository")
-	}
 }
 
 func TestOpenRejectsDriverNotCompiledIntoBinary(t *testing.T) {

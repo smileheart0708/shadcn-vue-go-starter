@@ -23,7 +23,7 @@ func (missingBearerAuthService) AuthenticateRequest(context.Context, string) (au
 func TestRequireAuthRecognizesWrappedMissingBearerToken(t *testing.T) {
 	t.Parallel()
 
-	handler := RequireAuthWithAuthenticator(missingBearerAuthService{})(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	handler := RequireAuth(missingBearerAuthService{})(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("next handler should not be called")
 	}))
 
@@ -44,7 +44,7 @@ func TestRequireAuthAcceptsAuthenticatedActor(t *testing.T) {
 		Principal: auth.Principal{UserID: 1, SessionID: "session", SecurityVersion: 1},
 		User:      identity.User{ID: 1, Username: "owner", Role: identity.RoleOwner, Status: identity.StatusActive, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 	}}
-	handler := RequireAuthWithAuthenticator(authenticator)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := RequireAuth(authenticator)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := auth.ActorFromContext(r.Context()); !ok {
 			t.Fatal("expected actor in context")
 		}
@@ -118,7 +118,7 @@ func TestRequireCapabilityGatesOnGrantedCapabilities(t *testing.T) {
 			reached = true
 			w.WriteHeader(http.StatusNoContent)
 		}),
-		RequireAuthWithAuthenticator(staticAuthenticator{actor: actor}),
+		RequireAuth(staticAuthenticator{actor: actor}),
 		RequireCapability(authorization.CapabilityManagementUsersRead),
 	)
 
@@ -142,7 +142,7 @@ func TestRequireCapabilityGatesOnGrantedCapabilities(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 		}),
-		RequireAuthWithAuthenticator(staticAuthenticator{actor: granted}),
+		RequireAuth(staticAuthenticator{actor: granted}),
 		RequireCapability(authorization.CapabilityManagementUsersRead),
 	)
 

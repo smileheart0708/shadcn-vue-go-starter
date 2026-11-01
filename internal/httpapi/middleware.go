@@ -43,11 +43,10 @@ func RequireSetupCompleted(setupService *setup.Service) Middleware {
 	}
 }
 
-func RequireAuth(authService *auth.Service) Middleware {
-	return RequireAuthWithAuthenticator(authService)
-}
-
-func RequireAuthWithAuthenticator(authenticator requestAuthenticator) Middleware {
+// RequireAuth authenticates the bearer token and puts the actor on the request
+// context. The authenticator is an interface rather than *auth.Service so the gate
+// can be exercised without constructing a full auth service.
+func RequireAuth(authenticator requestAuthenticator) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			actor, err := authenticator.AuthenticateRequest(r.Context(), r.Header.Get("Authorization"))

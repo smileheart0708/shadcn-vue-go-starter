@@ -28,6 +28,9 @@ var roleOrder = []Role{
 }
 
 // Roles returns the declared roles ordered from highest to lowest rank.
+//
+// Exported for the cross-package contract tests (authorization/capability_test.go)
+// that check every declared role has a matrix entry; no production code calls it.
 func Roles() []Role {
 	return slices.Clone(roleOrder)
 }
