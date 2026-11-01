@@ -2,28 +2,18 @@ package httpapi
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"main/internal/auth"
 	"main/internal/authorization"
-	"main/internal/identity"
+	"main/internal/avatar"
 )
 
-const (
-	maxAvatarFileSizeBytes  = 5 * 1024 * 1024
-	maxAvatarUploadBodySize = maxAvatarFileSizeBytes + (1 << 20)
-	avatarDirPermissions    = 0o750
-	avatarFilePermissions   = 0o600
-)
+// maxAvatarUploadBodySize leaves room for multipart framing on top of the file limit
+// the avatar store enforces.
+const maxAvatarUploadBodySize = avatar.MaxFileSizeBytes + (1 << 20)
 
 type updateProfileRequest struct {
 	Username string  `json:"username"`
@@ -51,23 +41,10 @@ func (api *API) updateProfileHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, CodeInvalidRequest, err)
 		return
 	}
-	if strings.TrimSpace(payload.Username) == "" {
-		writeError(w, r, CodeUsernameRequired)
-		return
-	}
 
 	updated, err := api.identities.UpdateProfile(r.Context(), actor.User.ID, payload.Username, payload.Email)
 	if err != nil {
-		switch {
-		case errors.Is(err, identity.ErrUsernameTaken):
-			writeError(w, r, CodeUsernameTaken)
-		case errors.Is(err, identity.ErrEmailTaken):
-			writeError(w, r, CodeEmailTaken)
-		case errors.Is(err, identity.ErrUserNotFound):
-			writeError(w, r, CodeUnauthorized)
-		default:
-			writeError(w, r, CodeInternalError, err)
-		}
+		writeOwnAccountError(w, r, err)
 		return
 	}
 
@@ -86,31 +63,28 @@ func (api *API) updateAvatarHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentAvatarPath := ""
-	if actor.User.AvatarPath != nil {
-		currentAvatarPath = avatarPathFromStoredName(api.dataDir, *actor.User.AvatarPath)
+	data, err := api.readAvatarUpload(r.Context(), w, r)
+	if err != nil {
+		writeAvatarUploadError(w, r, err)
+		return
 	}
 
-	avatarFileName, err := api.storeAvatarUpload(r.Context(), w, r)
+	avatarFileName, err := api.avatars.Save(data)
 	if err != nil {
-		// errors.AsType replaces the "declare, then match" idiom and avoids the temp var.
-		if avatarError, isUploadError := errors.AsType[*avatarUploadError](err); isUploadError {
-			writeError(w, r, avatarError.code, avatarError)
-			return
-		}
-		writeError(w, r, CodeInternalError, err)
+		writeDomainError(w, r, err)
 		return
 	}
 
 	updated, err := api.identities.UpdateAvatar(r.Context(), actor.User.ID, &avatarFileName)
 	if err != nil {
-		api.removeAvatarFile(r.Context(), filepath.Join(identity.AvatarDir(api.dataDir), avatarFileName), "rollback_avatar_upload", actor.User.ID)
-		writeError(w, r, CodeInternalError, err)
+		// The row write failed, so the file just written has no owner.
+		api.removeAvatarFile(r.Context(), avatarFileName, "rollback_avatar_upload", actor.User.ID)
+		writeOwnAccountError(w, r, err)
 		return
 	}
 
-	if currentAvatarPath != "" {
-		api.removeAvatarFile(r.Context(), currentAvatarPath, "replace_previous_avatar", actor.User.ID)
+	if actor.User.AvatarPath != nil {
+		api.removeAvatarFile(r.Context(), *actor.User.AvatarPath, "replace_previous_avatar", actor.User.ID)
 	}
 
 	viewer, err := api.auth.BuildViewer(r.Context(), updated.ID)
@@ -119,6 +93,45 @@ func (api *API) updateAvatarHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeSuccessJSON(w, http.StatusOK, api.toViewerResponse(viewer))
+}
+
+// readAvatarUpload returns the uploaded bytes. Only the shape of the request is judged
+// here; what counts as a valid image is the avatar store's decision.
+func (api *API) readAvatarUpload(ctx context.Context, w http.ResponseWriter, r *http.Request) ([]byte, error) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarUploadBodySize)
+
+	file, _, err := r.FormFile("avatar")
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			api.loggerOrDefault().WarnContext(ctx, "failed to close avatar upload file", "error", closeErr)
+		}
+	}()
+
+	// Read one byte past the limit so the store reports ErrTooLarge instead of accepting
+	// a silently truncated image.
+	return io.ReadAll(io.LimitReader(file, avatar.MaxFileSizeBytes+1))
+}
+
+// writeAvatarUploadError classifies the multipart mechanics. Rejections that come from
+// the avatar store go through writeDomainError instead: the two layers own separate
+// vocabularies on purpose.
+func writeAvatarUploadError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, http.ErrMissingFile):
+		writeError(w, r, CodeAvatarRequired, err)
+	case errors.As(err, new(*http.MaxBytesError)):
+		// MaxBytesReader reports overflow as *http.MaxBytesError; matching its text
+		// would turn a 413 back into a 500 on any wording change.
+		writeError(w, r, CodeAvatarTooLarge, err)
+	case errors.Is(err, http.ErrNotMultipart):
+		// A non-multipart body is a client mistake, not a server failure.
+		writeError(w, r, CodeInvalidRequest, err)
+	default:
+		writeError(w, r, CodeInternalError, err)
+	}
 }
 
 func (api *API) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
@@ -134,16 +147,8 @@ func (api *API) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := api.auth.ChangePassword(r.Context(), actor, payload.CurrentPassword, payload.NewPassword)
-	if err != nil {
-		switch {
-		case errors.Is(err, auth.ErrCurrentPasswordInvalid):
-			writeError(w, r, CodeCurrentPasswordInvalid)
-		case errors.Is(err, auth.ErrPasswordTooShort):
-			writeError(w, r, CodePasswordTooShort)
-		default:
-			writeError(w, r, CodeInternalError, err)
-		}
+	if err := api.auth.ChangePassword(r.Context(), actor, payload.CurrentPassword, payload.NewPassword); err != nil {
+		writeOwnAccountError(w, r, err)
 		return
 	}
 
@@ -167,24 +172,15 @@ func (api *API) deleteAccountHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentAvatarPath := ""
-	if actor.User.AvatarPath != nil {
-		currentAvatarPath = avatarPathFromStoredName(api.dataDir, *actor.User.AvatarPath)
-	}
-
 	if err := api.identities.DeleteUser(r.Context(), actor.User.ID); err != nil {
-		// The row disappeared between the capability check and the delete. Report it the
-		// same way as a missing viewer elsewhere in this file: the session is gone.
-		if errors.Is(err, identity.ErrUserNotFound) {
-			writeError(w, r, CodeUnauthorized)
-			return
-		}
-		writeError(w, r, CodeInternalError, err)
+		// The row disappeared between the capability check and the delete: the session
+		// lost its user either way.
+		writeOwnAccountError(w, r, err)
 		return
 	}
 
-	if currentAvatarPath != "" {
-		api.removeAvatarFile(r.Context(), currentAvatarPath, "delete_account_avatar_cleanup", actor.User.ID)
+	if actor.User.AvatarPath != nil {
+		api.removeAvatarFile(r.Context(), *actor.User.AvatarPath, "delete_account_avatar_cleanup", actor.User.ID)
 	}
 
 	api.auth.ClearRefreshCookie(w, r)
@@ -192,154 +188,25 @@ func (api *API) deleteAccountHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) avatarHandler(w http.ResponseWriter, r *http.Request) {
-	filename := r.PathValue("filename")
-	fullPath, err := resolveAvatarPath(api.dataDir, filename)
+	fullPath, err := api.avatars.Path(r.PathValue("filename"))
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	if _, statErr := os.Stat(fullPath); statErr != nil {
-		http.NotFound(w, r)
+	// ServeFile answers 404 on its own when the row still names a file that is gone.
+	http.ServeFile(w, r, fullPath) //nolint:gosec // avatar.Store.Path only accepts bare file names, so the path cannot leave its directory
+}
+
+// removeAvatarFile deletes a stored file after the database row already changed, so a
+// failure is logged and never surfaced: the request has succeeded by then.
+func (api *API) removeAvatarFile(ctx context.Context, storedName string, reason string, userID int64) {
+	if storedName == "" {
 		return
 	}
 
-	http.ServeFile(w, r, fullPath)
-}
-
-// avatarUploadError carries a client-facing rejection out of storeAvatarUpload.
-// It only holds the code: status and fallback text live in errorDefinitions.
-type avatarUploadError struct {
-	code    ErrorCode
-	message string
-}
-
-func (err *avatarUploadError) Error() string {
-	return err.message
-}
-
-func (api *API) storeAvatarUpload(ctx context.Context, w http.ResponseWriter, r *http.Request) (string, error) {
-	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarUploadBodySize)
-
-	file, _, err := r.FormFile("avatar")
-	if err != nil {
-		switch {
-		case errors.Is(err, http.ErrMissingFile):
-			return "", &avatarUploadError{code: CodeAvatarRequired, message: "avatar file is required"}
-		// MaxBytesReader reports overflow as *http.MaxBytesError; matching its
-		// text would silently turn a 413 back into a 500 on any wording change.
-		case errors.As(err, new(*http.MaxBytesError)):
-			return "", &avatarUploadError{code: CodeAvatarTooLarge, message: "avatar file exceeds 5MB"}
-		case errors.Is(err, http.ErrNotMultipart):
-			// A non-multipart body is a client mistake, not a server failure.
-			return "", &avatarUploadError{code: CodeInvalidRequest, message: "request body is not multipart form data"}
-		default:
-			return "", fmt.Errorf("read avatar upload: %w", err)
-		}
-	}
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			api.loggerOrDefault().WarnContext(ctx, "failed to close avatar upload file", "error", closeErr)
-		}
-	}()
-
-	data, err := io.ReadAll(io.LimitReader(file, maxAvatarFileSizeBytes+1))
-	if err != nil {
-		return "", fmt.Errorf("read avatar file: %w", err)
-	}
-	if len(data) == 0 {
-		return "", &avatarUploadError{code: CodeAvatarRequired, message: "avatar file is required"}
-	}
-	if len(data) > maxAvatarFileSizeBytes {
-		return "", &avatarUploadError{code: CodeAvatarTooLarge, message: "avatar file exceeds 5MB"}
-	}
-
-	contentType := http.DetectContentType(data[:min(512, len(data))])
-	extension, allowed := avatarExtensionForContentType(contentType)
-	if !allowed {
-		return "", &avatarUploadError{code: CodeAvatarInvalidType, message: "avatar file is not an allowed image type"}
-	}
-
-	fileName, err := randomAvatarFileName(extension)
-	if err != nil {
-		return "", err
-	}
-
-	avatarDir := identity.AvatarDir(api.dataDir)
-	if mkdirErr := os.MkdirAll(avatarDir, avatarDirPermissions); mkdirErr != nil {
-		return "", fmt.Errorf("create avatar dir: %w", mkdirErr)
-	}
-
-	fullPath, err := resolveAvatarPath(api.dataDir, fileName)
-	if err != nil {
-		return "", err
-	}
-	if writeErr := os.WriteFile(fullPath, data, avatarFilePermissions); writeErr != nil {
-		return "", fmt.Errorf("write avatar file: %w", writeErr)
-	}
-
-	return fileName, nil
-}
-
-func avatarExtensionForContentType(contentType string) (string, bool) {
-	switch contentType {
-	case "image/jpeg":
-		return ".jpg", true
-	case "image/png":
-		return ".png", true
-	case "image/webp":
-		return ".webp", true
-	default:
-		return "", false
-	}
-}
-
-func randomAvatarFileName(extension string) (string, error) {
-	randomBytes := make([]byte, 16)
-	if _, err := rand.Read(randomBytes); err != nil {
-		return "", fmt.Errorf("generate avatar filename: %w", err)
-	}
-	return hex.EncodeToString(randomBytes) + extension, nil
-}
-
-func resolveAvatarPath(dataDir string, storedName string) (string, error) {
-	trimmed := strings.TrimSpace(storedName)
-	if trimmed == "" {
-		return "", fmt.Errorf("avatar path is empty")
-	}
-	if trimmed != filepath.Base(trimmed) || strings.Contains(trimmed, `\`) {
-		return "", fmt.Errorf("avatar path contains invalid separators")
-	}
-
-	avatarDir := filepath.Clean(identity.AvatarDir(dataDir))
-	fullPath := filepath.Join(avatarDir, trimmed)
-	relativePath, err := filepath.Rel(avatarDir, fullPath)
-	if err != nil {
-		return "", fmt.Errorf("resolve avatar path: %w", err)
-	}
-	if relativePath == "." || relativePath == "" || strings.HasPrefix(relativePath, "..") || filepath.IsAbs(relativePath) {
-		return "", fmt.Errorf("avatar path escapes avatar dir")
-	}
-	return fullPath, nil
-}
-
-func avatarPathFromStoredName(dataDir string, storedName string) string {
-	fullPath, err := resolveAvatarPath(dataDir, storedName)
-	if err != nil {
-		return ""
-	}
-	return fullPath
-}
-
-func (api *API) removeAvatarFile(ctx context.Context, fullPath string, reason string, userID int64) {
-	if strings.TrimSpace(fullPath) == "" {
-		return
-	}
-	if err := os.Remove(fullPath); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return
-		}
-		api.loggerOrDefault().WarnContext(ctx, "failed to remove avatar file", "reason", reason, "user_id", userID, "file_name", filepath.Base(fullPath), "error", err)
+	if err := api.avatars.Remove(storedName); err != nil {
+		api.loggerOrDefault().WarnContext(ctx, "failed to remove avatar file", "reason", reason, "user_id", userID, "error", err)
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	"main/internal/accountpolicies"
 	"main/internal/auth"
 	"main/internal/authorization"
+	"main/internal/avatar"
 	"main/internal/config"
 	"main/internal/database"
 	"main/internal/httpapi"
@@ -71,17 +72,18 @@ func run() error {
 	}
 	defer closeDB(dbRuntime)
 
+	store := dbRuntime.Store
 	authorizationService := authorization.NewService()
-	identityService := identity.NewService(dbRuntime.Identity)
-	accountPoliciesService := accountpolicies.NewService(dbRuntime.AccountPolicies)
-	setupService := setup.NewService(dbRuntime.Setup)
+	identityService := identity.NewService(store)
+	accountPoliciesService := accountpolicies.NewService(store)
+	setupService := setup.NewService(store)
 	authService := auth.NewService(auth.Options{
 		Secret:             []byte(cfg.JWTSecret),
 		TTL:                cfg.JWTTTL,
 		RefreshIdleTTL:     cfg.RefreshIdleTTL,
 		RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
 		RefreshCookieName:  cfg.RefreshCookieName,
-	}, dbRuntime.Sessions, identityService, authorizationService, accountPoliciesService)
+	}, store, identityService, authorizationService, accountPoliciesService)
 
 	server := &http.Server{
 		Addr: listenAddr,
@@ -93,7 +95,7 @@ func run() error {
 			Identity:        identityService,
 			Setup:           setupService,
 			AccountPolicies: accountPoliciesService,
-			DataDir:         dataDir,
+			Avatars:         avatar.New(dataDir),
 			FrontendFS:      frontendAssets,
 			LogAPIRequests:  cfg.APIRequestLogEnabled,
 		}),

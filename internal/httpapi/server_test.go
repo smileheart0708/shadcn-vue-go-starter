@@ -19,6 +19,7 @@ import (
 	"main/internal/accountpolicies"
 	"main/internal/auth"
 	"main/internal/authorization"
+	"main/internal/avatar"
 	"main/internal/database"
 	"main/internal/identity"
 	"main/internal/logging"
@@ -32,7 +33,6 @@ type testContext struct {
 	policiesService *accountpolicies.Service
 	setupService    *setup.Service
 	logStream       *logging.Stream
-	dataDir         string
 }
 
 type testSuccessEnvelope[T any] struct {
@@ -406,6 +406,50 @@ func TestSPAFallbackAndGzipStillWork(t *testing.T) {
 	}
 }
 
+// TestAccountCreationRejectsBlankUsernameBeforePassword locks the wire contract for a
+// request that is invalid in two ways at once.
+//
+// Setup and registration deliberately have no username pre-check in their handlers:
+// auth.ValidateNewAccount owns the order so the rule cannot drift between entry points.
+// This test is what fails if the check is ever moved back into the transport layer,
+// dropped, or allowed to run after the password hash.
+func TestAccountCreationRejectsBlankUsernameBeforePassword(t *testing.T) {
+	t.Parallel()
+
+	expectUsernameRequired := func(t *testing.T, ctx *testContext, path string, body string) {
+		t.Helper()
+
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		ctx.handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rec.Code, rec.Body.String())
+		}
+		decodeErrorCode(t, rec.Body.Bytes(), string(CodeUsernameRequired))
+	}
+
+	t.Run("setup", func(t *testing.T) {
+		t.Parallel()
+
+		expectUsernameRequired(t, newTestContext(t), "/api/install/setup", `{"username":"   ","password":"short"}`)
+	})
+
+	t.Run("register", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := newTestContext(t)
+		ownerSession, _ := performSetup(t, ctx)
+		updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
+
+		// Both fields invalid, then only the username invalid: the code must not change.
+		expectUsernameRequired(t, ctx, "/api/auth/register", `{"username":"   ","password":"short"}`)
+		expectUsernameRequired(t, ctx, "/api/auth/register", `{"username":"   ","password":"member1234"}`)
+	})
+}
+
 func newTestContext(t *testing.T) *testContext {
 	t.Helper()
 
@@ -430,16 +474,17 @@ func newTestContext(t *testing.T) *testContext {
 	})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
+	store := dbRuntime.Store
 	authzService := authorization.NewService()
-	identityService := identity.NewService(dbRuntime.Identity)
-	policiesService := accountpolicies.NewService(dbRuntime.AccountPolicies)
-	setupService := setup.NewService(dbRuntime.Setup)
+	identityService := identity.NewService(store)
+	policiesService := accountpolicies.NewService(store)
+	setupService := setup.NewService(store)
 	authService := auth.NewService(auth.Options{
 		Secret:             []byte("test-secret"),
 		TTL:                time.Hour,
 		RefreshIdleTTL:     7 * 24 * time.Hour,
 		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
-	}, dbRuntime.Sessions, identityService, authzService, policiesService)
+	}, store, identityService, authzService, policiesService)
 
 	handler := NewHandlerWithOptions(HandlerOptions{
 		Logger:          logger,
@@ -449,7 +494,7 @@ func newTestContext(t *testing.T) *testContext {
 		Identity:        identityService,
 		Setup:           setupService,
 		AccountPolicies: policiesService,
-		DataDir:         dataDir,
+		Avatars:         avatar.New(dataDir),
 		FrontendFS:      os.DirFS(distDir),
 		LogAPIRequests:  false,
 	})
@@ -461,7 +506,6 @@ func newTestContext(t *testing.T) *testContext {
 		policiesService: policiesService,
 		setupService:    setupService,
 		logStream:       logStream,
-		dataDir:         dataDir,
 	}
 }
 

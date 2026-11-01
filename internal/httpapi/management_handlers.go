@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -121,18 +120,7 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		Password: payload.Password,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, auth.ErrPasswordTooShort):
-			writeError(w, r, CodePasswordTooShort)
-		case errors.Is(err, identity.ErrUsernameRequired):
-			writeError(w, r, CodeUsernameRequired)
-		case errors.Is(err, identity.ErrUsernameTaken):
-			writeError(w, r, CodeUsernameTaken)
-		case errors.Is(err, identity.ErrEmailTaken):
-			writeError(w, r, CodeEmailTaken)
-		default:
-			writeError(w, r, CodeInternalError, err)
-		}
+		writeDomainError(w, r, err)
 		return
 	}
 
@@ -172,16 +160,7 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		Email:    payload.Email,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, identity.ErrUsernameRequired):
-			writeError(w, r, CodeUsernameRequired)
-		case errors.Is(err, identity.ErrUsernameTaken):
-			writeError(w, r, CodeUsernameTaken)
-		case errors.Is(err, identity.ErrEmailTaken):
-			writeError(w, r, CodeEmailTaken)
-		default:
-			writeError(w, r, CodeInternalError, err)
-		}
+		writeDomainError(w, r, err)
 		return
 	}
 
@@ -224,12 +203,9 @@ func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Re
 	updated, err := api.identities.SetUserStatus(r.Context(), targetUser.ID, status)
 	if err != nil {
 		// loadManagedUserTargets already succeeded, so a not-found here means the target
-		// was deleted in between. Answering 500 would misreport a race as a server fault.
-		if errors.Is(err, identity.ErrUserNotFound) {
-			writeError(w, r, CodeUserNotFound)
-			return
-		}
-		writeError(w, r, CodeInternalError, err)
+		// was deleted in between. The mapping table answers 404, which keeps the race
+		// from being misreported as a server fault.
+		writeDomainError(w, r, err)
 		return
 	}
 
@@ -243,11 +219,7 @@ func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Re
 func (api *API) loadManagedUserTargets(w http.ResponseWriter, r *http.Request, actor auth.Actor, targetID int64) (identity.User, identity.ManagedUserTarget, identity.ManagedUserTarget, bool) {
 	targetUser, err := api.identities.GetUserByID(r.Context(), targetID)
 	if err != nil {
-		if errors.Is(err, identity.ErrUserNotFound) {
-			writeError(w, r, CodeUserNotFound)
-		} else {
-			writeError(w, r, CodeInternalError, err)
-		}
+		writeDomainError(w, r, err)
 		return identity.User{}, identity.ManagedUserTarget{}, identity.ManagedUserTarget{}, false
 	}
 

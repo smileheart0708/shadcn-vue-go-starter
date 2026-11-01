@@ -9,6 +9,7 @@ import (
 	"main/internal/accountpolicies"
 	"main/internal/auth"
 	"main/internal/authorization"
+	"main/internal/avatar"
 	"main/internal/identity"
 	"main/internal/logging"
 	"main/internal/setup"
@@ -22,7 +23,7 @@ type HandlerOptions struct {
 	Identity        *identity.Service
 	Setup           *setup.Service
 	AccountPolicies *accountpolicies.Service
-	DataDir         string
+	Avatars         *avatar.Store
 	FrontendFS      fs.FS
 	LogAPIRequests  bool
 }
@@ -39,7 +40,7 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 		identities:    options.Identity,
 		setup:         options.Setup,
 		policies:      options.AccountPolicies,
-		dataDir:       options.DataDir,
+		avatars:       options.Avatars,
 		logger:        logger,
 		logStream:     options.LogStream,
 	}

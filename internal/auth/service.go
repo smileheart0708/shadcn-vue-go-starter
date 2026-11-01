@@ -214,17 +214,38 @@ func (s *Service) Login(ctx context.Context, identifier string, password string,
 	return result, nil
 }
 
+// ValidateNewAccount checks the username/password pair of every entry point that
+// creates an account (setup, registration, administrative creation).
+//
+// The order is the contract, not an implementation detail: hashing is deliberately
+// expensive, so a blank username must be rejected *before* HashPassword runs, and it
+// must win over a short password so all entry points answer the same error code when
+// both fields are invalid. Handler-level pre-checks used to enforce this; keeping it
+// here means the rule survives a new caller that forgets to validate.
+func ValidateNewAccount(username string, password string) error {
+	if strings.TrimSpace(username) == "" {
+		return identity.ErrUsernameRequired
+	}
+	if len(strings.TrimSpace(password)) < MinPasswordLength {
+		return ErrPasswordTooShort
+	}
+
+	return nil
+}
+
 func (s *Service) Register(ctx context.Context, params RegisterParams, ip string, userAgent string) (SessionResult, error) {
 	policies, err := s.policies.Get(ctx)
 	if err != nil {
 		return SessionResult{}, err
 	}
+	// A disabled instance answers before the fields are looked at: this is the door, not
+	// an input error.
 	if !policies.PublicRegistrationEnabled {
 		return SessionResult{}, ErrRegistrationDisabled
 	}
 
-	if len(strings.TrimSpace(params.Password)) < MinPasswordLength {
-		return SessionResult{}, ErrPasswordTooShort
+	if validationErr := ValidateNewAccount(params.Username, params.Password); validationErr != nil {
+		return SessionResult{}, validationErr
 	}
 
 	passwordHash, err := HashPassword(params.Password)
@@ -258,17 +279,11 @@ type CreateManagedUserParams struct {
 
 // CreateManagedUser creates an account on behalf of an administrator.
 //
-// Username is rejected before the password is hashed: hashing is deliberately expensive,
-// and an empty username must keep answering CodeUsernameRequired (the registration handler
-// checks it first too) instead of turning into a password error when both fields are bad.
 // Accounts created this way are always plain users — promoting someone is a separate
 // decision with its own authorization rule, never a side effect of creating the account.
 func (s *Service) CreateManagedUser(ctx context.Context, params CreateManagedUserParams) (identity.User, error) {
-	if strings.TrimSpace(params.Username) == "" {
-		return identity.User{}, identity.ErrUsernameRequired
-	}
-	if len(strings.TrimSpace(params.Password)) < MinPasswordLength {
-		return identity.User{}, ErrPasswordTooShort
+	if validationErr := ValidateNewAccount(params.Username, params.Password); validationErr != nil {
+		return identity.User{}, validationErr
 	}
 
 	passwordHash, err := HashPassword(params.Password)

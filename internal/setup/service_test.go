@@ -27,7 +27,7 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 		}
 	})
 
-	service := setup.NewService(runtime.Setup)
+	service := setup.NewService(runtime.Store)
 
 	owner, err := service.Complete(context.Background(), setup.CompleteSetupInput{
 		Username: "owner",

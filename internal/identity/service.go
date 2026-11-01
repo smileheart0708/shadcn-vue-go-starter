@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -154,11 +153,16 @@ func (s *Service) GetAuthRecordByIdentifier(ctx context.Context, identifier stri
 }
 
 func (s *Service) UpdateProfile(ctx context.Context, userID int64, username string, email *string) (User, error) {
+	normalizedUsername := normalizeUsername(username)
+	if normalizedUsername == "" {
+		return User{}, ErrUsernameRequired
+	}
+
 	repository, err := s.requireRepository()
 	if err != nil {
 		return User{}, err
 	}
-	return repository.UpdateProfile(ctx, userID, normalizeUsername(username), normalizeEmailPointer(email))
+	return repository.UpdateProfile(ctx, userID, normalizedUsername, normalizeEmailPointer(email))
 }
 
 func (s *Service) UpdateAvatar(ctx context.Context, userID int64, avatarPath *string) (User, error) {
@@ -170,12 +174,9 @@ func (s *Service) UpdateAvatar(ctx context.Context, userID int64, avatarPath *st
 }
 
 func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params UpdateManagedUserParams) (User, error) {
-	if normalizeUsername(params.Username) == "" {
-		return User{}, ErrUsernameRequired
-	}
-
 	// Shares UpdateProfile because both paths write the same two columns, and that method
-	// already normalizes them and reports ErrUserNotFound without a separate lookup.
+	// normalizes them, rejects a blank username and reports ErrUserNotFound without a
+	// separate lookup.
 	return s.UpdateProfile(ctx, userID, params.Username, params.Email)
 }
 
@@ -266,8 +267,4 @@ func normalizeEmailPointer(email *string) *string {
 		return nil
 	}
 	return &normalized
-}
-
-func AvatarDir(dataDir string) string {
-	return filepath.Join(dataDir, "avatars")
 }

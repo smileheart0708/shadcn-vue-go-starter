@@ -44,10 +44,11 @@ func TestRuntimeKeepsDomainWritesAtomic(t *testing.T) {
 	t.Parallel()
 
 	runtime := openTestRuntime(t)
+	store := runtime.Store
 	ctx := context.Background()
-	setupService := setup.NewService(runtime.Setup)
-	policiesService := accountpolicies.NewService(runtime.AccountPolicies)
-	identityService := identity.NewService(runtime.Identity)
+	setupService := setup.NewService(store)
+	policiesService := accountpolicies.NewService(store)
+	identityService := identity.NewService(store)
 
 	owner, err := setupService.Complete(ctx, setup.CompleteSetupInput{
 		Username: "owner",
@@ -99,7 +100,7 @@ func TestRuntimeKeepsDomainWritesAtomic(t *testing.T) {
 	}
 
 	now := time.Now().UTC()
-	if err := runtime.Sessions.CreateSession(ctx, auth.Session{
+	if err := store.CreateSession(ctx, auth.Session{
 		ID:               "disable-session",
 		UserID:           user.ID,
 		RefreshTokenHash: "hash",
@@ -113,7 +114,7 @@ func TestRuntimeKeepsDomainWritesAtomic(t *testing.T) {
 	if _, err := identityService.SetUserStatus(ctx, user.ID, identity.StatusDisabled); err != nil {
 		t.Fatalf("disable user: %v", err)
 	}
-	disabledSession, err := runtime.Sessions.GetSession(ctx, "disable-session")
+	disabledSession, err := store.GetSession(ctx, "disable-session")
 	if err != nil {
 		t.Fatalf("get disabled session: %v", err)
 	}
@@ -129,7 +130,7 @@ func TestRuntimeKeepsDomainWritesAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create password user: %v", err)
 	}
-	if err := runtime.Sessions.CreateSession(ctx, auth.Session{
+	if err := store.CreateSession(ctx, auth.Session{
 		ID:               "password-session",
 		UserID:           passwordUser.ID,
 		RefreshTokenHash: "hash",
@@ -144,7 +145,7 @@ func TestRuntimeKeepsDomainWritesAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get password user before update: %v", err)
 	}
-	if err := runtime.Sessions.UpdatePasswordAndRevokeSessions(ctx, passwordUser.ID, "new-hash", now); err != nil {
+	if err := store.UpdatePasswordAndRevokeSessions(ctx, passwordUser.ID, "new-hash", now); err != nil {
 		t.Fatalf("update password and revoke sessions: %v", err)
 	}
 	after, err := identityService.GetAuthRecordByID(ctx, passwordUser.ID)
@@ -154,7 +155,7 @@ func TestRuntimeKeepsDomainWritesAtomic(t *testing.T) {
 	if after.PasswordHash != "new-hash" || after.SecurityVersion != before.SecurityVersion+1 {
 		t.Fatalf("password update result = %+v, want the new hash and an incremented security version", after)
 	}
-	passwordSession, err := runtime.Sessions.GetSession(ctx, "password-session")
+	passwordSession, err := store.GetSession(ctx, "password-session")
 	if err != nil {
 		t.Fatalf("get password session: %v", err)
 	}

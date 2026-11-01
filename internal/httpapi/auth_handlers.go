@@ -3,10 +3,8 @@ package httpapi
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"main/internal/auth"
-	"main/internal/identity"
 	"main/internal/setup"
 )
 
@@ -59,18 +57,7 @@ func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
 		Password: payload.Password,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, setup.ErrAlreadyCompleted):
-			writeError(w, r, CodeSetupCompleted)
-		case errors.Is(err, identity.ErrUsernameRequired):
-			writeError(w, r, CodeUsernameRequired)
-		case errors.Is(err, auth.ErrPasswordTooShort):
-			writeError(w, r, CodePasswordTooShort)
-		case errors.Is(err, identity.ErrUsernameTaken):
-			writeError(w, r, CodeUsernameTaken)
-		default:
-			writeError(w, r, CodeInternalError, err)
-		}
+		writeDomainError(w, r, err)
 		return
 	}
 
@@ -104,14 +91,7 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 	ip, userAgent := requestMetadata(r)
 	result, err := api.auth.Login(r.Context(), payload.Identifier, payload.Password, ip, userAgent)
 	if err != nil {
-		switch {
-		case errors.Is(err, auth.ErrInvalidCredentials):
-			writeError(w, r, CodeInvalidCredentials)
-		case errors.Is(err, auth.ErrAccountDisabled):
-			writeError(w, r, CodeAccountDisabled)
-		default:
-			writeError(w, r, CodeInternalError, err)
-		}
+		writeDomainError(w, r, err)
 		return
 	}
 
@@ -125,11 +105,6 @@ func (api *API) registerHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, CodeInvalidRequest, err)
 		return
 	}
-	if strings.TrimSpace(payload.Username) == "" {
-		writeError(w, r, CodeUsernameRequired)
-		return
-	}
-
 	ip, userAgent := requestMetadata(r)
 	result, err := api.auth.Register(r.Context(), auth.RegisterParams{
 		Username: payload.Username,
@@ -137,18 +112,7 @@ func (api *API) registerHandler(w http.ResponseWriter, r *http.Request) {
 		Password: payload.Password,
 	}, ip, userAgent)
 	if err != nil {
-		switch {
-		case errors.Is(err, auth.ErrRegistrationDisabled):
-			writeError(w, r, CodeRegistrationDisabled)
-		case errors.Is(err, auth.ErrPasswordTooShort):
-			writeError(w, r, CodePasswordTooShort)
-		case errors.Is(err, identity.ErrUsernameTaken):
-			writeError(w, r, CodeUsernameTaken)
-		case errors.Is(err, identity.ErrEmailTaken):
-			writeError(w, r, CodeEmailTaken)
-		default:
-			writeError(w, r, CodeInternalError, err)
-		}
+		writeDomainError(w, r, err)
 		return
 	}
 

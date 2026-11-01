@@ -2,10 +2,14 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"main/internal/identity"
 )
 
 // TestErrorCodesMatchFrontendLocale is the only place the backend/frontend error
@@ -77,6 +81,101 @@ func TestWriteErrorFallsBackToInternalError(t *testing.T) {
 	}
 	if payload.Error.Code != string(CodeInternalError) {
 		t.Fatalf("expected code %q, got %q", CodeInternalError, payload.Error.Code)
+	}
+}
+
+// TestDomainErrorMappingsAreRegistered keeps the mapping table honest: a typo in a code
+// would otherwise surface as an untranslatable value on the wire.
+func TestDomainErrorMappingsAreRegistered(t *testing.T) {
+	t.Parallel()
+
+	for _, mapping := range domainErrorMappings {
+		if mapping.target == nil {
+			t.Errorf("mapping to %q has a nil target error", mapping.code)
+			continue
+		}
+		if _, ok := errorDefinitions[mapping.code]; !ok {
+			t.Errorf("domain error %v maps to unregistered code %q", mapping.target, mapping.code)
+		}
+	}
+}
+
+// TestWriteDomainErrorMapsWrappedErrors is the guard for the whole table: mapping must
+// survive wrapping, a missing row keeps the table's 404, and an unknown error stays a 500.
+func TestWriteDomainErrorMapsWrappedErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		err  error
+		want ErrorCode
+	}{
+		{
+			name: "wrapped domain error",
+			err:  fmt.Errorf("store: %w", identity.ErrUsernameTaken),
+			want: CodeUsernameTaken,
+		},
+		{
+			name: "missing user keeps the table entry",
+			err:  identity.ErrUserNotFound,
+			want: CodeUserNotFound,
+		},
+		{
+			name: "unmapped error falls back to internal",
+			err:  errors.New("boom"),
+			want: CodeInternalError,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := httptest.NewRecorder()
+			writeDomainError(rec, httptest.NewRequest(http.MethodGet, "/api/test", nil), test.err)
+
+			decodeErrorCode(t, rec.Body.Bytes(), string(test.want))
+		})
+	}
+}
+
+// TestWriteOwnAccountErrorTreatsMissingRowAsDeadSession locks the only documented
+// exception to the table. If the exception ever spreads beyond the own-account
+// endpoints, this test keeps it visible instead of silently changing management 404s.
+func TestWriteOwnAccountErrorTreatsMissingRowAsDeadSession(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		err  error
+		want ErrorCode
+	}{
+		{
+			name: "own row vanished means the session lost its user",
+			err:  fmt.Errorf("identity: lookup: %w", identity.ErrUserNotFound),
+			want: CodeUnauthorized,
+		},
+		{
+			name: "other domain errors keep their code",
+			err:  identity.ErrEmailTaken,
+			want: CodeEmailTaken,
+		},
+		{
+			name: "unmapped error stays internal",
+			err:  errors.New("boom"),
+			want: CodeInternalError,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := httptest.NewRecorder()
+			writeOwnAccountError(rec, httptest.NewRequest(http.MethodGet, "/api/account/profile", nil), test.err)
+
+			decodeErrorCode(t, rec.Body.Bytes(), string(test.want))
+		})
 	}
 }
 

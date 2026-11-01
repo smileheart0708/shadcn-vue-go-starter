@@ -5,6 +5,11 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+
+	"main/internal/auth"
+	"main/internal/avatar"
+	"main/internal/identity"
+	"main/internal/setup"
 )
 
 // ErrorCode is the machine-readable identifier carried in `error.code` of every
@@ -75,6 +80,67 @@ var errorDefinitions = map[ErrorCode]errorDefinition{
 	CodeSetupCompleted:             {status: http.StatusConflict, message: "The application has already been initialized."},
 	CodeSystemLogStreamUnavailable: {status: http.StatusServiceUnavailable, message: "System log stream is unavailable."},
 	CodeInternalError:              {status: http.StatusInternalServerError, message: "The server encountered an unexpected error."},
+}
+
+// errorMapping binds a domain error to the API code reported for it.
+type errorMapping struct {
+	target error
+	code   ErrorCode
+}
+
+// domainErrorMappings is the single table from domain error to API code. Entries are
+// matched with errors.Is, so wrapping an error on its way up keeps the mapping.
+//
+// A domain error that means different things on different endpoints is not listed
+// twice: the endpoint uses writeOwnAccountError, the single documented exception. That
+// keeps this table free of "this code, except there" entries.
+var domainErrorMappings = []errorMapping{
+	{identity.ErrUsernameRequired, CodeUsernameRequired},
+	{identity.ErrUsernameTaken, CodeUsernameTaken},
+	{identity.ErrEmailTaken, CodeEmailTaken},
+	{identity.ErrUserNotFound, CodeUserNotFound},
+	{auth.ErrPasswordTooShort, CodePasswordTooShort},
+	{auth.ErrCurrentPasswordInvalid, CodeCurrentPasswordInvalid},
+	{auth.ErrInvalidCredentials, CodeInvalidCredentials},
+	{auth.ErrAccountDisabled, CodeAccountDisabled},
+	{auth.ErrRegistrationDisabled, CodeRegistrationDisabled},
+	{setup.ErrAlreadyCompleted, CodeSetupCompleted},
+	{avatar.ErrEmpty, CodeAvatarRequired},
+	{avatar.ErrTooLarge, CodeAvatarTooLarge},
+	{avatar.ErrUnsupportedType, CodeAvatarInvalidType},
+}
+
+// writeDomainError reports err with the API code it maps to, falling back to
+// CodeInternalError so an unmapped error is a logged 500 rather than a silent success.
+func writeDomainError(w http.ResponseWriter, r *http.Request, err error) {
+	if err == nil {
+		return
+	}
+
+	for _, mapping := range domainErrorMappings {
+		if errors.Is(err, mapping.target) {
+			writeError(w, r, mapping.code, err)
+			return
+		}
+	}
+
+	writeError(w, r, CodeInternalError, err)
+}
+
+// writeOwnAccountError is writeDomainError for endpoints that act on the caller's own
+// account (profile, avatar, password, deletion).
+//
+// It keeps one exception out of the global table on purpose: there a missing identity
+// row is not a missing resource but a session whose user is gone, so it answers 401.
+// Management endpoints keep the table's 404 because for them the target really is a
+// separate resource.
+func writeOwnAccountError(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, identity.ErrUserNotFound) {
+		writeError(w, r, CodeUnauthorized, err)
+		return
+	}
+
+	writeDomainError(w, r, err)
 }
 
 // writeError emits the standard error envelope for code.

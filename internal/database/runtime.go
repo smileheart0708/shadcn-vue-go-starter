@@ -1,6 +1,6 @@
 // Package database is the composition root of persistence: it selects a dialect,
-// opens it, applies that dialect's migrations and hands the resulting
-// repositories to the domain services.
+// opens it, applies that dialect's migrations and exposes the store the domain
+// repositories are built from.
 package database
 
 import (
@@ -10,14 +10,10 @@ import (
 	"strings"
 
 	"github.com/uptrace/bun"
-	"main/internal/accountpolicies"
-	"main/internal/auth"
 	"main/internal/database/dialect"
 	"main/internal/database/dialect/sqlite"
 	"main/internal/database/migrate"
 	"main/internal/database/store"
-	"main/internal/identity"
-	"main/internal/setup"
 )
 
 // DriverSQLite is the only dialect compiled into this binary. Adding another one
@@ -29,15 +25,13 @@ type Config struct {
 	DSN    string
 }
 
-// Runtime is the composition-root handle for a selected database adapter.
-// Domain services receive their own repository instead of this aggregate.
+// Runtime is the open database handle. It deliberately exposes only Store: the
+// domain services are assembled in main.go from that one value, so this package
+// never has to import a domain and adding a domain never edits this file.
 type Runtime struct {
-	driver          string
-	db              *bun.DB
-	Identity        identity.Repository
-	Sessions        auth.SessionRepository
-	Setup           setup.Repository
-	AccountPolicies accountpolicies.Repository
+	driver string
+	db     *bun.DB
+	Store  *store.Store
 }
 
 func Open(ctx context.Context, config Config) (*Runtime, error) {
@@ -57,14 +51,10 @@ func Open(ctx context.Context, config Config) (*Runtime, error) {
 		return nil, migrateErr
 	}
 
-	repository := store.New(bunDB, driver)
 	return &Runtime{
-		driver:          driver.Name(),
-		db:              bunDB,
-		Identity:        repository,
-		Sessions:        repository,
-		Setup:           repository,
-		AccountPolicies: repository,
+		driver: driver.Name(),
+		db:     bunDB,
+		Store:  store.New(bunDB, driver),
 	}, nil
 }
 

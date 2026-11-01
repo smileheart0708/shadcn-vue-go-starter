@@ -59,7 +59,7 @@ func TestAvatarUpload(t *testing.T) {
 			if err != nil {
 				t.Fatalf("create form file: %v", err)
 			}
-			if _, err := part.Write(bytes.Repeat([]byte("A"), maxAvatarUploadBodySize)); err != nil {
+			if _, err := part.Write(bytes.Repeat([]byte("A"), int(maxAvatarUploadBodySize))); err != nil {
 				t.Fatalf("write form file: %v", err)
 			}
 		})

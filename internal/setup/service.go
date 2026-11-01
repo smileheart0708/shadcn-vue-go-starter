@@ -61,14 +61,11 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput) (ident
 	}
 
 	username := strings.TrimSpace(input.Username)
-	if username == "" {
-		// The rule is identical to registration, so the transport layer keeps a single
-		// mapping for identity.ErrUsernameRequired instead of one per entry point.
-		return identity.User{}, identity.ErrUsernameRequired
-	}
 	password := strings.TrimSpace(input.Password)
-	if len(password) < auth.MinPasswordLength {
-		return identity.User{}, auth.ErrPasswordTooShort
+	// Shared with registration and administrative creation so every entry point rejects a
+	// blank username before the expensive hash and answers the same code for both fields.
+	if validationErr := auth.ValidateNewAccount(username, password); validationErr != nil {
+		return identity.User{}, validationErr
 	}
 
 	passwordHash, err := auth.HashPassword(password)

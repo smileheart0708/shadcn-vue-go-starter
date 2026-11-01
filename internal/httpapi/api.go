@@ -10,6 +10,7 @@ import (
 	"main/internal/accountpolicies"
 	"main/internal/auth"
 	"main/internal/authorization"
+	"main/internal/avatar"
 	"main/internal/identity"
 	"main/internal/logging"
 	"main/internal/setup"
@@ -21,7 +22,7 @@ type API struct {
 	identities    *identity.Service
 	setup         *setup.Service
 	policies      *accountpolicies.Service
-	dataDir       string
+	avatars       *avatar.Store
 	logger        *slog.Logger
 	logStream     *logging.Stream
 }
