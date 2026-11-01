@@ -62,7 +62,9 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput) (ident
 
 	username := strings.TrimSpace(input.Username)
 	if username == "" {
-		return identity.User{}, fmt.Errorf("setup: username is required")
+		// The rule is identical to registration, so the transport layer keeps a single
+		// mapping for identity.ErrUsernameRequired instead of one per entry point.
+		return identity.User{}, identity.ErrUsernameRequired
 	}
 	password := strings.TrimSpace(input.Password)
 	if len(password) < auth.MinPasswordLength {

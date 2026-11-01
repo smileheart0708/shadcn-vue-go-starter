@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { cn } from '@/lib/utils'
+import { normalizeOptionalEmail } from '@/utils/email'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -83,7 +84,7 @@ async function handleSubmit() {
   isSubmitting.value = true
   const registerPromise = authStore.register({
     username: username.value.trim(),
-    email: email.value.trim() === '' ? null : email.value.trim(),
+    email: normalizeOptionalEmail(email.value),
     password: password.value,
   })
 

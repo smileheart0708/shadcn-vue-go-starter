@@ -13,6 +13,7 @@ export function useAdminUsersList() {
   const users = ref<ManagedUser[]>([])
   const total = ref(0)
   const page = ref(1)
+  // Sent on every request, so this value (not the server fallback) defines the page size.
   const pageSize = ref(10)
   const searchQuery = ref('')
   const statusFilter = ref<AdminUsersStatusFilter>('ALL')

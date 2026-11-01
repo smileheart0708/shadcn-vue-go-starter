@@ -110,41 +110,22 @@ func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Request) {
-	actor, ok := api.currentActor(r.Context())
-	if !ok {
-		writeError(w, r, CodeUnauthorized)
-		return
-	}
-
 	var payload createManagementUserRequest
 	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
 		writeError(w, r, CodeInvalidRequest, err)
 		return
 	}
-	if strings.TrimSpace(payload.Username) == "" {
-		writeError(w, r, CodeUsernameRequired)
-		return
-	}
-	if len(strings.TrimSpace(payload.Password)) < auth.MinPasswordLength {
-		writeError(w, r, CodePasswordTooShort)
-		return
-	}
-
-	passwordHash, err := auth.HashPassword(payload.Password)
-	if err != nil {
-		writeError(w, r, CodeInternalError, err)
-		return
-	}
-
-	created, err := api.identities.CreateUser(r.Context(), identity.CreateUserParams{
-		Username:         payload.Username,
-		Email:            payload.Email,
-		PasswordHash:     passwordHash,
-		Role:             identity.RoleUser,
-		AssignedByUserID: new(actor.User.ID),
+	created, err := api.auth.CreateManagedUser(r.Context(), auth.CreateManagedUserParams{
+		Username: payload.Username,
+		Email:    payload.Email,
+		Password: payload.Password,
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, auth.ErrPasswordTooShort):
+			writeError(w, r, CodePasswordTooShort)
+		case errors.Is(err, identity.ErrUsernameRequired):
+			writeError(w, r, CodeUsernameRequired)
 		case errors.Is(err, identity.ErrUsernameTaken):
 			writeError(w, r, CodeUsernameTaken)
 		case errors.Is(err, identity.ErrEmailTaken):
@@ -186,17 +167,14 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		writeError(w, r, CodeInvalidRequest, err)
 		return
 	}
-	if strings.TrimSpace(payload.Username) == "" {
-		writeError(w, r, CodeUsernameRequired)
-		return
-	}
-
 	updated, err := api.identities.UpdateManagedUser(r.Context(), targetUser.ID, identity.UpdateManagedUserParams{
 		Username: payload.Username,
 		Email:    payload.Email,
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, identity.ErrUsernameRequired):
+			writeError(w, r, CodeUsernameRequired)
 		case errors.Is(err, identity.ErrUsernameTaken):
 			writeError(w, r, CodeUsernameTaken)
 		case errors.Is(err, identity.ErrEmailTaken):
@@ -245,6 +223,12 @@ func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Re
 
 	updated, err := api.identities.SetUserStatus(r.Context(), targetUser.ID, status)
 	if err != nil {
+		// loadManagedUserTargets already succeeded, so a not-found here means the target
+		// was deleted in between. Answering 500 would misreport a race as a server fault.
+		if errors.Is(err, identity.ErrUserNotFound) {
+			writeError(w, r, CodeUserNotFound)
+			return
+		}
 		writeError(w, r, CodeInternalError, err)
 		return
 	}

@@ -211,6 +211,49 @@ func TestGetSessionReportsNotFound(t *testing.T) {
 	}
 }
 
+// UpdateProfile serves both the self-service and administrative edit paths, so pin the
+// stored fields and the not-found contract the handlers rely on. Atomicity itself is a
+// property of the transaction and cannot be asserted deterministically from here.
+func TestUpdateProfileWritesFieldsAndReportsMissingUser(t *testing.T) {
+	t.Parallel()
+
+	repository := newTestStore(t)
+	ctx := context.Background()
+
+	created, err := repository.CreateUser(ctx, identity.CreateUserParams{
+		Username:     "alice",
+		PasswordHash: "hash",
+		Role:         identity.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+
+	email := "alice@example.test"
+	updated, err := repository.UpdateProfile(ctx, created.ID, "alice-renamed", &email)
+	if err != nil {
+		t.Fatalf("UpdateProfile() error = %v", err)
+	}
+	if updated.ID != created.ID || updated.Username != "alice-renamed" {
+		t.Fatalf("UpdateProfile() = %+v, want the updated username", updated)
+	}
+	if updated.Email == nil || *updated.Email != email {
+		t.Fatalf("updated email = %v, want %q", updated.Email, email)
+	}
+
+	loaded, err := repository.GetUserByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("GetUserByID() error = %v", err)
+	}
+	if loaded.Username != "alice-renamed" || loaded.Email == nil || *loaded.Email != email {
+		t.Fatalf("persisted user = %+v, want the updated fields", loaded)
+	}
+
+	if _, err := repository.UpdateProfile(ctx, created.ID+1000, "ghost", nil); !errors.Is(err, identity.ErrUserNotFound) {
+		t.Fatalf("UpdateProfile(missing) error = %v, want ErrUserNotFound", err)
+	}
+}
+
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 

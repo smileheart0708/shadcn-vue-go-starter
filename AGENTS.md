@@ -29,7 +29,7 @@ go build .
 
 - Compiling the root package includes `//go:embed web/dist`, while `web/dist` is gitignored. **A freshly cloned repository must run `cd web && pnpm build` first**; otherwise `go build` / `go test ./...` fails immediately due to the embed directive.
 - `pnpm dev` starts Vite only, with `/api` proxied to `http://localhost:8080`. To exercise real API endpoints, run `go run .` in a separate terminal.
-- Frontend tests run on Vitest (`pnpm test`, `environment: 'jsdom'`) and are **limited to pure logic and state machines** — currently `lib/polling` and `utils/`. There is no component-testing setup: views and composables are still verified by `lint + typecheck + build`, and locales/error codes by Go tests (`internal/httpapi/locales_test.go`, `error_codes_test.go`).
+- Frontend tests run on Vitest (`pnpm test`, `environment: 'jsdom'`) and are **limited to pure logic and state machines** — currently `lib/polling`, pure helpers under `lib/api`, and `utils/`. There is no component-testing setup: views and composables are still verified by `lint + typecheck + build`, and locales/error codes by Go tests (`internal/httpapi/locales_test.go`, `error_codes_test.go`).
 - The repository has no CI or pre-commit hooks. Before considering work complete, the following must be run manually in order: `pnpm lint` → `pnpm typecheck` → `pnpm test` → `pnpm build` → `go test ./...` (build runs first to ensure the artifacts required by the embed directive are present).
 
 ## Layering and Boundaries

@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
+import { resolveErrorMessageOrInternal } from '@/lib/api/error-messages'
 import { useAccountStore } from '@/stores/account'
 
 export function usePasswordSettings() {
@@ -43,8 +43,7 @@ export function usePasswordSettings() {
       toast.success(t('settings.account.passwordUpdated'))
       await router.push({ name: 'login' })
     } catch (error) {
-      const message =
-        resolveAPIErrorMessage(t, error) ?? t('apiError.internal_error')
+      const message = resolveErrorMessageOrInternal(t, error)
       passwordError.value = message
       toast.error(message)
     } finally {

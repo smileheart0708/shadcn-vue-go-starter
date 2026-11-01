@@ -45,6 +45,21 @@ func RoleRank(role string) (int, bool) {
 	return 0, false
 }
 
+// IsHighestRole reports whether role sits at the top of roleOrder.
+//
+// Object-level rules compare rank rather than the role name, so inserting a new role
+// above owner transfers the protection that goes with "highest role" without editing
+// those rules. roleOrder is declared highest-first, which is what this relies on.
+func IsHighestRole(role string) bool {
+	rank, known := RoleRank(role)
+	if !known {
+		// An empty roleOrder also lands here: RoleRank has no answer for any role.
+		return false
+	}
+
+	return rank == roleOrder[0].Rank
+}
+
 func normalizeRole(role string) string {
 	if _, known := RoleRank(role); !known {
 		return ""

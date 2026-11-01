@@ -22,6 +22,15 @@ var (
 	ErrUsernameTaken      = errors.New("identity: username already exists")
 	ErrEmailTaken         = errors.New("identity: email already exists")
 	ErrOwnerAlreadyExists = errors.New("identity: owner already exists")
+
+	// ErrUsernameRequired is the only validation error the transport layer maps; it has
+	// to stay exported so handlers answer CodeUsernameRequired instead of an opaque 500.
+	ErrUsernameRequired = errors.New("identity: username is required")
+
+	// Internal invariants: callers always supply a known role and a non-empty hash, so
+	// these never reach the transport layer and stay unexported.
+	errRoleRequired         = errors.New("identity: role is required")
+	errPasswordHashRequired = errors.New("identity: password hash is required")
 )
 
 type User struct {
@@ -45,11 +54,10 @@ type AuthRecord struct {
 }
 
 type CreateUserParams struct {
-	Username         string
-	Email            *string
-	PasswordHash     string
-	Role             string
-	AssignedByUserID *int64
+	Username     string
+	Email        *string
+	PasswordHash string
+	Role         string
 }
 
 type UpdateManagedUserParams struct {
@@ -80,7 +88,6 @@ type Repository interface {
 	GetAuthRecordByIdentifier(ctx context.Context, identifier string) (AuthRecord, error)
 	UpdateProfile(ctx context.Context, userID int64, username string, email *string) (User, error)
 	UpdateAvatar(ctx context.Context, userID int64, avatarPath *string) (User, error)
-	UpdateManagedUser(ctx context.Context, userID int64, params UpdateManagedUserParams) (User, error)
 	SetUserStatus(ctx context.Context, userID int64, status string) (User, error)
 	DeleteUser(ctx context.Context, userID int64) error
 	ListUsers(ctx context.Context, params ListUsersParams) (ListUsersResult, error)
@@ -102,15 +109,15 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User
 
 	params.Username = normalizeUsername(params.Username)
 	if params.Username == "" {
-		return User{}, fmt.Errorf("identity: username is required")
+		return User{}, ErrUsernameRequired
 	}
 	params.Role = normalizeRole(params.Role)
 	if params.Role == "" {
-		return User{}, fmt.Errorf("identity: role is required")
+		return User{}, errRoleRequired
 	}
 	params.PasswordHash = strings.TrimSpace(params.PasswordHash)
 	if params.PasswordHash == "" {
-		return User{}, fmt.Errorf("identity: password hash is required")
+		return User{}, errPasswordHashRequired
 	}
 	params.Email = normalizeEmailPointer(params.Email)
 
@@ -163,17 +170,13 @@ func (s *Service) UpdateAvatar(ctx context.Context, userID int64, avatarPath *st
 }
 
 func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params UpdateManagedUserParams) (User, error) {
-	repository, err := s.requireRepository()
-	if err != nil {
-		return User{}, err
-	}
-	if _, lookupErr := repository.GetUserByID(ctx, userID); lookupErr != nil {
-		return User{}, lookupErr
+	if normalizeUsername(params.Username) == "" {
+		return User{}, ErrUsernameRequired
 	}
 
-	params.Username = normalizeUsername(params.Username)
-	params.Email = normalizeEmailPointer(params.Email)
-	return repository.UpdateManagedUser(ctx, userID, params)
+	// Shares UpdateProfile because both paths write the same two columns, and that method
+	// already normalizes them and reports ErrUserNotFound without a separate lookup.
+	return s.UpdateProfile(ctx, userID, params.Username, params.Email)
 }
 
 func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string) (User, error) {

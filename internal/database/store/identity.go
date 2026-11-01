@@ -79,46 +79,20 @@ func (s *Store) GetAuthRecordByIdentifier(ctx context.Context, identifier string
 	return s.getAuthRecord(ctx, s.db.NewRaw(query, identifier, identifier))
 }
 
+// UpdateProfile writes the two columns a user can change about themselves.
+//
+// The update and the read-back share one transaction so a caller always returns the row it
+// just wrote; otherwise a concurrent delete could turn a successful update into
+// ErrUserNotFound. It also serves the administrative edit path on purpose: both callers
+// write exactly the same columns, so a second method would only be a copy under another
+// name. Who may change whom is a domain rule (CanManageUser), not a storage concern.
 func (s *Store) UpdateProfile(ctx context.Context, userID int64, username string, email *string) (identity.User, error) {
-	result, err := s.db.NewUpdate().
-		Model((*userRow)(nil)).
-		Set("username = ?", username).
-		Set("email = ?", email).
-		Set("updated_at = ?", time.Now().UTC().Unix()).
-		Where("id = ?", userID).
-		Exec(ctx)
-	if err != nil {
-		return identity.User{}, s.identityWriteError(err)
-	}
-	if affectedErr := ensureUserUpdated(result); affectedErr != nil {
-		return identity.User{}, affectedErr
-	}
-	return s.getUser(ctx, s.db, userID)
-}
-
-func (s *Store) UpdateAvatar(ctx context.Context, userID int64, avatarPath *string) (identity.User, error) {
-	result, err := s.db.NewUpdate().
-		Model((*userRow)(nil)).
-		Set("avatar_path = ?", avatarPath).
-		Set("updated_at = ?", time.Now().UTC().Unix()).
-		Where("id = ?", userID).
-		Exec(ctx)
-	if err != nil {
-		return identity.User{}, fmt.Errorf("identity: update avatar: %w", err)
-	}
-	if affectedErr := ensureUserUpdated(result); affectedErr != nil {
-		return identity.User{}, affectedErr
-	}
-	return s.getUser(ctx, s.db, userID)
-}
-
-func (s *Store) UpdateManagedUser(ctx context.Context, userID int64, params identity.UpdateManagedUserParams) (identity.User, error) {
 	var updated identity.User
 	err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		result, updateErr := tx.NewUpdate().
 			Model((*userRow)(nil)).
-			Set("username = ?", params.Username).
-			Set("email = ?", params.Email).
+			Set("username = ?", username).
+			Set("email = ?", email).
 			Set("updated_at = ?", time.Now().UTC().Unix()).
 			Where("id = ?", userID).
 			Exec(ctx)
@@ -139,6 +113,22 @@ func (s *Store) UpdateManagedUser(ctx context.Context, userID int64, params iden
 		return identity.User{}, err
 	}
 	return updated, nil
+}
+
+func (s *Store) UpdateAvatar(ctx context.Context, userID int64, avatarPath *string) (identity.User, error) {
+	result, err := s.db.NewUpdate().
+		Model((*userRow)(nil)).
+		Set("avatar_path = ?", avatarPath).
+		Set("updated_at = ?", time.Now().UTC().Unix()).
+		Where("id = ?", userID).
+		Exec(ctx)
+	if err != nil {
+		return identity.User{}, fmt.Errorf("identity: update avatar: %w", err)
+	}
+	if affectedErr := ensureUserUpdated(result); affectedErr != nil {
+		return identity.User{}, affectedErr
+	}
+	return s.getUser(ctx, s.db, userID)
 }
 
 func (s *Store) SetUserStatus(ctx context.Context, userID int64, status string) (identity.User, error) {

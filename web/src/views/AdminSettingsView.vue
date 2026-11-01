@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CircleAlert } from '@lucide/vue'
 import PageHeader from '@/components/app/PageHeader.vue'
@@ -20,9 +21,19 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
+import { CAPABILITY } from '@/lib/auth/capabilities.generated'
+import { useAuthStore } from '@/stores/auth'
 import { useSystemSettings } from '@/composables/system-settings/useSystemSettings'
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+
+// The route only requires `systemSettingsRead`, so a read-only operator can inspect the
+// current policy. Saving is a separate capability; without this guard the switches and
+// the save button stay clickable and the PATCH answers 403.
+const canUpdateSettings = computed(() =>
+  authStore.can(CAPABILITY.systemSettingsUpdate),
+)
 
 const {
   loading,
@@ -99,7 +110,10 @@ const {
               }}
             </p>
           </div>
-          <Switch v-model="form.publicRegistrationEnabled" />
+          <Switch
+            v-model="form.publicRegistrationEnabled"
+            :disabled="!canUpdateSettings"
+          />
         </label>
 
         <label
@@ -119,7 +133,10 @@ const {
               }}
             </p>
           </div>
-          <Switch v-model="form.selfServiceAccountDeletionEnabled" />
+          <Switch
+            v-model="form.selfServiceAccountDeletionEnabled"
+            :disabled="!canUpdateSettings"
+          />
         </label>
 
         <div class="flex justify-end gap-2">
@@ -131,7 +148,7 @@ const {
             {{ t('common.action.cancel') }}
           </Button>
           <Button
-            :disabled="saving || !isDirty"
+            :disabled="saving || !isDirty || !canUpdateSettings"
             @click="saveSettings"
           >
             <Spinner

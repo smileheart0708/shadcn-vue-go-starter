@@ -173,6 +173,12 @@ func (api *API) deleteAccountHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := api.identities.DeleteUser(r.Context(), actor.User.ID); err != nil {
+		// The row disappeared between the capability check and the delete. Report it the
+		// same way as a missing viewer elsewhere in this file: the session is gone.
+		if errors.Is(err, identity.ErrUserNotFound) {
+			writeError(w, r, CodeUnauthorized)
+			return
+		}
 		writeError(w, r, CodeInternalError, err)
 		return
 	}

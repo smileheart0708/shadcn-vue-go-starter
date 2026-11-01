@@ -75,6 +75,22 @@ export function resolveAPIErrorMessage(
   return API_ERROR_MESSAGES[code](t)
 }
 
+/**
+ * Like `resolveAPIErrorMessage`, but never returns `null`: an error without a code the
+ * frontend knows about falls back to the generic internal-error copy.
+ *
+ * This is the shape most `catch` blocks want — "show the reason, or a safe generic
+ * message". Reach for `resolveAPIErrorMessage` directly only when the caller has
+ * context-specific copy of its own (a failed sign-in, a failed save) and must not fall
+ * back to `internal_error`.
+ */
+export function resolveErrorMessageOrInternal(
+  t: Translate,
+  error: unknown,
+): string {
+  return resolveAPIErrorMessage(t, error) ?? t('apiError.internal_error')
+}
+
 function isApiErrorCode(code: string): code is ApiErrorCode {
   return Object.prototype.hasOwnProperty.call(API_ERROR_MESSAGES, code)
 }

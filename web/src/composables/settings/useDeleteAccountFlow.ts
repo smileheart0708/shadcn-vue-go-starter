@@ -3,7 +3,7 @@ import { useCountdown } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
+import { resolveErrorMessageOrInternal } from '@/lib/api/error-messages'
 import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { useAccountStore } from '@/stores/account'
 import { useAuthStore } from '@/stores/auth'
@@ -73,9 +73,7 @@ export function useDeleteAccountFlow() {
       toast.success(t('settings.account.deleteAccountSuccess'))
       await router.push({ name: 'login' })
     } catch (error) {
-      toast.error(
-        resolveAPIErrorMessage(t, error) ?? t('apiError.internal_error'),
-      )
+      toast.error(resolveErrorMessageOrInternal(t, error))
     } finally {
       isDeletingAccount.value = false
     }

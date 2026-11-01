@@ -54,15 +54,6 @@ func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, CodeInvalidRequest, err)
 		return
 	}
-	if strings.TrimSpace(payload.Username) == "" {
-		writeError(w, r, CodeUsernameRequired)
-		return
-	}
-	if len(strings.TrimSpace(payload.Password)) < auth.MinPasswordLength {
-		writeError(w, r, CodePasswordTooShort)
-		return
-	}
-
 	owner, err := api.setup.Complete(r.Context(), setup.CompleteSetupInput{
 		Username: payload.Username,
 		Password: payload.Password,
@@ -71,6 +62,10 @@ func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, setup.ErrAlreadyCompleted):
 			writeError(w, r, CodeSetupCompleted)
+		case errors.Is(err, identity.ErrUsernameRequired):
+			writeError(w, r, CodeUsernameRequired)
+		case errors.Is(err, auth.ErrPasswordTooShort):
+			writeError(w, r, CodePasswordTooShort)
 		case errors.Is(err, identity.ErrUsernameTaken):
 			writeError(w, r, CodeUsernameTaken)
 		default:
@@ -171,8 +166,15 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := api.auth.Refresh(r.Context(), rawToken)
 	if err != nil {
-		api.auth.ClearRefreshCookie(w, r)
-		writeError(w, r, CodeInvalidToken, err)
+		// Only a session the client must discard clears the cookie and answers 401.
+		// On infrastructure failures the cookie is kept so a later page load can recover;
+		// the SPA still redirects for this request because it resets on any refresh error.
+		if auth.IsSessionInvalidError(err) {
+			api.auth.ClearRefreshCookie(w, r)
+			writeError(w, r, CodeInvalidToken, err)
+			return
+		}
+		writeError(w, r, CodeInternalError, err)
 		return
 	}
 

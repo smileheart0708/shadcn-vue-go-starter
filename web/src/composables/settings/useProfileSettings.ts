@@ -2,13 +2,13 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useFileDialog, useObjectUrl } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
+import { resolveErrorMessageOrInternal } from '@/lib/api/error-messages'
 import { getUserRoleBadgeVariant, getUserRoleLabel } from '@/lib/auth/roles'
 import { AVATAR_ACCEPTED_FILE_TYPES, getAvatarFallbackText } from '@/lib/avatar'
 import { useAccountStore } from '@/stores/account'
 import { useAuthStore } from '@/stores/auth'
+import { normalizeOptionalEmail } from '@/utils/email'
 import { compressAvatarFile, validateAvatarFile } from '@/utils/settings/avatar'
-import { normalizeOptionalEmail } from '@/utils/settings/preferences'
 
 export function useProfileSettings() {
   const { t } = useI18n()
@@ -133,8 +133,7 @@ export function useProfileSettings() {
       toast.success(t('settings.account.profileUpdated'))
       editDialogOpen.value = false
     } catch (error) {
-      const message =
-        resolveAPIErrorMessage(t, error) ?? t('apiError.internal_error')
+      const message = resolveErrorMessageOrInternal(t, error)
       profileError.value = message
       toast.error(message)
     } finally {

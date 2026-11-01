@@ -312,7 +312,9 @@ function emailTaken(email: string | null, excludeUserID?: number) {
 
 function requireSetupCompleted() {
   if (!state.installState.setupCompleted) {
-    return jsonError(403, 'setup_required', 'Complete setup first.')
+    // 503 matches CodeSetupRequired in internal/httpapi/error_codes.go. Answering 403
+    // here made dev-mode error handling take a branch the real server never produces.
+    return jsonError(503, 'setup_required', 'Complete setup first.')
   }
 
   return null

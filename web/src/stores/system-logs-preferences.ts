@@ -67,18 +67,6 @@ export const useSystemLogsPreferencesStore = defineStore(
       levels.value = normalizeLevels(nextLevels)
     }
 
-    function toggleLevel(level: SystemLogLevel, selected: boolean) {
-      const selectedLevels = new Set(levels.value)
-      if (selected) {
-        selectedLevels.add(level)
-      } else {
-        selectedLevels.delete(level)
-      }
-      levels.value = [...SYSTEM_LOG_LEVEL_VALUES].filter((candidate) =>
-        selectedLevels.has(candidate),
-      )
-    }
-
     function setHistoryLimit(nextHistoryLimit: SystemLogHistoryLimit) {
       historyLimit.value = nextHistoryLimit
     }
@@ -100,7 +88,6 @@ export const useSystemLogsPreferencesStore = defineStore(
       historyLimit,
       exportFormat,
       setLevels,
-      toggleLevel,
       setHistoryLimit,
       setExportFormat,
     }

@@ -9,6 +9,7 @@ import {
   updateAdminUser,
 } from '@/lib/api/admin-users'
 import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
+import { normalizeOptionalEmail } from '@/utils/email'
 
 interface UseAdminUserMutationsOptions {
   refreshUsers: () => Promise<void>
@@ -64,7 +65,7 @@ export function useAdminUserMutations(options: UseAdminUserMutationsOptions) {
     dialogPending.value = true
     const payload = {
       username: form.value.username.trim(),
-      email: form.value.email.trim() === '' ? null : form.value.email.trim(),
+      email: normalizeOptionalEmail(form.value.email),
     }
     let requestPromise: Promise<ManagedUser>
     if (creating) {

@@ -20,8 +20,3 @@ export function getLocaleOptions(): LocaleOption[] {
     label: localeNames[value],
   }))
 }
-
-export function normalizeOptionalEmail(value: string): string | null {
-  const email = value.trim()
-  return email.length > 0 ? email : null
-}

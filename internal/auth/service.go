@@ -36,6 +36,20 @@ var (
 	ErrSessionNotFound        = errors.New("auth: session not found")
 )
 
+// IsSessionInvalidError reports whether err describes a refresh token the client has
+// to throw away, as opposed to an infrastructure failure.
+//
+// Handlers use it to decide between "clear the cookie and answer 401" and "answer 500".
+// Folding every failure into 401 (the previous behaviour) discarded the cookie on
+// database errors, so any new session error must be added here deliberately.
+func IsSessionInvalidError(err error) bool {
+	return errors.Is(err, ErrInvalidRefreshToken) ||
+		errors.Is(err, ErrTokenReuseDetected) ||
+		errors.Is(err, ErrRefreshTokenRevoked) ||
+		errors.Is(err, ErrRefreshTokenExpired) ||
+		errors.Is(err, ErrAccountDisabled)
+}
+
 type Options struct {
 	Secret             []byte
 	TTL                time.Duration
@@ -233,6 +247,41 @@ func (s *Service) Register(ctx context.Context, params RegisterParams, ip string
 		return SessionResult{}, err
 	}
 	return result, nil
+}
+
+// CreateManagedUserParams is the administrative counterpart of registration.
+type CreateManagedUserParams struct {
+	Username string
+	Email    *string
+	Password string
+}
+
+// CreateManagedUser creates an account on behalf of an administrator.
+//
+// Username is rejected before the password is hashed: hashing is deliberately expensive,
+// and an empty username must keep answering CodeUsernameRequired (the registration handler
+// checks it first too) instead of turning into a password error when both fields are bad.
+// Accounts created this way are always plain users — promoting someone is a separate
+// decision with its own authorization rule, never a side effect of creating the account.
+func (s *Service) CreateManagedUser(ctx context.Context, params CreateManagedUserParams) (identity.User, error) {
+	if strings.TrimSpace(params.Username) == "" {
+		return identity.User{}, identity.ErrUsernameRequired
+	}
+	if len(strings.TrimSpace(params.Password)) < MinPasswordLength {
+		return identity.User{}, ErrPasswordTooShort
+	}
+
+	passwordHash, err := HashPassword(params.Password)
+	if err != nil {
+		return identity.User{}, err
+	}
+
+	return s.identities.CreateUser(ctx, identity.CreateUserParams{
+		Username:     params.Username,
+		Email:        params.Email,
+		PasswordHash: passwordHash,
+		Role:         identity.RoleUser,
+	})
 }
 
 func (s *Service) Refresh(ctx context.Context, rawToken string) (SessionResult, error) {
@@ -508,7 +557,10 @@ func (s *Service) buildViewerAuthorization(ctx context.Context, role string) (au
 		return authorization.ViewerAuthorization{}, err
 	}
 
-	allowSelfDelete := policies.SelfServiceAccountDeletionEnabled && role != identity.RoleOwner
+	// An owner must not delete themselves: that is how an installation loses its last
+	// administrator. Rank decides who counts as top-level, so a role inserted above
+	// owner inherits the restriction without touching this line.
+	allowSelfDelete := policies.SelfServiceAccountDeletionEnabled && !identity.IsHighestRole(role)
 
 	return s.authorization.ViewerAuthorization(role, authorization.ViewerOptions{
 		AllowSelfDelete: allowSelfDelete,

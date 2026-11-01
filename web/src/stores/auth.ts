@@ -31,8 +31,6 @@ import { isSameViewer } from '@/utils/auth/viewer'
 
 export const useAuthStore = defineStore('auth', () => {
   const initialized = ref(false)
-  const initializing = ref(false)
-  const refreshing = ref(false)
   const token = ref<string | null>(readAuthToken())
   const viewer = ref<Viewer | null>(null)
   const installState = ref<InstallState | null>(null)
@@ -47,7 +45,6 @@ export const useAuthStore = defineStore('auth', () => {
   const capabilities = computed(
     () => viewer.value?.authorization.capabilities ?? [],
   )
-  const currentRole = computed(() => viewer.value?.authorization.role ?? null)
 
   let initializePromise: Promise<void> | null = null
   let boundRouter: Router | null = null
@@ -62,18 +59,17 @@ export const useAuthStore = defineStore('auth', () => {
 
     registerAuthClientHandlers({
       refreshAccessToken: async () => {
-        refreshing.value = true
-
         try {
           const response = await refreshSession()
           applySession(response)
           return response.accessToken
         } catch (error) {
+          // Any refresh failure drops the in-memory session. A 5xx keeps the server-side
+          // cookie, so a later page load can restore it; distinguishing status codes here
+          // would change the current logout UX.
           resetSession(false)
           await refreshPublicState()
           throw error
-        } finally {
-          refreshing.value = false
         }
       },
       onUnauthorized: async () => {
@@ -162,8 +158,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     initializePromise = (async () => {
-      initializing.value = true
-
       try {
         await refreshPublicState()
 
@@ -186,10 +180,11 @@ export const useAuthStore = defineStore('auth', () => {
         try {
           applySession(await refreshSession())
         } catch {
+          // Same refresh contract as refreshAccessToken: any failure ends this page as
+          // logged out even though a 5xx leaves the cookie intact for the next load.
           resetSession(true)
         }
       } finally {
-        initializing.value = false
         initializePromise = null
       }
     })()
@@ -256,14 +251,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     initialized,
-    initializing,
-    refreshing,
     token,
     viewer,
     installState,
     publicAuthConfig,
     capabilities,
-    currentRole,
     isSetupComplete,
     isAuthenticated,
     bindRouter,
