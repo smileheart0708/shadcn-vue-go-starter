@@ -359,6 +359,117 @@ func TestConcurrentCompleteRunsOnce(t *testing.T) {
 	}
 }
 
+func TestCompleteAbortsWhenPrepareRuntimeFails(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	prepareErr := errors.New("prepare failed")
+	var published atomic.Int32
+	service, err := New(context.Background(), Options{
+		DataDir:        dataDir,
+		SelectionStore: database.NewSelectionStore(dataDir),
+		PrepareRuntime: func(context.Context, *database.Runtime) error {
+			return prepareErr
+		},
+		Publish: func(*database.Runtime) {
+			published.Add(1)
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := service.Close(); closeErr != nil {
+			t.Fatalf("Close() error = %v", closeErr)
+		}
+	})
+
+	_, err = service.Complete(context.Background(), CompleteInput{
+		Username: "owner",
+		Password: "owner1234",
+		Database: &DatabaseInput{Driver: database.DriverSQLite},
+	})
+	if !errors.Is(err, prepareErr) {
+		t.Fatalf("Complete() error = %v, want the prepare error", err)
+	}
+	if published.Load() != 0 {
+		t.Fatalf("published runtimes = %d, want 0", published.Load())
+	}
+	if state := service.State(); state.Phase != PhaseDatabaseRequired {
+		t.Fatalf("phase = %q, want %q", state.Phase, PhaseDatabaseRequired)
+	}
+}
+
+func TestPrepareRuntimeRunsOnceBeforePublish(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	runtime, err := database.OpenForSetup(context.Background(), database.Config(database.DefaultSQLiteSelection(dataDir)))
+	if err != nil {
+		t.Fatalf("OpenForSetup() error = %v", err)
+	}
+	if err := runtime.Close(); err != nil {
+		t.Fatalf("Close() migrated runtime error = %v", err)
+	}
+
+	var steps []string
+	service, err := New(context.Background(), Options{
+		DataDir:        dataDir,
+		SelectionStore: database.NewSelectionStore(dataDir),
+		PrepareRuntime: func(context.Context, *database.Runtime) error {
+			steps = append(steps, "prepare")
+			return nil
+		},
+		Publish: func(*database.Runtime) {
+			steps = append(steps, "publish")
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := service.Close(); closeErr != nil {
+			t.Fatalf("Close() error = %v", closeErr)
+		}
+	})
+
+	if state := service.State(); state.Phase != PhaseFinalizationRequired {
+		t.Fatalf("phase = %q, want %q", state.Phase, PhaseFinalizationRequired)
+	}
+	if _, err := service.Complete(context.Background(), CompleteInput{Username: "owner", Password: "owner1234"}); err != nil {
+		t.Fatalf("Complete() error = %v", err)
+	}
+	if got := strings.Join(steps, ","); got != "prepare,publish" {
+		t.Fatalf("runtime lifecycle = %q, want prepare once before publish", got)
+	}
+}
+
+func TestNewAbortsWhenPrepareRuntimeFails(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	selection := database.DefaultSQLiteSelection(dataDir)
+	runtime, err := database.OpenForSetup(context.Background(), database.Config(selection))
+	if err != nil {
+		t.Fatalf("OpenForSetup() error = %v", err)
+	}
+	if err := runtime.Close(); err != nil {
+		t.Fatalf("Close() migrated runtime error = %v", err)
+	}
+
+	prepareErr := errors.New("prepare failed")
+	_, err = New(context.Background(), Options{
+		DataDir:        dataDir,
+		SelectionStore: database.NewSelectionStore(dataDir),
+		PrepareRuntime: func(context.Context, *database.Runtime) error {
+			return prepareErr
+		},
+	})
+	if !errors.Is(err, prepareErr) {
+		t.Fatalf("New() error = %v, want the prepare error", err)
+	}
+}
+
 func TestPostgreSQLDSN(t *testing.T) {
 	t.Parallel()
 

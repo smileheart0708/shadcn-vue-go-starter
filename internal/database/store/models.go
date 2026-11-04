@@ -95,6 +95,13 @@ type accountPoliciesRow struct {
 	SelfServiceAccountDeletionEnabled bool  `bun:"self_service_account_deletion_enabled,notnull"`
 }
 
+type authSecretRow struct {
+	bun.BaseModel `bun:"table:auth_secrets"`
+
+	ID     int64  `bun:"id,pk"`
+	Secret string `bun:"secret,notnull"`
+}
+
 func unixSeconds(value time.Time) int64 {
 	return value.UTC().Unix()
 }

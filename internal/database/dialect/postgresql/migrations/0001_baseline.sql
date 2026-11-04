@@ -76,6 +76,14 @@ CREATE TABLE account_policies (
     self_service_account_deletion_enabled BOOLEAN NOT NULL
 );
 
+-- Singleton row holding the JWT signing secret. The value is seeded by the
+-- application after migrations: the stored value wins, then JWT_SECRET is used
+-- as a one-time seed, otherwise a random secret is generated.
+CREATE TABLE auth_secrets (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    secret TEXT NOT NULL
+);
+
 INSERT INTO install_state (id, setup_completed, created_at, updated_at)
 VALUES (1, FALSE, EXTRACT(EPOCH FROM NOW())::BIGINT, EXTRACT(EPOCH FROM NOW())::BIGINT);
 

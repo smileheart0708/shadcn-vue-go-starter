@@ -61,6 +61,6 @@ go build .
 - `web/src/views/`：页面；`web/src/components/`：可复用组件；`web/src/lib/api/`：前端 API 客户端；`web/src/locales/`：多语言资源。
 - 新领域功能应同时明确后端边界、API 契约、前端状态和页面职责；不要为了兼容旧结构增加包装层。
 
-运行数据默认位于 `.data/`，JWT secret 会从 `JWT_SECRET` 读取；未配置时应用会在数据目录生成并保存随机 secret。不要提交 `.env`、`.data/`、secret 或构建产物。
+运行数据默认位于 `.data/`。JWT 签名密钥保存在数据库的 `auth_secrets` 表中：数据库值优先；数据库为空时用 `JWT_SECRET`（至少 32 字符）作为首次种子写入，未配置则自动生成随机密钥并写入，不会写入文件。不要提交 `.env`、`.data/` 或构建产物。
 
 首次安装会按所选方言的迁移目录自动建表。已发布的迁移文件不可修改（启动时会校验 SHA-256）；如果改了迁移，删除本地数据库后重新安装即可。SQLite 不需要 `.data/database.json`，重启时会从 `.data/data.db` 自动恢复；PostgreSQL 的 DSN 只保存在 `.data/database.json`，不会通过 API 返回或写入日志，因此迁移或备份 PostgreSQL 部署时要把该文件一并带上；丢失后 `/setup` 不会接管已完成的 PostgreSQL 安装，需要从备份恢复或手动重建该文件。

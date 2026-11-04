@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -49,6 +50,11 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("load configuration: %w", err)
 	}
+	if seed := strings.TrimSpace(cfg.JWTSecret); seed != "" && len(seed) < auth.MinJWTSecretLength {
+		// Not fatal: a stored secret still wins. It only fails where the seed is
+		// actually consumed, i.e. when the database holds no signing secret yet.
+		slog.Warn("JWT_SECRET is shorter than the minimum and will be rejected unless a signing secret is already stored", "minimum", auth.MinJWTSecretLength)
+	}
 
 	frontendAssets, err := frontendFS()
 	if err != nil {
@@ -65,14 +71,15 @@ func run() error {
 	logging.LogStartupBanner(logger, listenAddr, dataDir)
 
 	var installationService *installation.Service
-	buildAPI := func(runtime *database.Runtime) http.Handler {
+	var jwtSecret string
+	buildAPI := func(runtime *database.Runtime, secret string) http.Handler {
 		store := runtime.Store
 		authorizationService := authorization.NewService()
 		identityService := identity.NewService(store)
 		accountPoliciesService := accountpolicies.NewService(store)
 		setupService := setup.NewService(store)
 		authService := auth.NewService(auth.Options{
-			Secret:             []byte(cfg.JWTSecret),
+			Secret:             []byte(secret),
 			TTL:                cfg.JWTTTL,
 			RefreshIdleTTL:     cfg.RefreshIdleTTL,
 			RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
@@ -97,8 +104,18 @@ func run() error {
 	installationService, err = installation.New(context.Background(), installation.Options{
 		DataDir:        dataDir,
 		SelectionStore: database.NewSelectionStore(dataDir),
+		// PrepareRuntime resolves the signing secret before the owner transaction
+		// commits; buildAPI then reuses it instead of reading the database again.
+		PrepareRuntime: func(ctx context.Context, runtime *database.Runtime) error {
+			secret, resolveErr := auth.ResolveJWTSecret(ctx, runtime.Store, cfg.JWTSecret)
+			if resolveErr != nil {
+				return fmt.Errorf("resolve JWT secret: %w", resolveErr)
+			}
+			jwtSecret = secret
+			return nil
+		},
 		Publish: func(runtime *database.Runtime) {
-			dispatcher.Publish(buildAPI(runtime))
+			dispatcher.Publish(buildAPI(runtime, jwtSecret))
 		},
 	})
 	if err != nil {
@@ -114,7 +131,7 @@ func run() error {
 	dispatcher = httpapi.NewDispatcher(frontendAssets, bootstrapAPI)
 
 	if runtime := installationService.Runtime(); runtime != nil && installationService.State().Phase == installation.PhaseCompleted {
-		dispatcher.Publish(buildAPI(runtime))
+		dispatcher.Publish(buildAPI(runtime, jwtSecret))
 	}
 
 	server := &http.Server{

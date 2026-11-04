@@ -14,8 +14,8 @@ import (
 	"main/internal/setup"
 )
 
-// singletonRowID is the primary key of the single-row configuration tables
-// (install_state, account_policies).
+// singletonRowID is the primary key of the single-row tables
+// (install_state, account_policies, auth_secrets).
 const singletonRowID = 1
 
 // dialectRules is the part of a dialect the store needs: decoding driver errors
@@ -41,6 +41,7 @@ func New(db *bun.DB, driver dialectRules) *Store {
 var (
 	_ identity.Repository        = (*Store)(nil)
 	_ auth.SessionRepository     = (*Store)(nil)
+	_ auth.JWTSecretRepository   = (*Store)(nil)
 	_ setup.Repository           = (*Store)(nil)
 	_ accountpolicies.Repository = (*Store)(nil)
 )

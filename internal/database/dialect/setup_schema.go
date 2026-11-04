@@ -29,6 +29,7 @@ const (
 // TestMigrationTablesMatchSetupSchema enforces that rule for every dialect.
 var setupTables = map[string]struct{}{
 	"account_policies":  {},
+	"auth_secrets":      {},
 	"auth_sessions":     {},
 	"credentials":       {},
 	"install_state":     {},

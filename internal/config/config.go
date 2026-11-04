@@ -1,34 +1,25 @@
 package config
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/ysmood/goe"
 )
 
-const (
-	jwtSecretFileName     = ".jwt_secret"
-	jwtSecretEntropyBytes = 64
-)
-
-var errEmptyJWTSecretFile = errors.New("config JWT secret file is empty")
-
 type Config struct {
 	DataDir              string
 	Port                 int
 	APIRequestLogEnabled bool
-	JWTSecret            string
-	JWTTTL               time.Duration
-	RefreshIdleTTL       time.Duration
-	RefreshAbsoluteTTL   time.Duration
-	RefreshCookieName    string
+	// JWTSecret is an optional first-run seed. The signing secret itself lives in
+	// the database and always takes precedence over this value.
+	JWTSecret          string
+	JWTTTL             time.Duration
+	RefreshIdleTTL     time.Duration
+	RefreshAbsoluteTTL time.Duration
+	RefreshCookieName  string
 }
 
 func Load() error {
@@ -60,7 +51,7 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	jwtSecret, err := loadJWTSecret(dataDir)
+	jwtSecret, err := getEnv("JWT_SECRET", "")
 	if err != nil {
 		return Config{}, err
 	}
@@ -110,88 +101,4 @@ func getEnv[T goe.EnvType](name string, fallback T) (T, error) {
 	}
 
 	return value, nil
-}
-
-func loadJWTSecret(dataDir string) (string, error) {
-	if secret, ok := lookupNonEmptyEnv("JWT_SECRET"); ok {
-		return secret, nil
-	}
-
-	secretPath, err := jwtSecretPath(dataDir)
-	if err != nil {
-		return "", fmt.Errorf("config JWT_SECRET: %w", err)
-	}
-	secret, err := readJWTSecretFile(secretPath)
-	switch {
-	case err == nil:
-		return secret, nil
-	case !errors.Is(err, os.ErrNotExist) && !errors.Is(err, errEmptyJWTSecretFile):
-		return "", fmt.Errorf("config JWT_SECRET: %w", err)
-	}
-
-	secret, err = generateJWTSecret()
-	if err != nil {
-		return "", fmt.Errorf("config JWT_SECRET: %w", err)
-	}
-
-	mkdirErr := os.MkdirAll(dataDir, 0o700)
-	if mkdirErr != nil {
-		return "", fmt.Errorf("config JWT_SECRET: create data dir: %w", mkdirErr)
-	}
-	writeErr := os.WriteFile(secretPath, []byte(secret), 0o600)
-	if writeErr != nil {
-		return "", fmt.Errorf("config JWT_SECRET: write secret file: %w", writeErr)
-	}
-
-	return secret, nil
-}
-
-func jwtSecretPath(dataDir string) (string, error) {
-	cleanDataDir, err := filepath.Abs(filepath.Clean(dataDir))
-	if err != nil {
-		return "", fmt.Errorf("resolve data dir: %w", err)
-	}
-	return filepath.Join(cleanDataDir, jwtSecretFileName), nil
-}
-
-func readJWTSecretFile(secretPath string) (string, error) {
-	cleanPath := filepath.Clean(secretPath)
-	if filepath.Base(cleanPath) != jwtSecretFileName {
-		return "", fmt.Errorf("refuse to read non-JWT secret file %q", secretPath)
-	}
-
-	secret, err := os.ReadFile(filepath.Clean(cleanPath))
-	if err != nil {
-		return "", err
-	}
-
-	trimmed := strings.TrimSpace(string(secret))
-	if trimmed == "" {
-		return "", errEmptyJWTSecretFile
-	}
-
-	return trimmed, nil
-}
-
-func generateJWTSecret() (string, error) {
-	secret := make([]byte, jwtSecretEntropyBytes)
-	if _, err := rand.Read(secret); err != nil {
-		return "", fmt.Errorf("generate random secret: %w", err)
-	}
-
-	return hex.EncodeToString(secret), nil
-}
-
-func lookupNonEmptyEnv(name string) (string, bool) {
-	raw, ok := os.LookupEnv(name)
-	if !ok {
-		return "", false
-	}
-
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return "", false
-	}
-
-	return trimmed, true
 }

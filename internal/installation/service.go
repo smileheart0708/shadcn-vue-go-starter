@@ -72,6 +72,9 @@ type SelectionRepository interface {
 type Options struct {
 	DataDir        string
 	SelectionStore SelectionRepository
+	// PrepareRuntime runs after migrations and before the runtime is saved or
+	// published. Returning an error closes the runtime and aborts the operation.
+	PrepareRuntime func(ctx context.Context, runtime *database.Runtime) error
 	Publish        func(*database.Runtime)
 }
 
@@ -80,6 +83,7 @@ type Service struct {
 
 	dataDir        string
 	selectionStore SelectionRepository
+	prepareRuntime func(ctx context.Context, runtime *database.Runtime) error
 	publish        func(*database.Runtime)
 
 	runtime     *database.Runtime
@@ -100,6 +104,7 @@ func New(ctx context.Context, options Options) (*Service, error) {
 	service := &Service{
 		dataDir:        options.DataDir,
 		selectionStore: options.SelectionStore,
+		prepareRuntime: options.PrepareRuntime,
 		publish:        options.Publish,
 	}
 	selection, configured, err := options.SelectionStore.Load()
@@ -120,6 +125,9 @@ func New(ctx context.Context, options Options) (*Service, error) {
 	runtime, err := database.Open(ctx, database.Config(selection))
 	if err != nil {
 		return nil, fmt.Errorf("installation: open selected database: %w", err)
+	}
+	if prepareErr := service.prepare(ctx, runtime); prepareErr != nil {
+		return nil, closeRuntimeAfterFailure(runtime, prepareErr)
 	}
 	service.activate(runtime, selection, setup.NewService(runtime.Store))
 
@@ -217,14 +225,14 @@ func (s *Service) configureDatabase(ctx context.Context, input *DatabaseInput) e
 	if openErr != nil {
 		return mapSetupOpenError(openErr)
 	}
+	if prepareErr := s.prepare(ctx, runtime); prepareErr != nil {
+		return closeRuntimeAfterFailure(runtime, prepareErr)
+	}
 	// SQLite is derived from DataDir and carries no credentials, so it needs no
 	// pointer file; only an external database has to be remembered across starts.
 	if selection.Driver != database.DriverSQLite {
 		if saveErr := s.selectionStore.Save(selection); saveErr != nil {
-			if closeErr := runtime.Close(); closeErr != nil {
-				return errors.Join(fmt.Errorf("installation: save database selection: %w", saveErr), closeErr)
-			}
-			return fmt.Errorf("installation: save database selection: %w", saveErr)
+			return closeRuntimeAfterFailure(runtime, fmt.Errorf("installation: save database selection: %w", saveErr))
 		}
 	}
 	s.activate(runtime, selection, setup.NewService(runtime.Store))
@@ -242,6 +250,25 @@ func (s *Service) activate(runtime *database.Runtime, selection database.Selecti
 	s.selection = selection
 	s.setup = setupService
 	s.phase = PhaseFinalizationRequired
+}
+
+func (s *Service) prepare(ctx context.Context, runtime *database.Runtime) error {
+	if s.prepareRuntime == nil {
+		return nil
+	}
+	if err := s.prepareRuntime(ctx, runtime); err != nil {
+		return fmt.Errorf("installation: prepare runtime: %w", err)
+	}
+	return nil
+}
+
+// closeRuntimeAfterFailure keeps the original failure primary while still
+// surfacing a close error.
+func closeRuntimeAfterFailure(runtime *database.Runtime, failure error) error {
+	if closeErr := runtime.Close(); closeErr != nil {
+		return errors.Join(failure, fmt.Errorf("installation: close runtime: %w", closeErr))
+	}
+	return failure
 }
 
 func (s *Service) publicState() State {
