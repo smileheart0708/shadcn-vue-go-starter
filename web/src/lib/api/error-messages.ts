@@ -36,6 +36,17 @@ const API_ERROR_MESSAGES = {
   avatar_too_large: (t: Translate) => t('apiError.avatar_too_large'),
   setup_required: (t: Translate) => t('apiError.setup_required'),
   setup_completed: (t: Translate) => t('apiError.setup_completed'),
+  database_input_required: (t: Translate) =>
+    t('apiError.database_input_required'),
+  database_already_configured: (t: Translate) =>
+    t('apiError.database_already_configured'),
+  database_config_invalid: (t: Translate) =>
+    t('apiError.database_config_invalid'),
+  database_connection_failed: (t: Translate) =>
+    t('apiError.database_connection_failed'),
+  database_not_empty: (t: Translate) => t('apiError.database_not_empty'),
+  database_migration_failed: (t: Translate) =>
+    t('apiError.database_migration_failed'),
   system_log_stream_unavailable: (t: Translate) =>
     t('apiError.system_log_stream_unavailable'),
   internal_error: (t: Translate) => t('apiError.internal_error'),

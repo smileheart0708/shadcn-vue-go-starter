@@ -22,12 +22,6 @@ export const viewerSchema = z.object({
   authorization: viewerAuthorizationSchema,
 })
 
-export const installStateSchema = z.object({
-  setupCompleted: z.boolean(),
-  ownerUserId: z.number().int().positive().nullable(),
-  completedAt: z.string().nullable(),
-})
-
 export const publicAuthConfigSchema = z.object({
   registrationEnabled: z.boolean(),
 })
@@ -46,7 +40,6 @@ const logoutPayloadSchema = z.object({
 export type ViewerIdentity = z.infer<typeof viewerIdentitySchema>
 export type ViewerAuthorization = z.infer<typeof viewerAuthorizationSchema>
 export type Viewer = z.infer<typeof viewerSchema>
-export type InstallState = z.infer<typeof installStateSchema>
 export type PublicAuthConfig = z.infer<typeof publicAuthConfigSchema>
 export type SessionResponse = z.infer<typeof sessionPayloadSchema>
 
@@ -61,45 +54,17 @@ export interface RegisterInput {
   password: string
 }
 
-export interface SetupInput {
-  username: string
-  password: string
-}
-
 export interface GetViewerOptions {
   signal?: AbortSignal
   backgroundRequest?: boolean
 }
 
-const installStateEnvelopeSchema = successEnvelopeSchema(installStateSchema)
 const publicAuthConfigEnvelopeSchema = successEnvelopeSchema(
   publicAuthConfigSchema,
 )
 const sessionEnvelopeSchema = successEnvelopeSchema(sessionPayloadSchema)
 const viewerEnvelopeSchema = successEnvelopeSchema(viewerSchema)
 const logoutEnvelopeSchema = successEnvelopeSchema(logoutPayloadSchema)
-
-export async function getInstallState() {
-  try {
-    const payload = await baseApi.get('/api/install/state').json<unknown>()
-    return installStateEnvelopeSchema.parse(payload).data
-  } catch (error) {
-    return normalizeAPIError(error)
-  }
-}
-
-export async function completeSetup(
-  input: SetupInput,
-): Promise<SessionResponse> {
-  try {
-    const payload = await baseApi
-      .post('/api/install/setup', { json: input })
-      .json<unknown>()
-    return sessionEnvelopeSchema.parse(payload).data
-  } catch (error) {
-    return normalizeAPIError(error)
-  }
-}
 
 export async function getPublicAuthConfig() {
   try {

@@ -63,15 +63,23 @@ func (s *Store) CompleteInitialOwner(ctx context.Context, owner setup.InitialOwn
 		if _, credentialErr := tx.NewInsert().Model(credential).Exec(ctx); credentialErr != nil {
 			return fmt.Errorf("setup: insert owner credential: %w", credentialErr)
 		}
-		if _, stateErr := tx.NewUpdate().
+		result, stateErr := tx.NewUpdate().
 			Model((*installStateRow)(nil)).
 			Set("setup_completed = ?", true).
 			Set("owner_user_id = ?", user.ID).
 			Set("setup_completed_at = ?", unixSeconds(now)).
 			Set("updated_at = ?", unixSeconds(now)).
-			Where("id = ?", singletonRowID).
-			Exec(ctx); stateErr != nil {
+			Where("id = ? AND setup_completed = ?", singletonRowID, false).
+			Exec(ctx)
+		if stateErr != nil {
 			return fmt.Errorf("setup: update install state: %w", stateErr)
+		}
+		affected, rowsErr := result.RowsAffected()
+		if rowsErr != nil {
+			return fmt.Errorf("setup: inspect install state update: %w", rowsErr)
+		}
+		if affected != 1 {
+			return setup.ErrAlreadyCompleted
 		}
 
 		loaded, getErr := s.getUser(ctx, tx, user.ID)
@@ -82,6 +90,9 @@ func (s *Store) CompleteInitialOwner(ctx context.Context, owner setup.InitialOwn
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, identity.ErrOwnerAlreadyExists) {
+			return identity.User{}, setup.ErrAlreadyCompleted
+		}
 		return identity.User{}, err
 	}
 	return created, nil

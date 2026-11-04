@@ -5,20 +5,29 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/uptrace/bun"
 	"main/internal/database/dialect"
+	"main/internal/database/dialect/postgresql"
 	"main/internal/database/dialect/sqlite"
 	"main/internal/database/migrate"
 	"main/internal/database/store"
 )
 
-// DriverSQLite is the only dialect compiled into this binary. Adding another one
-// means adding its package and a case in selectDriver.
-const DriverSQLite = sqlite.Name
+const (
+	DriverSQLite     = sqlite.Name
+	DriverPostgreSQL = postgresql.Name
+)
+
+var (
+	ErrConnect           = errors.New("database: connect failed")
+	ErrMigrate           = errors.New("database: migrate failed")
+	ErrUnsupportedDriver = errors.New("database: unsupported driver")
+)
 
 type Config struct {
 	Driver string
@@ -29,12 +38,22 @@ type Config struct {
 // domain services are assembled in main.go from that one value, so this package
 // never has to import a domain and adding a domain never edits this file.
 type Runtime struct {
-	driver string
-	db     *bun.DB
-	Store  *store.Store
+	db    *bun.DB
+	Store *store.Store
 }
 
 func Open(ctx context.Context, config Config) (*Runtime, error) {
+	return open(ctx, config, false)
+}
+
+// OpenForSetup validates that the target may be initialized before applying
+// migrations. Normal startup uses Open because an existing application database
+// is expected there.
+func OpenForSetup(ctx context.Context, config Config) (*Runtime, error) {
+	return open(ctx, config, true)
+}
+
+func open(ctx context.Context, config Config, validateSetupTarget bool) (*Runtime, error) {
 	driver, err := selectDriver(config.Driver)
 	if err != nil {
 		return nil, err
@@ -42,24 +61,25 @@ func Open(ctx context.Context, config Config) (*Runtime, error) {
 
 	sqldb, err := driver.Open(ctx, config.DSN)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrConnect, err)
 	}
 
 	bunDB := bun.NewDB(sqldb, driver.BunDialect())
+	if validateSetupTarget {
+		if validateErr := driver.ValidateSetupTarget(ctx, sqldb); validateErr != nil {
+			closeAfterFailedOpen(bunDB)
+			return nil, validateErr
+		}
+	}
 	if migrateErr := migrate.Run(ctx, bunDB, driver.Migrations()); migrateErr != nil {
 		closeAfterFailedOpen(bunDB)
-		return nil, migrateErr
+		return nil, fmt.Errorf("%w: %w", ErrMigrate, migrateErr)
 	}
 
 	return &Runtime{
-		driver: driver.Name(),
-		db:     bunDB,
-		Store:  store.New(bunDB, driver),
+		db:    bunDB,
+		Store: store.New(bunDB, driver),
 	}, nil
-}
-
-func (r *Runtime) Driver() string {
-	return r.driver
 }
 
 func (r *Runtime) Close() error {
@@ -72,10 +92,12 @@ func (r *Runtime) Close() error {
 func selectDriver(name string) (dialect.Driver, error) {
 	normalized := strings.ToLower(strings.TrimSpace(name))
 	switch normalized {
-	case "", sqlite.Name:
+	case sqlite.Name:
 		return sqlite.New(), nil
+	case postgresql.Name:
+		return postgresql.New(), nil
 	default:
-		return nil, fmt.Errorf("database: driver %q is not compiled into this binary", normalized)
+		return nil, fmt.Errorf("%w: %q", ErrUnsupportedDriver, normalized)
 	}
 }
 

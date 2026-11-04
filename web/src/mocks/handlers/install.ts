@@ -1,5 +1,4 @@
 import { http } from 'msw'
-import { issueSession } from '@/mocks/handlers/session'
 import {
   isRecord,
   jsonError,
@@ -15,7 +14,7 @@ export const installHandlers = [
   http.get('/api/install/state', () => jsonSuccess(state.installState)),
 
   http.post('/api/install/setup', async ({ request }) => {
-    if (state.installState.setupCompleted) {
+    if (state.installState.phase === 'completed') {
       return jsonError(
         409,
         'setup_completed',
@@ -47,6 +46,25 @@ export const installHandlers = [
       return jsonError(409, 'username_taken', 'Username is already in use.')
     }
 
+    if (state.installState.phase === 'database_required') {
+      if (!isRecord(payload.database)) {
+        return jsonError(
+          400,
+          'database_input_required',
+          'Choose a database before completing setup.',
+        )
+      }
+      const driver = payload.database.driver
+      if (driver !== 'sqlite' && driver !== 'postgresql') {
+        return jsonError(
+          400,
+          'database_config_invalid',
+          'Invalid database configuration.',
+        )
+      }
+      state.installState.databaseDriver = driver
+    }
+
     const createdAt = nowISO()
     const owner: MockUser = {
       id: state.nextUserId++,
@@ -63,7 +81,8 @@ export const installHandlers = [
 
     state.users = [owner]
     state.installState = {
-      setupCompleted: true,
+      phase: 'completed',
+      databaseDriver: state.installState.databaseDriver ?? 'sqlite',
       ownerUserId: owner.id,
       completedAt: createdAt,
     }
@@ -72,7 +91,6 @@ export const installHandlers = [
       selfServiceAccountDeletionEnabled: false,
     }
 
-    const sessionResponse = issueSession(owner)
-    return jsonSuccess(sessionResponse, { status: 201 })
+    return jsonSuccess(state.installState, { status: 201 })
   }),
 ]

@@ -58,6 +58,12 @@
     "avatar_too_large": "Image size must be 5MB or smaller.",
     "setup_required": "The application has not been initialized yet. Complete setup first.",
     "setup_completed": "The application has already been initialized.",
+    "database_input_required": "Choose a database before completing setup.",
+    "database_already_configured": "This setup already has a database configuration.",
+    "database_config_invalid": "The database configuration is incomplete or invalid.",
+    "database_connection_failed": "Could not connect to the database. Check the address, credentials, and network.",
+    "database_not_empty": "The database is not empty or belongs to another installation.",
+    "database_migration_failed": "Database initialization failed. Make sure the account can create tables.",
     "system_log_stream_unavailable": "Failed to connect to the system log stream.",
     "internal_error": "The server encountered an error. Please try again later."
   },
@@ -157,14 +163,49 @@
   },
   "setup": {
     "title": "Welcome",
-    "creating": "Creating owner account...",
-    "success": "Setup completed",
     "failed": "Setup failed",
-    "submit": "Finish setup",
-    "step1": "Basic Information",
-    "step2": "Setup Completed",
     "passwordMismatch": "Password and confirmation must match.",
-    "complete": "Complete"
+    "steps": {
+      "admin": "Administrator",
+      "database": "Database",
+      "done": "Done"
+    },
+    "admin": {
+      "title": "Create administrator",
+      "description": "This account has full system access. Keep its credentials safe.",
+      "next": "Next"
+    },
+    "database": {
+      "title": "Choose a database",
+      "description": "All application data will be stored in this database.",
+      "driver": "Database type",
+      "sqlite": "SQLite",
+      "sqliteDescription": "No extra configuration; data stays on this machine.",
+      "postgresql": "PostgreSQL",
+      "postgresqlDescription": "Provide an empty database and an account that can create tables.",
+      "host": "Host",
+      "port": "Port",
+      "database": "Database",
+      "username": "Database user",
+      "password": "Database password",
+      "sslMode": "SSL mode",
+      "ssl": {
+        "disable": "Disabled",
+        "require": "Require encryption",
+        "verifyFull": "Full verification"
+      },
+      "finalizationDescription": "Continue setup with the saved {driver} configuration.",
+      "finalizationHint": "The schema is already migrated; this completes the administrator.",
+      "submitting": "Validating and initializing...",
+      "submit": "Validate and finish"
+    },
+    "done": {
+      "title": "Setup complete",
+      "description": "The administrator and database are configured.",
+      "autoLoginFailed": "Setup is complete, but automatic sign-in failed. Sign in manually.",
+      "goDashboard": "Enter application",
+      "goLogin": "Go to sign in"
+    }
   },
   "auth": {
     "signIn": {

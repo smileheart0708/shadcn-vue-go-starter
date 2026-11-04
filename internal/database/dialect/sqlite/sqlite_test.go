@@ -2,9 +2,12 @@ package sqlite
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	dialectpkg "main/internal/database/dialect"
 )
 
 func TestOpenAppliesPragmasAndSingleConnectionPool(t *testing.T) {
@@ -54,6 +57,47 @@ func TestOpenRejectsEmptyDSN(t *testing.T) {
 
 	if _, err := New().Open(context.Background(), "   "); err == nil {
 		t.Fatal("Open() error = nil, want an error for an empty DSN")
+	}
+}
+
+func TestValidateSetupTargetAcceptsEmptyDatabase(t *testing.T) {
+	t.Parallel()
+
+	driver := New()
+	sqldb, err := driver.Open(context.Background(), filepath.Join(t.TempDir(), "app.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := sqldb.Close(); closeErr != nil {
+			t.Fatalf("Close() error = %v", closeErr)
+		}
+	})
+
+	if err := driver.ValidateSetupTarget(context.Background(), sqldb); err != nil {
+		t.Fatalf("ValidateSetupTarget() error = %v", err)
+	}
+}
+
+func TestValidateSetupTargetRejectsForeignTable(t *testing.T) {
+	t.Parallel()
+
+	driver := New()
+	sqldb, err := driver.Open(context.Background(), filepath.Join(t.TempDir(), "app.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := sqldb.Close(); closeErr != nil {
+			t.Fatalf("Close() error = %v", closeErr)
+		}
+	})
+	if _, err := sqldb.Exec("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)"); err != nil {
+		t.Fatalf("create unrelated table: %v", err)
+	}
+
+	if err := driver.ValidateSetupTarget(context.Background(), sqldb); !errors.Is(err, dialectpkg.ErrSetupTargetNotEmpty) {
+		t.Fatalf("ValidateSetupTarget() error = %v, want ErrSetupTargetNotEmpty", err)
 	}
 }
 

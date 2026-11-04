@@ -22,7 +22,6 @@ var errEmptyJWTSecretFile = errors.New("config JWT secret file is empty")
 
 type Config struct {
 	DataDir              string
-	Database             DatabaseConfig
 	Port                 int
 	APIRequestLogEnabled bool
 	JWTSecret            string
@@ -30,11 +29,6 @@ type Config struct {
 	RefreshIdleTTL       time.Duration
 	RefreshAbsoluteTTL   time.Duration
 	RefreshCookieName    string
-}
-
-type DatabaseConfig struct {
-	Driver string
-	DSN    string
 }
 
 func Load() error {
@@ -54,27 +48,6 @@ func LoadConfig() (Config, error) {
 	dataDir, err := getEnv("DATA_DIR", ".data")
 	if err != nil {
 		return Config{}, err
-	}
-
-	databaseDriver, err := getEnv("DATABASE_DRIVER", "sqlite")
-	if err != nil {
-		return Config{}, err
-	}
-	databaseDriver = strings.ToLower(strings.TrimSpace(databaseDriver))
-	if databaseDriver == "" {
-		return Config{}, errors.New("config DATABASE_DRIVER must not be empty")
-	}
-
-	databaseDSN, err := getEnv("DATABASE_DSN", "")
-	if err != nil {
-		return Config{}, err
-	}
-	databaseDSN = strings.TrimSpace(databaseDSN)
-	if databaseDSN == "" {
-		if databaseDriver != "sqlite" {
-			return Config{}, fmt.Errorf("config DATABASE_DSN is required for driver %q", databaseDriver)
-		}
-		databaseDSN = filepath.Join(dataDir, "data.db")
 	}
 
 	port, err := getEnv("PORT", 8080)
@@ -113,11 +86,7 @@ func LoadConfig() (Config, error) {
 	}
 
 	return Config{
-		DataDir: dataDir,
-		Database: DatabaseConfig{
-			Driver: databaseDriver,
-			DSN:    databaseDSN,
-		},
+		DataDir:              dataDir,
 		Port:                 port,
 		APIRequestLogEnabled: apiRequestLogEnabled,
 		JWTSecret:            jwtSecret,

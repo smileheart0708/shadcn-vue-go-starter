@@ -9,6 +9,7 @@ import (
 	"main/internal/auth"
 	"main/internal/avatar"
 	"main/internal/identity"
+	"main/internal/installation"
 	"main/internal/setup"
 )
 
@@ -40,6 +41,12 @@ const (
 	CodeAvatarTooLarge             ErrorCode = "avatar_too_large"
 	CodeSetupRequired              ErrorCode = "setup_required"
 	CodeSetupCompleted             ErrorCode = "setup_completed"
+	CodeDatabaseInputRequired      ErrorCode = "database_input_required"
+	CodeDatabaseAlreadyConfigured  ErrorCode = "database_already_configured"
+	CodeDatabaseConfigInvalid      ErrorCode = "database_config_invalid"
+	CodeDatabaseConnectionFailed   ErrorCode = "database_connection_failed"
+	CodeDatabaseNotEmpty           ErrorCode = "database_not_empty"
+	CodeDatabaseMigrationFailed    ErrorCode = "database_migration_failed"
 	CodeSystemLogStreamUnavailable ErrorCode = "system_log_stream_unavailable"
 	CodeInternalError              ErrorCode = "internal_error"
 )
@@ -78,6 +85,12 @@ var errorDefinitions = map[ErrorCode]errorDefinition{
 	CodeAvatarTooLarge:             {status: http.StatusRequestEntityTooLarge, message: "Avatar file must be 5MB or smaller."},
 	CodeSetupRequired:              {status: http.StatusServiceUnavailable, message: "The application must be initialized before this endpoint can be used."},
 	CodeSetupCompleted:             {status: http.StatusConflict, message: "The application has already been initialized."},
+	CodeDatabaseInputRequired:      {status: http.StatusBadRequest, message: "Choose a database before completing setup."},
+	CodeDatabaseAlreadyConfigured:  {status: http.StatusConflict, message: "This setup already has a database configuration."},
+	CodeDatabaseConfigInvalid:      {status: http.StatusBadRequest, message: "The database configuration is invalid."},
+	CodeDatabaseConnectionFailed:   {status: http.StatusUnprocessableEntity, message: "Could not connect to the database with the supplied settings."},
+	CodeDatabaseNotEmpty:           {status: http.StatusConflict, message: "The database is not empty or belongs to another installation."},
+	CodeDatabaseMigrationFailed:    {status: http.StatusUnprocessableEntity, message: "The database could not be initialized. Check the account's schema permissions."},
 	CodeSystemLogStreamUnavailable: {status: http.StatusServiceUnavailable, message: "System log stream is unavailable."},
 	CodeInternalError:              {status: http.StatusInternalServerError, message: "The server encountered an unexpected error."},
 }
@@ -105,6 +118,12 @@ var domainErrorMappings = []errorMapping{
 	{auth.ErrAccountDisabled, CodeAccountDisabled},
 	{auth.ErrRegistrationDisabled, CodeRegistrationDisabled},
 	{setup.ErrAlreadyCompleted, CodeSetupCompleted},
+	{installation.ErrDatabaseInputRequired, CodeDatabaseInputRequired},
+	{installation.ErrDatabaseAlreadyConfigured, CodeDatabaseAlreadyConfigured},
+	{installation.ErrDatabaseConfigInvalid, CodeDatabaseConfigInvalid},
+	{installation.ErrDatabaseConnection, CodeDatabaseConnectionFailed},
+	{installation.ErrDatabaseNotEmpty, CodeDatabaseNotEmpty},
+	{installation.ErrDatabaseMigration, CodeDatabaseMigrationFailed},
 	{avatar.ErrEmpty, CodeAvatarRequired},
 	{avatar.ErrTooLarge, CodeAvatarTooLarge},
 	{avatar.ErrUnsupportedType, CodeAvatarInvalidType},

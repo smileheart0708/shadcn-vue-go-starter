@@ -18,12 +18,13 @@ import (
 
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/schema"
+	dialectpkg "main/internal/database/dialect"
 	"main/internal/database/dialect/sqlite/migrations"
 	sqlitedriver "modernc.org/sqlite"
 )
 
-// Name is the value this database is selected with (DATABASE_DRIVER) and
-// reported in logs.
+// Name is both the identifier setup persists and the driver name
+// modernc.org/sqlite registers with database/sql.
 const Name = "sqlite"
 
 const defaultBusyTimeout = 5 * time.Second
@@ -41,11 +42,6 @@ type Driver struct{}
 // New returns the SQLite adapter.
 func New() Driver {
 	return Driver{}
-}
-
-// Name reports the configured driver name.
-func (Driver) Name() string {
-	return Name
 }
 
 // BunDialect reports the bun dialect that renders SQL for SQLite.
@@ -97,6 +93,67 @@ func (Driver) Open(ctx context.Context, dsn string) (*sql.DB, error) {
 		return nil, fmt.Errorf("database: ping SQLite: %w", pingErr)
 	}
 	return sqldb, nil
+}
+
+// ValidateSetupTarget accepts only an empty database or this application's own
+// incomplete schema. It runs before migrations so setup cannot take over another
+// application's database or a completed installation.
+func (Driver) ValidateSetupTarget(ctx context.Context, sqldb *sql.DB) error {
+	return dialectpkg.ValidateSetupTarget(ctx, sqldb, listTables)
+}
+
+// InspectExisting reports whether the database already holds this application's
+// schema without creating or migrating anything. An empty database is not an
+// installation; tables this application does not own are rejected so startup
+// cannot adopt a foreign database.
+func (Driver) InspectExisting(ctx context.Context, dsn string) (bool, error) {
+	sqldb, err := sql.Open(Name, dsn)
+	if err != nil {
+		return false, fmt.Errorf("database: open SQLite for inspection: %w", err)
+	}
+	defer func() {
+		if closeErr := sqldb.Close(); closeErr != nil {
+			slog.ErrorContext(ctx, "failed to close SQLite inspection handle", "error", closeErr)
+		}
+	}()
+
+	tables, err := listTables(ctx, sqldb)
+	if err != nil {
+		return false, err
+	}
+	switch dialectpkg.ClassifySetupSchema(tables) {
+	case dialectpkg.SetupSchemaEmpty:
+		return false, nil
+	case dialectpkg.SetupSchemaApplication, dialectpkg.SetupSchemaLedgerOnly:
+		return true, nil
+	case dialectpkg.SetupSchemaForeign:
+	}
+	return false, dialectpkg.ErrExistingUnknown
+}
+
+func listTables(ctx context.Context, sqldb *sql.DB) (map[string]struct{}, error) {
+	rows, err := sqldb.QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`)
+	if err != nil {
+		return nil, fmt.Errorf("database: inspect SQLite tables: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			slog.ErrorContext(ctx, "failed to close SQLite table rows", "error", closeErr)
+		}
+	}()
+
+	tables := make(map[string]struct{})
+	for rows.Next() {
+		var name string
+		if scanErr := rows.Scan(&name); scanErr != nil {
+			return nil, fmt.Errorf("database: scan SQLite table name: %w", scanErr)
+		}
+		tables[name] = struct{}{}
+	}
+	if rowsErr := rows.Err(); rowsErr != nil {
+		return nil, fmt.Errorf("database: read SQLite tables: %w", rowsErr)
+	}
+	return tables, nil
 }
 
 // UniqueViolation decodes the violated unique constraint modernc.org/sqlite

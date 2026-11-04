@@ -2,17 +2,13 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Router } from 'vue-router'
 import type {
-  InstallState,
   LoginCredentials,
   PublicAuthConfig,
   RegisterInput,
   SessionResponse,
-  SetupInput,
   Viewer,
 } from '@/lib/api/auth'
 import {
-  completeSetup as completeSetupRequest,
-  getInstallState,
   getPublicAuthConfig,
   getViewer,
   login as loginRequest,
@@ -20,6 +16,8 @@ import {
   refreshSession,
   register as registerRequest,
 } from '@/lib/api/auth'
+import type { InstallState } from '@/lib/api/setup'
+import { getInstallState } from '@/lib/api/setup'
 import {
   clearAuthClientHandlers,
   registerAuthClientHandlers,
@@ -37,7 +35,7 @@ export const useAuthStore = defineStore('auth', () => {
   const publicAuthConfig = ref<PublicAuthConfig | null>(null)
 
   const isSetupComplete = computed(
-    () => installState.value?.setupCompleted === true,
+    () => installState.value?.phase === 'completed',
   )
   const isAuthenticated = computed(
     () => token.value !== null && viewer.value !== null,
@@ -107,6 +105,10 @@ export const useAuthStore = defineStore('auth', () => {
     setToken(response.accessToken)
     applyViewer(response.viewer)
     initialized.value = true
+  }
+
+  function applyInstallState(nextInstallState: InstallState) {
+    installState.value = nextInstallState
   }
 
   function resetSession(markInitialized = true) {
@@ -192,18 +194,6 @@ export const useAuthStore = defineStore('auth', () => {
     return initializePromise
   }
 
-  async function completeSetup(input: SetupInput) {
-    const response = await completeSetupRequest(input)
-    applySession(response)
-    installState.value = {
-      setupCompleted: true,
-      ownerUserId: response.viewer.identity.id,
-      completedAt: new Date().toISOString(),
-    }
-    await refreshPublicState()
-    return response
-  }
-
   async function login(credentials: LoginCredentials) {
     const response = await loginRequest(credentials)
     applySession(response)
@@ -261,10 +251,10 @@ export const useAuthStore = defineStore('auth', () => {
     bindRouter,
     fetchViewer,
     applyViewer,
+    applyInstallState,
     refreshPublicState,
     refreshViewer,
     initialize,
-    completeSetup,
     login,
     register,
     logout,

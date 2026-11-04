@@ -30,7 +30,8 @@ interface MockSession {
 
 interface MockState {
   installState: {
-    setupCompleted: boolean
+    phase: 'database_required' | 'finalization_required' | 'completed'
+    databaseDriver: 'sqlite' | 'postgresql' | null
     ownerUserId: number | null
     completedAt: string | null
   }
@@ -109,7 +110,8 @@ function createInitialState(): MockState {
 
   return {
     installState: {
-      setupCompleted: true,
+      phase: 'completed',
+      databaseDriver: 'sqlite',
       ownerUserId: MOCK_OWNER_USER_ID,
       completedAt: MOCK_FIXTURE_CREATED_AT,
     },

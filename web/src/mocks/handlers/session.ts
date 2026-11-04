@@ -13,7 +13,7 @@ import {
 let autoOwnerSessionAvailable = true
 
 function getCurrentUserFromRequest(request: Request): MockUser | null {
-  if (!state.installState.setupCompleted || state.session === null) {
+  if (state.installState.phase !== 'completed' || state.session === null) {
     return null
   }
 
@@ -95,7 +95,7 @@ export function ensureMockOwnerSession() {
 }
 
 export function requireSetupCompleted(): Response | null {
-  if (!state.installState.setupCompleted) {
+  if (state.installState.phase !== 'completed') {
     // 503 matches CodeSetupRequired in internal/httpapi/error_codes.go. Answering 403
     // here made dev-mode error handling take a branch the real server never produces.
     return jsonError(503, 'setup_required', 'Complete setup first.')

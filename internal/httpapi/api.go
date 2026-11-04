@@ -12,6 +12,7 @@ import (
 	"main/internal/authorization"
 	"main/internal/avatar"
 	"main/internal/identity"
+	"main/internal/installation"
 	"main/internal/logging"
 	"main/internal/setup"
 )
@@ -21,6 +22,7 @@ type API struct {
 	authorization *authorization.Service
 	identities    *identity.Service
 	setup         *setup.Service
+	installation  *installation.Service
 	policies      *accountpolicies.Service
 	avatars       *avatar.Store
 	logger        *slog.Logger
@@ -83,7 +85,8 @@ func toViewerAuthorizationResponse(viewer authorization.ViewerAuthorization) vie
 }
 
 type installStateResponse struct {
-	SetupCompleted bool       `json:"setupCompleted"`
+	Phase          string     `json:"phase"`
+	DatabaseDriver *string    `json:"databaseDriver"`
 	OwnerUserID    *int64     `json:"ownerUserId"`
 	CompletedAt    *time.Time `json:"completedAt"`
 }

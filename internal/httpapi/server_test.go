@@ -22,6 +22,7 @@ import (
 	"main/internal/avatar"
 	"main/internal/database"
 	"main/internal/identity"
+	"main/internal/installation"
 	"main/internal/logging"
 	"main/internal/setup"
 )
@@ -63,8 +64,8 @@ func TestInstallSetupOnlyRunsOnceAndCreatesOwnerSession(t *testing.T) {
 
 	var stateEnvelope testSuccessEnvelope[installStateResponse]
 	decodeJSONResponse(t, stateRec.Body.Bytes(), &stateEnvelope)
-	if stateEnvelope.Data.SetupCompleted {
-		t.Fatal("expected fresh install state to be pending")
+	if stateEnvelope.Data.Phase != string(installation.PhaseDatabaseRequired) {
+		t.Fatalf("expected fresh install phase %q, got %q", installation.PhaseDatabaseRequired, stateEnvelope.Data.Phase)
 	}
 
 	session, refreshCookie := performSetup(t, ctx)
@@ -455,18 +456,6 @@ func newTestContext(t *testing.T) *testContext {
 
 	dataDir := t.TempDir()
 	distDir := createTestDist(t)
-	dbRuntime, err := database.Open(context.Background(), database.Config{
-		Driver: database.DriverSQLite,
-		DSN:    filepath.Join(dataDir, "test.db"),
-	})
-	if err != nil {
-		t.Fatalf("failed to open test database: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := dbRuntime.Close(); err != nil {
-			t.Fatalf("failed to close test database: %v", err)
-		}
-	})
 
 	logStream := logging.NewStream(logging.StreamOptions{
 		MaxBytes:  logging.DefaultStreamMaxBytes,
@@ -474,39 +463,65 @@ func newTestContext(t *testing.T) *testContext {
 	})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	store := dbRuntime.Store
-	authzService := authorization.NewService()
-	identityService := identity.NewService(store)
-	policiesService := accountpolicies.NewService(store)
-	setupService := setup.NewService(store)
-	authService := auth.NewService(auth.Options{
-		Secret:             []byte("test-secret"),
-		TTL:                time.Hour,
-		RefreshIdleTTL:     7 * 24 * time.Hour,
-		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
-	}, store, identityService, authzService, policiesService)
+	ctx := &testContext{logStream: logStream}
+	var dispatcher *Dispatcher
+	var installationService *installation.Service
 
-	handler := NewHandlerWithOptions(HandlerOptions{
-		Logger:          logger,
-		LogStream:       logStream,
-		Auth:            authService,
-		Authorization:   authzService,
-		Identity:        identityService,
-		Setup:           setupService,
-		AccountPolicies: policiesService,
-		Avatars:         avatar.New(dataDir),
-		FrontendFS:      os.DirFS(distDir),
-		LogAPIRequests:  false,
+	buildAPI := func(runtime *database.Runtime) http.Handler {
+		store := runtime.Store
+		runtimeAuthz := authorization.NewService()
+		runtimeIdentity := identity.NewService(store)
+		runtimePolicies := accountpolicies.NewService(store)
+		runtimeSetup := setup.NewService(store)
+		runtimeAuth := auth.NewService(auth.Options{
+			Secret:             []byte("test-secret"),
+			TTL:                time.Hour,
+			RefreshIdleTTL:     7 * 24 * time.Hour,
+			RefreshAbsoluteTTL: 30 * 24 * time.Hour,
+		}, store, runtimeIdentity, runtimeAuthz, runtimePolicies)
+		ctx.authService = runtimeAuth
+		ctx.identityService = runtimeIdentity
+		ctx.policiesService = runtimePolicies
+		ctx.setupService = runtimeSetup
+		return NewAPIHandlerWithOptions(HandlerOptions{
+			Logger:          logger,
+			LogStream:       logStream,
+			Auth:            runtimeAuth,
+			Authorization:   runtimeAuthz,
+			Identity:        runtimeIdentity,
+			Setup:           runtimeSetup,
+			Installation:    installationService,
+			AccountPolicies: runtimePolicies,
+			Avatars:         avatar.New(dataDir),
+			LogAPIRequests:  false,
+		})
+	}
+
+	installationService, err := installation.New(context.Background(), installation.Options{
+		DataDir:        dataDir,
+		SelectionStore: database.NewSelectionStore(dataDir),
+		Publish: func(runtime *database.Runtime) {
+			dispatcher.Publish(buildAPI(runtime))
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to initialize installation: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := installationService.Close(); err != nil {
+			t.Fatalf("failed to close installation: %v", err)
+		}
 	})
 
-	return &testContext{
-		handler:         handler,
-		authService:     authService,
-		identityService: identityService,
-		policiesService: policiesService,
-		setupService:    setupService,
-		logStream:       logStream,
-	}
+	bootstrap := NewBootstrapAPIHandler(BootstrapOptions{
+		Logger:         logger,
+		Installation:   installationService,
+		LogAPIRequests: false,
+	})
+	dispatcher = NewDispatcher(os.DirFS(distDir), bootstrap)
+
+	ctx.handler = dispatcher
+	return ctx
 }
 
 func (ctx *testContext) authServiceCookieName() string {
@@ -516,18 +531,26 @@ func (ctx *testContext) authServiceCookieName() string {
 func performSetup(t *testing.T, ctx *testContext) (sessionResponse, *http.Cookie) {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"owner","password":"owner1234"}`))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(rec, req)
+	setupReq := httptest.NewRequest(http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"owner","password":"owner1234","database":{"driver":"sqlite"}}`))
+	setupReq.Header.Set("Content-Type", "application/json")
+	setupRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(setupRec, setupReq)
 
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, rec.Code, rec.Body.String())
+	if setupRec.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, setupRec.Code, setupRec.Body.String())
+	}
+
+	loginReq := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"owner","password":"owner1234"}`))
+	loginReq.Header.Set("Content-Type", "application/json")
+	loginRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(loginRec, loginReq)
+	if loginRec.Code != http.StatusOK {
+		t.Fatalf("expected login status %d, got %d: %s", http.StatusOK, loginRec.Code, loginRec.Body.String())
 	}
 
 	var envelope testSuccessEnvelope[sessionResponse]
-	decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
-	return envelope.Data, findCookie(rec.Result().Cookies(), ctx.authServiceCookieName())
+	decodeJSONResponse(t, loginRec.Body.Bytes(), &envelope)
+	return envelope.Data, findCookie(loginRec.Result().Cookies(), ctx.authServiceCookieName())
 }
 
 func updateSystemSettings(t *testing.T, ctx *testContext, token string, payload string) {

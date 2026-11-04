@@ -7,25 +7,34 @@ package dialect
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"io/fs"
 
 	"github.com/uptrace/bun/schema"
 )
 
+var (
+	ErrSetupTargetNotEmpty  = errors.New("database: setup target is not an empty application database")
+	ErrSetupTargetCompleted = errors.New("database: setup target already completed this application")
+	ErrExistingUnknown      = errors.New("database: existing database was not created by this application")
+)
+
 // Driver adapts one SQL dialect.
 //
-// Adding PostgreSQL means implementing this interface in a new package and
-// shipping that dialect's migration directory. Nothing in
-// internal/database/store, internal/database/migrate or the domain packages
-// changes.
+// Adding another dialect means implementing this interface in a new package,
+// shipping that dialect's migration directory and exposing it through setup.
+// Nothing in internal/database/store, internal/database/migrate or the domain
+// packages changes.
 type Driver interface {
-	// Name is the identifier used in configuration, logs and errors.
-	Name() string
-
 	// Open turns a DSN into a ready connection pool. Implementations validate
 	// the DSN, create missing parent directories, apply pool settings, verify
 	// dialect settings and ping the database.
 	Open(ctx context.Context, dsn string) (*sql.DB, error)
+
+	// ValidateSetupTarget checks that a database may be initialized by setup:
+	// it is either empty or contains only this application's incomplete schema.
+	// Normal startup does not call it; setup does, before applying migrations.
+	ValidateSetupTarget(ctx context.Context, db *sql.DB) error
 
 	// Migrations returns the embedded migration set of this dialect, rooted at
 	// the directory holding <version>_<name>.sql files.

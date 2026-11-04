@@ -58,6 +58,12 @@
     "avatar_too_large": "图片不能超过 5MB。",
     "setup_required": "系统尚未完成初始化，请先完成首次安装。",
     "setup_completed": "系统已经完成初始化，不能再次执行 setup。",
+    "database_input_required": "请选择数据库后再完成初始化。",
+    "database_already_configured": "本次初始化已经配置了数据库，不能重复选择。",
+    "database_config_invalid": "数据库配置不完整或格式无效。",
+    "database_connection_failed": "无法连接到数据库，请检查地址、账号和网络。",
+    "database_not_empty": "该数据库不是空库，或已经被其他安装使用。",
+    "database_migration_failed": "数据库初始化失败，请确认账号拥有建表权限。",
     "system_log_stream_unavailable": "系统日志流连接失败。",
     "internal_error": "服务异常，请稍后重试。"
   },
@@ -157,14 +163,49 @@
   },
   "setup": {
     "title": "欢迎使用",
-    "creating": "正在创建所有者账户...",
-    "success": "初始化完成",
     "failed": "初始化失败",
-    "submit": "完成初始化",
-    "step1": "基本信息",
-    "step2": "初始化完成",
     "passwordMismatch": "密码与确认密码不一致。",
-    "complete": "完成"
+    "steps": {
+      "admin": "管理员账号",
+      "database": "数据库",
+      "done": "完成"
+    },
+    "admin": {
+      "title": "创建管理员账号",
+      "description": "此账号拥有系统最高权限，请妥善保管凭据。",
+      "next": "下一步"
+    },
+    "database": {
+      "title": "选择数据库",
+      "description": "数据库将用于保存全部业务数据。",
+      "driver": "数据库类型",
+      "sqlite": "SQLite",
+      "sqliteDescription": "无需额外配置，数据保存在本机。",
+      "postgresql": "PostgreSQL",
+      "postgresqlDescription": "请提供已创建的空数据库和具备建表权限的账号。",
+      "host": "主机",
+      "port": "端口",
+      "database": "数据库名",
+      "username": "数据库用户名",
+      "password": "数据库密码",
+      "sslMode": "SSL 模式",
+      "ssl": {
+        "disable": "关闭",
+        "require": "要求加密",
+        "verifyFull": "完整验证"
+      },
+      "finalizationDescription": "将使用已保存的 {driver} 配置继续完成初始化。",
+      "finalizationHint": "数据库已完成迁移，本次只创建管理员。",
+      "submitting": "正在验证并初始化...",
+      "submit": "验证并完成"
+    },
+    "done": {
+      "title": "初始化完成",
+      "description": "管理员账号和数据库已经配置完成。",
+      "autoLoginFailed": "初始化已完成，但自动登录失败，请手动登录。",
+      "goDashboard": "进入应用",
+      "goLogin": "前往登录"
+    }
   },
   "auth": {
     "signIn": {

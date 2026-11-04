@@ -5,12 +5,27 @@ import (
 	"net/http"
 
 	"main/internal/auth"
-	"main/internal/setup"
+	"main/internal/installation"
 )
 
 type installSetupRequest struct {
+	Username string                  `json:"username"`
+	Password string                  `json:"password"`
+	Database *installDatabaseRequest `json:"database"`
+}
+
+type installDatabaseRequest struct {
+	Driver     string                    `json:"driver"`
+	PostgreSQL *installPostgreSQLRequest `json:"postgresql"`
+}
+
+type installPostgreSQLRequest struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Database string `json:"database"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+	SSLMode  string `json:"sslMode"`
 }
 
 type loginRequest struct {
@@ -33,17 +48,7 @@ type passwordChangedResponse struct {
 }
 
 func (api *API) installStateHandler(w http.ResponseWriter, r *http.Request) {
-	state, err := api.setup.GetState(r.Context())
-	if err != nil {
-		writeError(w, r, CodeInternalError, err)
-		return
-	}
-
-	writeSuccessJSON(w, http.StatusOK, installStateResponse{
-		SetupCompleted: state.SetupCompleted,
-		OwnerUserID:    state.OwnerUserID,
-		CompletedAt:    state.SetupCompletedAt,
-	})
+	writeSuccessJSON(w, http.StatusOK, toInstallStateResponse(api.installation.State()))
 }
 
 func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
@@ -52,24 +57,49 @@ func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, CodeInvalidRequest, err)
 		return
 	}
-	owner, err := api.setup.Complete(r.Context(), setup.CompleteSetupInput{
+	state, err := api.installation.Complete(r.Context(), installation.CompleteInput{
 		Username: payload.Username,
 		Password: payload.Password,
+		Database: toInstallationDatabase(payload.Database),
 	})
 	if err != nil {
 		writeDomainError(w, r, err)
 		return
 	}
 
-	ip, userAgent := requestMetadata(r)
-	session, err := api.auth.IssueSessionForUser(r.Context(), owner, ip, userAgent)
-	if err != nil {
-		writeError(w, r, CodeInternalError, err)
-		return
-	}
+	writeSuccessJSON(w, http.StatusCreated, toInstallStateResponse(state))
+}
 
-	api.auth.SetRefreshCookie(w, r, session.RefreshToken)
-	writeSuccessJSON(w, http.StatusCreated, api.toSessionResponse(session))
+func toInstallStateResponse(state installation.State) installStateResponse {
+	var databaseDriver *string
+	if state.DatabaseDriver != "" {
+		driver := state.DatabaseDriver
+		databaseDriver = &driver
+	}
+	return installStateResponse{
+		Phase:          string(state.Phase),
+		DatabaseDriver: databaseDriver,
+		OwnerUserID:    state.OwnerUserID,
+		CompletedAt:    state.CompletedAt,
+	}
+}
+
+func toInstallationDatabase(input *installDatabaseRequest) *installation.DatabaseInput {
+	if input == nil {
+		return nil
+	}
+	databaseInput := &installation.DatabaseInput{Driver: input.Driver}
+	if input.PostgreSQL != nil {
+		databaseInput.PostgreSQL = &installation.PostgreSQLConfig{
+			Host:     input.PostgreSQL.Host,
+			Port:     input.PostgreSQL.Port,
+			Database: input.PostgreSQL.Database,
+			Username: input.PostgreSQL.Username,
+			Password: input.PostgreSQL.Password,
+			SSLMode:  input.PostgreSQL.SSLMode,
+		}
+	}
+	return databaseInput
 }
 
 func (api *API) publicAuthConfigHandler(w http.ResponseWriter, r *http.Request) {

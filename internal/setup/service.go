@@ -31,6 +31,21 @@ type InitialOwner struct {
 	PasswordHash string
 }
 
+// ValidateInitialOwner applies the shared account rules and returns the trimmed
+// username together with the password verbatim (login verifies the raw input, and
+// surrounding spaces are part of the credential even though length validation trims
+// them). Setup callers use it before opening a candidate database, so an invalid
+// form does not persist a database selection first.
+func ValidateInitialOwner(username, password string) (string, string, error) {
+	trimmedUsername := strings.TrimSpace(username)
+	// Shared with registration and administrative creation so every entry point rejects a
+	// blank username before the expensive hash and answers the same code for both fields.
+	if err := auth.ValidateNewAccount(trimmedUsername, password); err != nil {
+		return "", "", err
+	}
+	return trimmedUsername, password, nil
+}
+
 // Repository owns the transaction that creates the initial owner and marks
 // installation complete. The service must never coordinate those writes itself.
 type Repository interface {
@@ -60,12 +75,9 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput) (ident
 		return identity.User{}, err
 	}
 
-	username := strings.TrimSpace(input.Username)
-	password := strings.TrimSpace(input.Password)
-	// Shared with registration and administrative creation so every entry point rejects a
-	// blank username before the expensive hash and answers the same code for both fields.
-	if validationErr := auth.ValidateNewAccount(username, password); validationErr != nil {
-		return identity.User{}, validationErr
+	username, password, err := ValidateInitialOwner(input.Username, input.Password)
+	if err != nil {
+		return identity.User{}, err
 	}
 
 	passwordHash, err := auth.HashPassword(password)

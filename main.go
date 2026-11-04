@@ -20,6 +20,7 @@ import (
 	"main/internal/database"
 	"main/internal/httpapi"
 	"main/internal/identity"
+	"main/internal/installation"
 	"main/internal/logging"
 	"main/internal/setup"
 )
@@ -63,42 +64,62 @@ func run() error {
 
 	logging.LogStartupBanner(logger, listenAddr, dataDir)
 
-	dbRuntime, err := database.Open(context.Background(), database.Config{
-		Driver: cfg.Database.Driver,
-		DSN:    cfg.Database.DSN,
-	})
-	if err != nil {
-		return fmt.Errorf("open database driver %q: %w", cfg.Database.Driver, err)
-	}
-	defer closeDB(dbRuntime)
+	var installationService *installation.Service
+	buildAPI := func(runtime *database.Runtime) http.Handler {
+		store := runtime.Store
+		authorizationService := authorization.NewService()
+		identityService := identity.NewService(store)
+		accountPoliciesService := accountpolicies.NewService(store)
+		setupService := setup.NewService(store)
+		authService := auth.NewService(auth.Options{
+			Secret:             []byte(cfg.JWTSecret),
+			TTL:                cfg.JWTTTL,
+			RefreshIdleTTL:     cfg.RefreshIdleTTL,
+			RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
+			RefreshCookieName:  cfg.RefreshCookieName,
+		}, store, identityService, authorizationService, accountPoliciesService)
 
-	store := dbRuntime.Store
-	authorizationService := authorization.NewService()
-	identityService := identity.NewService(store)
-	accountPoliciesService := accountpolicies.NewService(store)
-	setupService := setup.NewService(store)
-	authService := auth.NewService(auth.Options{
-		Secret:             []byte(cfg.JWTSecret),
-		TTL:                cfg.JWTTTL,
-		RefreshIdleTTL:     cfg.RefreshIdleTTL,
-		RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
-		RefreshCookieName:  cfg.RefreshCookieName,
-	}, store, identityService, authorizationService, accountPoliciesService)
-
-	server := &http.Server{
-		Addr: listenAddr,
-		Handler: httpapi.NewHandlerWithOptions(httpapi.HandlerOptions{
+		return httpapi.NewAPIHandlerWithOptions(httpapi.HandlerOptions{
 			Logger:          logger,
 			LogStream:       logStream,
 			Auth:            authService,
 			Authorization:   authorizationService,
 			Identity:        identityService,
 			Setup:           setupService,
+			Installation:    installationService,
 			AccountPolicies: accountPoliciesService,
 			Avatars:         avatar.New(dataDir),
-			FrontendFS:      frontendAssets,
 			LogAPIRequests:  cfg.APIRequestLogEnabled,
-		}),
+		})
+	}
+
+	var dispatcher *httpapi.Dispatcher
+	installationService, err = installation.New(context.Background(), installation.Options{
+		DataDir:        dataDir,
+		SelectionStore: database.NewSelectionStore(dataDir),
+		Publish: func(runtime *database.Runtime) {
+			dispatcher.Publish(buildAPI(runtime))
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("initialize installation: %w", err)
+	}
+	defer closeInstallation(installationService)
+
+	bootstrapAPI := httpapi.NewBootstrapAPIHandler(httpapi.BootstrapOptions{
+		Logger:         logger,
+		Installation:   installationService,
+		LogAPIRequests: cfg.APIRequestLogEnabled,
+	})
+	dispatcher = httpapi.NewDispatcher(frontendAssets, bootstrapAPI)
+
+	if runtime := installationService.Runtime(); runtime != nil && installationService.State().Phase == installation.PhaseCompleted {
+		dispatcher.Publish(buildAPI(runtime))
+	}
+
+	server := &http.Server{
+		Addr:              listenAddr,
+		Handler:           dispatcher,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		// Long-lived responses (SSE) clear this deadline per-request via
@@ -145,13 +166,16 @@ func run() error {
 	return nil
 }
 
-func closeDB(runtime *database.Runtime) {
-	if runtime == nil {
+func closeInstallation(service *installation.Service) {
+	if service == nil {
 		return
 	}
-	if err := runtime.Close(); err != nil {
-		slog.Error("failed to close database", "error", err)
+	hadDatabase := service.Runtime() != nil
+	if err := service.Close(); err != nil {
+		slog.Error("failed to close installation database", "error", err)
 		return
 	}
-	slog.Info("database closed", "driver", runtime.Driver())
+	if hadDatabase {
+		slog.Info("installation database closed")
+	}
 }

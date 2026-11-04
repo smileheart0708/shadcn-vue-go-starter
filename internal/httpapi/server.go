@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"main/internal/authorization"
 	"main/internal/avatar"
 	"main/internal/identity"
+	"main/internal/installation"
 	"main/internal/logging"
 	"main/internal/setup"
 )
@@ -22,13 +22,13 @@ type HandlerOptions struct {
 	Authorization   *authorization.Service
 	Identity        *identity.Service
 	Setup           *setup.Service
+	Installation    *installation.Service
 	AccountPolicies *accountpolicies.Service
 	Avatars         *avatar.Store
-	FrontendFS      fs.FS
 	LogAPIRequests  bool
 }
 
-func NewHandlerWithOptions(options HandlerOptions) http.Handler {
+func NewAPIHandlerWithOptions(options HandlerOptions) http.Handler {
 	logger := options.Logger
 	if logger == nil {
 		logger = slog.Default()
@@ -39,6 +39,7 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 		authorization: options.Authorization,
 		identities:    options.Identity,
 		setup:         options.Setup,
+		installation:  options.Installation,
 		policies:      options.AccountPolicies,
 		avatars:       options.Avatars,
 		logger:        logger,
@@ -49,23 +50,21 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 	if options.LogAPIRequests {
 		api = Chain(api, requestLogger(logger))
 	}
-	spa := newSPAHandler(options.FrontendFS)
+	return api
+}
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isAPIRequest(r.URL.Path) {
-			api.ServeHTTP(w, r)
-			return
-		}
-		spa.ServeHTTP(w, r)
-	})
+// registerSharedRoutes registers the routes both the setup-only mux and the full
+// mux must expose, so the setup contract has a single registration point.
+func registerSharedRoutes(mux *http.ServeMux, api *API) {
+	mux.HandleFunc("GET /api/healthz", healthz)
+	mux.Handle("GET /api/install/state", http.HandlerFunc(api.installStateHandler))
+	mux.Handle("POST /api/install/setup", http.HandlerFunc(api.installSetupHandler))
 }
 
 func newAPIMux(api *API) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /api/healthz", healthz)
-	mux.Handle("GET /api/install/state", http.HandlerFunc(api.installStateHandler))
-	mux.Handle("POST /api/install/setup", http.HandlerFunc(api.installSetupHandler))
+	registerSharedRoutes(mux, api)
 	mux.Handle("GET /api/auth/public-config", http.HandlerFunc(api.publicAuthConfigHandler))
 	mux.Handle("POST /api/auth/login", Chain(http.HandlerFunc(api.loginHandler), RequireSetupCompleted(api.setup)))
 	mux.Handle("POST /api/auth/register", Chain(http.HandlerFunc(api.registerHandler), RequireSetupCompleted(api.setup)))
