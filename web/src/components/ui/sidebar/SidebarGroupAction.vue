@@ -18,7 +18,7 @@ const props = defineProps<
     :class="
       cn(
         'absolute inset-e-3 inset-bs-3.5 flex aspect-square items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform inline-5 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:shrink-0 [&>svg]:block-4 [&>svg]:inline-4',
-        'after:absolute after:-inset-2 md:after:hidden',
+        'after:absolute after:-inset-2 wide:after:hidden',
         'group-data-[collapsible=icon]:hidden',
         props.class,
       )

@@ -5,7 +5,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet'
 import SheetDescription from '@/components/ui/sheet/SheetDescription.vue'
 import SheetHeader from '@/components/ui/sheet/SheetHeader.vue'
 import SheetTitle from '@/components/ui/sheet/SheetTitle.vue'
-import { SIDEBAR_WIDTH_MOBILE, useSidebar } from './utils'
+import { SIDEBAR_WIDTH_SHEET, useSidebar } from './utils'
 
 const props = withDefaults(defineProps<SidebarProps>(), {
   side: 'left',
@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<SidebarProps>(), {
 
 defineOptions({ inheritAttrs: false })
 
-const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+const { isNarrow, state, openSheet, setOpenSheet } = useSidebar()
 </script>
 
 <template>
@@ -33,23 +33,27 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
     <slot />
   </div>
 
+  <!--
+    Narrow layout: the sidebar is an overlay sheet. The wide branch below is gated by the
+    `wide:` variant, which is the same query `isNarrow` negates, so the two never overlap.
+  -->
   <Sheet
-    v-else-if="isMobile"
-    :open="openMobile"
+    v-else-if="isNarrow"
+    :open="openSheet"
     v-bind="$attrs"
-    @update:open="setOpenMobile"
+    @update:open="setOpenSheet"
   >
     <SheetContent
       data-sidebar="sidebar"
       data-slot="sidebar"
-      data-mobile="true"
+      data-narrow="true"
       :side="side"
       class="bg-sidebar p-0 text-sidebar-foreground inline-(--sidebar-width) [&>button]:hidden"
-      :style="{ '--sidebar-width': SIDEBAR_WIDTH_MOBILE }"
+      :style="{ '--sidebar-width': SIDEBAR_WIDTH_SHEET }"
     >
       <SheetHeader class="sr-only">
         <SheetTitle>Sidebar</SheetTitle>
-        <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+        <SheetDescription>Displays the sidebar as a sheet.</SheetDescription>
       </SheetHeader>
       <div class="flex flex-col block-full inline-full">
         <slot />
@@ -59,14 +63,14 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
   <div
     v-else
-    class="group peer hidden text-sidebar-foreground md:block"
+    class="group peer hidden text-sidebar-foreground wide:block"
     data-slot="sidebar"
     :data-state="state"
     :data-collapsible="state === 'collapsed' ? collapsible : ''"
     :data-variant="variant"
     :data-side="side"
   >
-    <!-- This is what handles the sidebar gap on desktop  -->
+    <!-- The gap the fixed wide bar occupies; the narrow layout has no gap. -->
     <div
       :class="
         cn(
@@ -82,7 +86,7 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
     <div
       :class="
         cn(
-          'fixed inset-y-0 z-10 hidden transition-[left,right,width] duration-200 ease-linear block-svh inline-(--sidebar-width) md:flex',
+          'fixed inset-y-0 z-10 hidden transition-[left,right,width] duration-200 ease-linear block-svh inline-(--sidebar-width) wide:flex',
           side === 'left'
             ? 'inset-s-0 group-data-[collapsible=offcanvas]:-inset-s-(--sidebar-width)'
             : 'inset-e-0 group-data-[collapsible=offcanvas]:-inset-e-(--sidebar-width)',

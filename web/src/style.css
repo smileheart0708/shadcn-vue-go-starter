@@ -41,6 +41,20 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * AppShell wide/narrow split: wide means 840px and up, narrow is everything
+ * below it, emitted as `(min-width: 840px)`. Keep in sync with
+ * `src/lib/layout/breakpoints.ts`;
+ * `breakpoints.spec.ts` fails on drift, and the runtime check negates this same
+ * query instead of adding a `(max-width: 839px)` mirror, which would leave a
+ * sub-pixel gap where neither the fixed bar nor the sheet renders.
+ * `wide:` covers the AppShell and the wide-only behaviour of the sidebar
+ * primitives; `sm:`/`md:`/`lg:` stay for component-level density inside a page.
+ */
+@theme {
+  --breakpoint-wide: 840px;
+}
+
 :root {
   --radius: 0.625rem;
   --header-height: 3rem;

@@ -9,6 +9,7 @@ import {
 } from 'vue'
 import { z } from 'zod'
 import { parseExternalValueOrDefault } from '@/lib/external-input'
+import { WIDE_LAYOUT_MEDIA_QUERY } from '@/lib/layout/breakpoints'
 import { SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME } from './utils'
 
 export interface SidebarControllerProps {
@@ -20,9 +21,12 @@ export interface SidebarController {
   state: ComputedRef<'expanded' | 'collapsed'>
   open: Ref<boolean>
   setOpen: (value: boolean) => void
-  isMobile: Ref<boolean>
-  openMobile: Ref<boolean>
-  setOpenMobile: (value: boolean) => void
+  /** True at 840px and up: the sidebar is a fixed bar. */
+  isWide: Ref<boolean>
+  /** True below 840px: the sidebar is a sheet. The exact negation of `isWide`. */
+  isNarrow: Ref<boolean>
+  openSheet: Ref<boolean>
+  setOpenSheet: (value: boolean) => void
   toggleSidebar: () => void
 }
 
@@ -34,8 +38,13 @@ export function useSidebarController(
   props: SidebarControllerProps,
   emitUpdateOpen: (value: boolean) => void,
 ): SidebarController {
-  const isMobile = useMediaQuery('(max-width: 768px)')
-  const openMobile = ref(false)
+  // Wide is exactly the query the `wide:` variant uses; narrow is its negation, so no
+  // viewport width — including a fractional one produced by browser zoom — can fall
+  // between the fixed bar and the sheet. A second `(max-width: …)` threshold is the
+  // bug this shape exists to prevent.
+  const isWide = useMediaQuery(WIDE_LAYOUT_MEDIA_QUERY)
+  const isNarrow = computed(() => !isWide.value)
+  const openSheet = ref(false)
   const uncontrolledOpen = ref(readStoredSidebarOpen())
   const instance = getCurrentInstance()
   // Vue normalizes omitted Boolean props, so we read vnode props once here to
@@ -83,13 +92,13 @@ export function useSidebarController(
     open.value = value
   }
 
-  function setOpenMobile(value: boolean) {
-    openMobile.value = value
+  function setOpenSheet(value: boolean) {
+    openSheet.value = value
   }
 
   function toggleSidebar() {
-    if (isMobile.value) {
-      setOpenMobile(!openMobile.value)
+    if (isNarrow.value) {
+      setOpenSheet(!openSheet.value)
       return
     }
 
@@ -102,9 +111,10 @@ export function useSidebarController(
     state,
     open,
     setOpen,
-    isMobile,
-    openMobile,
-    setOpenMobile,
+    isWide,
+    isNarrow,
+    openSheet,
+    setOpenSheet,
     toggleSidebar,
   }
 }

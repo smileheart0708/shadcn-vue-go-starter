@@ -17,7 +17,7 @@ const props = withDefaults(
 
 defineOptions({ inheritAttrs: false })
 
-const { isMobile, state } = useSidebar()
+const { isNarrow, state } = useSidebar()
 
 const delegatedProps = reactiveOmit(props, 'tooltip')
 </script>
@@ -39,7 +39,7 @@ const delegatedProps = reactiveOmit(props, 'tooltip')
     <TooltipContent
       side="right"
       align="center"
-      :hidden="state !== 'collapsed' || isMobile"
+      :hidden="state !== 'collapsed' || isNarrow"
     >
       <template v-if="typeof tooltip === 'string'">
         {{ tooltip }}

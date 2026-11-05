@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo",
+    // Specs may read project files from disk (`lib/layout/breakpoints.spec.ts`
+    // parses `style.css`). Node globals stay out of `tsconfig.app.json` so
+    // `process`/`Buffer` cannot silently typecheck inside browser code.
+    "types": ["vite/client", "node"]
+  },
+  "include": ["src/**/*.d.ts", "src/**/*.spec.ts"],
+  "exclude": []
+}

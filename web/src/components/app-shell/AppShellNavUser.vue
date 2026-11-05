@@ -52,7 +52,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ logout: [] }>()
 
-const { isMobile } = useSidebar()
+const { isWide } = useSidebar()
 const { t } = useI18n()
 const localeStore = useLocaleStore()
 const roleLabel = computed(() => getUserRoleLabel(t, props.user.role))
@@ -104,7 +104,7 @@ function switchLanguage(newLocale: unknown) {
         </DropdownMenuTrigger>
         <DropdownMenuContent
           class="rounded-lg inline-(--reka-dropdown-menu-trigger-width) min-inline-56"
-          :side="isMobile ? 'bottom' : 'right'"
+          :side="isWide ? 'right' : 'bottom'"
           :side-offset="4"
           align="end"
         >
