@@ -1,99 +1,158 @@
 # AGENTS.md
 
-This project is a **starting template for new business systems**: it retains only correct, clearly structured final forms, and does not keep compatibility layers, deprecated aliases, dual code paths, or wrappers that serve an outdated structure. When changing the architecture, change it directly to the target state; do not "add compatibility first and migrate later."
+仓库级 AI 协作约定。只记录从代码里不能立刻推断、踩错会浪费一轮构建或破坏契约的事实；通用工程规范不重复。
 
-## Technology Stack and Entry Points
+## 1. 技术栈与运行形态
 
-- Go 1.27 + `net/http` + `log/slog` + `github.com/uptrace/bun` with `modernc.org/sqlite` (pure Go, no CGO) or PostgreSQL through `pgx` + `pgdialect`. The module path is intentionally `main`, and internal packages uniformly use `main/internal/...`; do not change it to a domain-based path.
-- Vue 3 + TypeScript + Vite 8 + Tailwind 4 + shadcn-vue (reka-ui) + Pinia + vue-router + vue-i18n + zod + ky.
-- Production is a single binary: `frontend_embed.go` embeds the frontend via `//go:embed web/dist`; `main.go` is responsible only for dependency assembly and process lifecycle.
+- 单仓库全栈：Go 1.27（module 名为 `main`）+ Vue 3.5 / Vite 8 / pnpm 11；命令示例使用 PowerShell。
+- 生产形态是单二进制：`frontend_embed.go` 通过 `//go:embed web/dist` 嵌入前端，`main.go` 启动 HTTP 服务并托管 SPA。
+- 仓库没有 CI 配置，本地命令就是唯一门禁。
+- 运行时数据在 `.data/`；SQLite 固定使用 `.data/data.db`，PostgreSQL 连接信息保存在 `.data/database.json`。
+- 不提交 `.env`、`.data/`、`web/dist`、`*.exe`；`web/dist` 是构建产物，不要手改。
 
-## Commands
+## 2. 构建顺序：先前端，后 Go
+
+`web/dist` 被 `//go:embed` 引用，目录不存在时根目录的 `go build` 和 `go test` 会直接失败。全新克隆先执行：
 
 ```powershell
-# Frontend
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm format
+cd web
+pnpm install --frozen-lockfile
 pnpm build
-
-# Backend
-go generate ./internal/contractgen     # regenerate both frontend contract modules
+cd ..
 go test ./...
-golangci-lint run
 go build .
 ```
 
-- Adding or renaming a capability, role, user status or managed user action requires `go generate ./internal/contractgen` before the checks above; `internal/contractgen` compares both committed modules byte for byte in `go test ./...`. The generated files are committed on purpose so `cd web && pnpm build` never needs a Go toolchain.
+- `.\build.ps1` 已封装正确顺序：前端构建 -> `go mod tidy` -> `go build`，产物为 `app.exe`。
+- 只改 Go 且 `web/dist` 已存在时，可只跑 Go 命令；改前端或契约后必须先 `pnpm build` 再构建 Go。
+- Vite 会生成 `.gz` 旁路文件，`internal/httpapi/spa.go` 按 `Accept-Encoding` 提供预压缩版本；不要删除或绕开这段逻辑。
 
-- Compiling the root package includes `//go:embed web/dist`, while `web/dist` is gitignored. **A freshly cloned repository must run `cd web && pnpm build` first**; otherwise `go build` / `go test ./...` fails immediately due to the embed directive.
-- `pnpm dev` starts Vite only, with `/api` proxied to `http://localhost:8080`. To exercise real API endpoints, run `go run .` in a separate terminal.
-- Frontend tests run on Vitest (`pnpm test`, `environment: 'jsdom'`) and are **limited to pure logic and state machines** — currently `lib/polling`, pure helpers under `lib/api`, `composables/<domain>/`, and `utils/`. There is no component-testing setup: views and composables are still verified by `lint + typecheck + build`, and locales/error codes by Go tests (`internal/httpapi/locales_test.go`, `error_codes_test.go`).
-- The repository has no CI or pre-commit hooks. Before considering work complete, the following must be run manually in order: `pnpm lint` → `pnpm typecheck` → `pnpm test` → `pnpm build` → `go test ./...` (build runs first to ensure the artifacts required by the embed directive are present).
+## 3. 契约与生成代码
 
-## Layering and Boundaries
+Go 是契约的唯一事实来源，前端生成文件禁止手改：
 
-### Backend
+- `internal/authorization/capability.go`：`capabilityOrder`
+- `internal/identity/role.go`：`roleOrder`
+- `internal/identity/service.go`：`statusOrder`
+- `internal/identity/management.go`：`managedUserActionOrder`
 
-- `main.go` only assembles dependencies and starts or gracefully shuts down the server; business logic never belongs there.
-- `internal/<domain>/service.go` defines both the `Service` and the `Repository` interface. The Service is responsible for validation, orchestration, and domain errors; **transaction boundaries belong to the Repository implementation** (`internal/database/store`, via `(*bun.DB).RunInTx`). Do not assemble transactions across repositories inside a service.
-- `internal/database` has four parts: `dialect` (the `Driver` interface plus one adapter per database: DSN handling, pragmas/pool, error decoding, setup-target validation, migration filesystem), `migrate` (the checksum ledger runner), `store` (bun row models plus one file per domain repository), and the selection layer (`selection.go` stores an external database choice in `database.json`; `default_sqlite.go` derives and adopts the implicit `.data/data.db`). `runtime.go` is the database composition root: `Open` selects a dialect, opens it, runs migrations and exposes a `*store.Store`; `OpenForSetup` additionally rejects non-empty or already-completed targets. This package must never import a domain package.
-- `internal/installation` is the application-level setup coordinator: it owns the candidate database, completes the owner transaction, and publishes the full runtime. It persists `database.json` only for PostgreSQL; SQLite is derived from the data directory and needs no selection file. `main.go` only wires it; handlers do not decide when a database becomes available.
-- `dialect.Driver` is the only place allowed to know database-specific SQL. Repositories must not contain dialect-specific SQL; case-insensitive matching goes through `CaseInsensitiveEqual`/`CaseInsensitiveLike`, constraint decoding through `UniqueViolation`, and setup target checks through `ValidateSetupTarget`. `store`, `migrate` and the domain packages stay dialect neutral.
-- `internal/httpapi` is strictly the transport layer: `decodeJSON` → call the service → `writeSuccessJSON` / `writeError`. State checks, authorization rules, and business branches must not be written into handlers. When no database is configured, `NewBootstrapAPIHandler` serves only setup, health and a safe public config; `Dispatcher` swaps in the full API atomically after setup.
-- New routes are registered centrally in `internal/httpapi/server.go`, with the middleware order fixed as `RequireSetupCompleted → RequireAuth → RequireCapability`; `http.ServeMux` uses the `"METHOD /path"` pattern. Setup routes live in the bootstrap mux and the install handlers of the full mux.
-- The integration path for a new domain is: `internal/<domain>` → `internal/database/store/<domain>.go` (row models in `models.go`) → construction from `database.Runtime.Store` in `main.go` → `HandlerOptions` → route.
-- `internal/httpapi` must not own file storage. Directory layout, allowed types, the size ceiling and path safety belong to the package that owns the stored file — currently `internal/avatar`, injected through `HandlerOptions`. The handler keeps only the transport half: multipart parsing, body limits, and serving an already validated path (that is why `http.ServeFile` may appear in `httpapi`).
-- `internal/authorization` is a business-free permission model split by concern: `capability.go` (the capability catalog and its declaration order), `policy.go` (the role → capability matrix), `service.go` (pure resolution). **Never add `CanManageXxx`-style object-level rules there**; the package must stay reusable across projects.
-- Object-level rules belong to the domain that owns the object and only encode relationships: `internal/identity/management.go` answers "may this actor act on this target" from role ranks (`internal/identity/role.go`), never from role names. Whether the actor may perform that class of action is `RequireCapability`'s job; the two checks must stay disjoint.
-- Adding a role takes two backend edits: one entry in `identity.roleOrder` (its rank) and one entry in `authorization.roleCapabilities` (its grants). A third backend place means the two layers have started duplicating each other. The frontend role enum, the `RoleKey` type and the `ROLE_KEY` handles are generated from `roleOrder` — never hand-write them, and always run `go generate ./internal/contractgen`; a role that is declared but not regenerated makes `/api/auth/me` fail zod parsing and silently logs the role out. What a new role still needs by hand is the label switch (`web/src/lib/auth/roles.ts`), `common.role.*` in both locales, and `ROLE_CAPABILITIES` in the dev mock (its `satisfies Record<RoleKey, …>` catches that one). A user status or managed user action is mirrored the same way — one constant plus one entry in `identity.statusOrder` / `identity.managedUserActionOrder`, then regenerate — but the catalog is not the rule. `normalizeStatus` reads `statusOrder`, so an entry there lets the service accept the value and the frontend see it at once (whether the status offers a toggle is still a branch in `ManagedUserActions`); an action additionally needs its `CanManageUser` case and its `ManagedUserActions` branch. Go cannot reflect constants, so a constant left out of a catalog fails closed at runtime (the service rejects the value). The dangerous direction is the opposite one: `catalog_test.go` fails when `ManagedUserActions` offers an action the catalog does not declare, because that value reaches `/api/management/users` and breaks zod parsing.
+约定：
 
-### Frontend
+- 每个 `*Order` 切片必须与同文件 const 块同步。Go 不能反射 const，漏加一项仍可编译、测试也可能通过，但前端永远收不到该值。
+- 新值追加到末尾，不要重排；生成枚举的顺序就是切片顺序，重排会产生无法审查的 diff。
+- `roleOrder` 必须从高到低声明并保留 rank 间隔；`IsHighestRole` 依赖首项，新增角色时不要重排现有 rank。
+- 修改后执行 `go generate ./internal/contractgen`，产物为：
+  - `web/src/lib/auth/capabilities.generated.ts`
+  - `web/src/lib/api/contract.generated.ts`
+- `internal/contractgen/main_test.go` 会逐字节比对；未重新生成会让 `go test ./...` 失败。
+- `Roles()`、`Statuses()`、`AllManagedUserActions()` 看似没有生产调用，但生成器和契约测试依赖，勿当死代码删除。
+- 只有 capability/role 生成命名句柄；status/action 直接使用生成的字面量类型，不要手写字符串，也不要补一套句柄常量。
 
-- The data flow is fixed: `views/` page composition → `composables/<domain>/` state and asynchronous flows → `lib/api/<domain>.ts` (ky requests + zod parsing) → backend. `utils/<domain>/` contains pure functions only.
-- `lib/api/client.ts` is the only ky entry point: use `baseApi` for ordinary requests and `authApi` for requests that require an access token. Single-flight 401 refresh and session-invalidation handling live here; business layers must not implement retries or token logic.
-- Every API response must be validated with zod (`successEnvelopeSchema`); ESLint forbids `as` type assertions (except `as const`). Values from external inputs such as `localStorage` must be funneled through `parseExternalValue*` in `lib/external-input.ts`.
-- Session state belongs only in `stores/auth.ts`; page-local state stays in the corresponding composable. The setup wizard is `composables/setup/useSetupWizard.ts`: step order and components live only in `setupSteps.ts`, while each step component receives the typed `SetupWizard` controller. Adding a step means one registry entry plus a component and one explicit controller transition. Do not reintroduce index-based `currentStep === 1` branches.
-- Setup does not auto-login on the backend. `POST /api/install/setup` only persists the selection and completes the owner; the frontend then calls the normal login API. A failed auto-login must still show Done and offer manual sign-in.
-- `components/ui/**` holds the base primitives. They started as shadcn-vue CLI output and are now maintained locally: changing classes and the variant set is expected and normal, but primitives must stay business-free (no store, router or API imports). `components.json` is deliberately removed — upstream sync is not a goal, so `shadcn-vue add` must not be reintroduced; write a new primitive in the same shape as its neighbours instead. Project-owned components belong in `components/<domain>/`.
+## 4. HTTP、认证与安装流程
 
-## Contracts That Must Change Together
+- 路由集中在 `internal/httpapi/server.go` 的 `newAPIMux`。受保护业务路由按 `RequireSetupCompleted -> RequireAuth -> RequireCapability` 的顺序挂中间件；前端路由守卫不是安全边界。
+- setup 前后都必须可用的路由加到 `registerSharedRoutes`，不要在 bootstrap 和完整 mux 各注册一份。
+- `Dispatcher` 在安装完成前提供 SPA + bootstrap API，完成后 `Publish` 完整 API；不要绕开它直接挂 `http.Server`。
+- JSON 使用 Go 1.27 的 `encoding/json/v2`（别名 `jsonv2`）。HTTP 层统一走 `decodeJSON`（1 MiB 上限、拒绝未知字段、只接受单个 JSON 值）与 `writeSuccessJSON` / `writeError` / `writeDomainError`；不要直接 `json.Unmarshal` 或手写响应包络。
+- 响应格式固定：成功 `{success:true,data}`，失败 `{success:false,error:{code,message}}`；handler 不把领域错误原文返回给客户端。
+- 新增错误码只在“需要不同文案或不同后续动作”时添加；技术性失败统一 `internal_error`，细节写日志。
+- 全局 `WriteTimeout` 是 30s；SSE 路由必须用 `http.ResponseController` 按请求清除写超时，参考 `internal/httpapi/system_logs.go`。
+- JWT 签名密钥以数据库为准；`JWT_SECRET` 只是首次种子（≥32 字符）。不要新增写密钥文件，也不要记录 DSN、密码或令牌。
 
-- Response envelope: success is `{success:true,data}`, failure is `{success:false,error:{code,message}}`.
-- The envelope codec is `encoding/json/v2` (`internal/httpapi/json.go`), not `encoding/json`: a request body is rejected when it carries an unknown member, a duplicate member name or invalid UTF-8, member names match case-sensitively (a differently-cased member counts as unknown), and the body must hold exactly one JSON value. The envelope written by `writeJSON` encodes a nil slice as `[]` and does not HTML-escape strings. Do not move it back to v1 without accepting silent last-value-wins duplicate keys.
-- Adding or removing an error code requires changes in four places simultaneously: `internal/httpapi/error_codes.go`, `apiError.*` in `web/src/locales/zh-CN.json`, `en-US.json`, and `web/src/lib/api/error-messages.ts` (`satisfies` enforces this). A missing change fails `error_codes_test.go` or `pnpm typecheck`.
-- New domain errors resolve through `domainErrorMappings` in `error_codes.go` (`writeDomainError`, matched with `errors.Is`), never through a fresh `switch` in a handler. Two documented exceptions stay out of the table because the same error needs a different code by context: session invalidation (`auth_handlers.go`) and the own-account endpoints (`writeOwnAccountError`, where a missing row means a dead session rather than a 404).
-- i18n: `zh-CN.json` is the sole source of `MessageSchema`; all user-visible copy must be added to both locale files. ESLint forbids runtime key construction—keys must either be written as `t('literal')` or narrowed through an exhaustive `switch`; otherwise the key is treated as unused.
-- Capabilities have exactly one source: `internal/authorization/capability.go` (catalog + `roleCapabilities` in `policy.go`). The frontend module `web/src/lib/auth/capabilities.generated.ts` (schema, `Capability` type, `CAPABILITY` handles) is generated from it — never edit it by hand, and never reintroduce a hand-written capability list. Adding a capability is: declare it, grant it in the matrix or add it to `expectedPolicyDerived` in `capability_test.go`, run `go generate ./internal/contractgen`. `internal/contractgen/main_test.go` fails on drift, `capability_test.go` fails on a capability that is declared but unreachable or granted but undeclared. **The server-side `RequireCapability` is the actual authorization boundary**; the frontend `hasCapability` / `hasAllCapabilities` (`lib/auth/authorize.ts`) is the single frontend decision point, responsible only for route interception and hiding entry points.
-- Authentication: the access token is held in memory only (`lib/auth/token.ts`), and the refresh token is stored in an `HttpOnly` cookie; never write the access token to `localStorage` or `sessionStorage`.
-- Database migrations: `internal/database/dialect/<dialect>/migrations/NNNN_name.sql` are append-only and belong to their dialect. Applied migrations carry a SHA-256 checksum in `schema_migrations`; changing a single byte or dropping a file that the ledger already records prevents startup, so fix forward with a new file. A migration that adds a table must also add it to `dialect.setupTables`; `TestMigrationTablesMatchSetupSchema` fails otherwise, because startup classifies an unrecognized table as a foreign database.
-- Setup contract: `GET /api/install/state` returns `phase` (`database_required`, `finalization_required`, `completed`), the chosen driver and owner metadata; it never returns a DSN. `POST /api/install/setup` accepts credentials plus an optional structured `database`; omit it only when resuming a saved selection. PostgreSQL targets must be empty (or this application's incomplete schema) and are validated and migrated before the owner transaction.
-- Tests: HTTP-related tests use `newTestContext` (`internal/httpapi/server_test.go`) to set up a real SQLite database, the installation coordinator and `httptest`; do not introduce mock repositories or an in-memory database.
+## 5. 错误码与 i18n 联动
 
-## Adding a Database Dialect
+新增或删除错误码时，以下位置一起改：
 
-1. Create `internal/database/dialect/<dialect>/` with a `Driver` implementing `dialect.Driver`: `Open` (DSN validation, pool, settings verification), `ValidateSetupTarget`, `Migrations`, `BunDialect`, `UniqueViolation`, `CaseInsensitiveEqual`, `CaseInsensitiveLike`.
-2. Add `internal/database/dialect/<dialect>/migrations/NNNN_name.sql` holding the full schema for that database, plus a `migrations.go` embed holder. Table and column names must match the row models in `internal/database/store/models.go`.
-3. Add one case to `selectDriver` in `internal/database/runtime.go` and expose the driver through `installation.DatabaseInput`. There is no database environment variable; setup is the only runtime configuration entry. Also extend `web/src/lib/api/setup.ts` (`databaseDriverSchema`, the PostgreSQL SSL modes) and both locales: `/api/install/state` is zod-validated during app startup, so a driver the frontend schema does not know rejects every navigation.
-4. Verify with `go test ./internal/database/...`, the installation tests, and a real instance of the dialect before trusting the migration and constraint mapping. Add the new migrations to `TestMigrationTablesMatchSetupSchema` so every dialect is proven to expose the same table set.
+1. `internal/httpapi/error_codes.go`：常量 + `errorDefinitions`。
+2. `web/src/locales/zh-CN.json` 和 `en-US.json` 的 `apiError.<code>`。
+3. `web/src/lib/api/error-messages.ts`：加一行字面量 `t('apiError.<code>')`。
+4. 检查调用方是否需要专属 fallback 文案。
 
-## Known Pitfalls
+- `TestErrorCodesMatchFrontendLocale` 锁定 Go 注册表与两个语言包；`satisfies Record<ApiErrorCode, ...>` 锁定 TypeScript 端完整性。
+- `zh-CN.json` 是 `MessageSchema` 的来源，不要加 `as const`；英文包缺键由类型标注和 ESLint 共同拦截。
+- i18n 是硬约束：禁止运行期拼键；数据驱动取键只能写成穷尽 `switch` 或内联到定义处；所有 `t()` 必须使用字面量 key。否则 `no-unused-keys` 看不到键，键会被误删，运行时静默显示原始 key。
+- 两个语言包同名 key 的 `{placeholder}` 集合必须一致（Go 测试 `TestLocalePlaceholdersMatch`）。
+- 错误提示默认用 `resolveErrorMessageOrInternal(t, error)`；调用方有专属文案时用 `resolveAPIErrorMessage(t, error) ?? t('...')`，不要让通用 `internal_error` 覆盖场景文案。
 
-- `ColumnExpr` on a bun select **replaces** the default column list instead of extending it. A listing that adds a computed column must also spell out the row columns (see `userColumns` in `internal/database/store/identity.go`), otherwise the model scans zeros with no error.
-- bun does not fill `autoincrement` primary keys automatically when the dialect supports `RETURNING` (SQLite and PostgreSQL do). Inserts that need the generated id must call `.Returning("id")`.
-- `.data/data.db` is the implicit SQLite store: with no selection file, startup adopts it when it holds this application's schema, treats a missing or empty file as unconfigured, and fails on a database this application did not create. `.data/database.json` is written only for PostgreSQL and stores its DSN (owner-only permissions, never logged or returned); keep it with the deployment because setup only accepts an empty or incomplete target, so a completed PostgreSQL installation cannot be re-attached through `/setup`; losing the file means restoring it from a backup or recreating it by hand from the known DSN. When a migration file changes, the checksum guard makes startup fail: delete the local database instead of disabling the guard.
-- The JWT signing secret lives in the `auth_secrets` singleton row. `auth.ResolveJWTSecret` resolves the database value first, then `JWT_SECRET` as a one-time seed (minimum 32 characters) when the row is missing, then a generated 64-byte random secret; the result is persisted before use. Do not reintroduce a secret file, and replacing the stored value invalidates every session.
-- The startup order in `main.ts` must not change: mock → pinia → `authStore.bindRouter()` → `authStore.initialize()` → `app.use(router)`. Mounting the router earlier causes the initial route guard to read session state before it is ready.
-- `VITE_API_MOCKING=true` takes effect only in dev and directly injects a mock owner session (`mocks/dev-session.ts`), bypassing the login and guest flows; unmatched API requests `bypass` to the real backend, so the Go server must still be running.
-- The SSE log stream depends on `http.ResponseController` and `statusRecorder.Unwrap()`. Any new `ResponseWriter` wrapper must implement `Unwrap`; otherwise streaming endpoints fail silently.
-- `.data/` stores `data.db` (SQLite) and an optional `database.json` (PostgreSQL only); deleting the directory invalidates all sessions and the installation. For an SQLite backup, copy `data.db` with `-wal`/`-shm` or stop the process first (WAL holds recent commits); `database.json` only matters for PostgreSQL. `.env`, `.data/`, `web/dist`, and `*.exe` are not tracked.
-- `web/src/lib/auth/capabilities.generated.ts` and `web/src/lib/api/contract.generated.ts` are listed in `web/.prettierignore` on purpose: the drift test compares bytes, so letting Prettier reformat them would make "generate → format → test" fail in a loop. Do not move them back into the formatted set without switching that test to semantic comparison.
-- `account.delete_self` is checked inside `deleteAccountHandler`, not via middleware, because it is derived from `account_policies` per request and must return `CodeAccountDeleteForbidden`; see the comment on that branch before "unifying" it.
-- For non-obvious pitfalls (framework behavior, protocol boundaries, concurrency/timeouts, third-party quirks), write a one-line comment explaining **why** next to the code that triggers it, including when it can be removed; do not pile this knowledge into this file. Do not delete existing pitfall comments.
+## 6. 数据库与迁移
 
-## Definition of Done
+- 迁移文件位于 `internal/database/dialect/sqlite/migrations/` 和 `internal/database/dialect/postgresql/migrations/`，命名 `<version>_<name>.sql`。
+- 每种方言都要提供对应 SQL；加表、列或索引时两个目录一起改，并保持语义一致。
+- 已发布的迁移逐字节不可变：启动时校验 SHA-256，改内容、改名、删文件都会让启动失败。
+- 新迁移版本号递增，不要复用或跳回旧号；每个迁移在独立事务中执行。
+- 本地需要重新跑迁移时，删除 `.data/data.db` 后重新走 `/setup`；PostgreSQL 部署必须保留 `.data/database.json`，一旦丢失，`/setup` 不会接管已完成的安装。
+- 数据库写入边界在 `internal/database` 的仓储层；`internal/installation` 负责首次安装和候选数据库生命周期。领域服务不要自行编排多写事务。
 
-- The minimum closed loop for a new business capability: domain service + repository → store implementation + row model → dialect migration → handler + route → capability/role/enum catalog + `go generate ./internal/contractgen` → error codes/bilingual locales → frontend api + composable + view + route meta (including capability).
-- Non-trivial logic (branches, parsing, authorization, money, concurrency) requires a small test; purely presentational or copy changes do not.
-- Do not add compatibility branches, `deprecated` aliases, dual-write logic, or configuration for "possible future use"; delete code with no callers outright.
+## 7. 前端结构与状态
+
+- 代码按领域分目录并跨层镜像：`components/<domain>/`、`composables/<domain>/`、`utils/<domain>/`、`lib/<domain>/`。
+- `views/` 只做页面编排；有状态逻辑放 composable；纯函数放 `utils`；无 UI 的基础能力放 `lib`。
+- `stores/` 只放跨路由或需要持久化的状态（auth、locale、theme、polling、system-logs preferences）。列表筛选、分页等页面状态留在 composable，不要复制进 Pinia。
+- `components/ui/` 是 shadcn-vue 风格基础组件：只做原语级修改，不写业务逻辑，不导入 store、router 或业务模块。
+- `@` 别名的唯一来源是 `web/build/alias.ts`；`tsconfig.json` 与 `tsconfig.app.json` 手工镜像，改别名必须三处同步。配置文件中导入它必须带 `.ts` 扩展名（Vite 原生加载器限制）。
+- API 层：`lib/api/*.ts` 使用 ky + zod。认证接口用 `authApi`（401 单飞刷新），公开/安装接口用 `baseApi`；统一 `.json<unknown>()` 后 `schema.parse`，异常交给 `normalizeAPIError(error)`。不要裸用 `fetch`，不要使用 `any`。
+- 成功响应用 `successEnvelopeSchema`；`roleKeySchema`、`userStatusSchema`、`managedUserActionSchema`、`capabilitySchema` 是线上词汇表，不要在业务代码中重复字面量。
+- ESLint 禁止用 `as` 做类型断言（`as const` 除外）和 `any`：外部输入用 zod / `parseExternalValue` 收窄，不要用断言绕过。
+- Vue 组件契约：`defineProps` 用类型声明，`defineEmits` 用类型字面量，自定义事件使用 kebab-case，模板 ref 用 `useTemplateRef`（均为 lint 强制）。
+- 新增路由：`router/index.ts` 配 `titleKey`、`requiresAuth`、`requiredCapabilities`（用 `CAPABILITY` 句柄）、`maskUnauthorizedAsNotFound`；同时补 `route-title.ts` 的穷尽 switch 和两个语言包的 `route.*`。
+- Tailwind 由 `eslint-plugin-better-tailwindcss` 校验未知、冲突、重复、规范写法和顺序，入口是 `src/style.css`；改模板 class 后必须跑 `pnpm lint`。
+- 格式：Prettier 无分号、单引号、LF；`pnpm format:check` 是门禁。
+- MSW 仅开发期生效（`VITE_API_MOCKING=true` 且 `import.meta.env.DEV`），不得进入生产包；mock 只补真实后端不可用的场景，不要用它掩盖契约缺口。
+- 新增语言时同步 `src/locales/index.ts`、`plugins/i18n/locales.ts`、`eslint.config.mjs` 的 `localeMessageFiles` 与 settings。
+
+## 8. 测试：锁定行为，拒绝凑数
+
+- Go 测试是主要契约门禁，命令为 `go test ./...`。
+  - 单包/单用例：`go test ./internal/httpapi -run TestErrorCodesMatchFrontendLocale`
+  - 仓储和安装测试使用临时目录中的真实 SQLite（`t.TempDir()` + `dialect/sqlite` + `migrate`），不要 mock 数据库行为。
+  - 测试普遍使用 `t.Parallel()`，新增测试保持同样风格。
+  - 跨包契约测试（错误码、语言包占位符、生成文件漂移、角色/状态/动作目录）是有意存在的，不要挪走或删除。
+- 前端只测纯逻辑与状态机：`web/src/**/*.spec.ts`，由 `vitest.config.ts` 以 jsdom 运行。
+  - 不引入组件挂载测试、快照测试或 E2E。组件行为优先拆成纯函数/composable 后在 spec 中锁定；接口契约由 Go 测试锁定。
+  - 单文件：`pnpm vitest run src/lib/api/error-messages.spec.ts`
+  - 测试只断言可观察行为（输入 -> 输出、状态迁移、错误码/文案键），不要断言内部调用次数或实现细节。
+- 每个 bug 修复先补一个能复现缺陷的测试，再改实现；修复后删除临时调试测试。
+- 不写重复测试，不为覆盖率写测试，不为类型系统已保证的约束写运行期断言，不写只验证框架行为的测试。
+- 无法运行检查时，在最终回复说明原因和未覆盖风险，不要把“没跑”说成“通过”。
+
+## 9. 代码批注约定
+
+- 只在“看代码猜不到、改错会再踩坑”的位置注释：外部约束、协议/平台怪癖、不可逆操作、安全决策、性能取舍、上游 bug 的 workaround。
+- 注释解释 **why**，不解释 **what**；一行能说清就不写段落。禁止分区横幅、教程式旁白、逐行翻译和 `// 处理数据` 这类空注释。
+- 踩过的坑必须批注在坑所在的代码位置，写清触发条件、失败表现、为什么不能改成“更自然”的写法、何时可以移除；不要只写在提交信息或 PR 描述里。
+- workaround 使用可检索标记：`shortcut: <限制>, <升级/移除条件>`。
+- 行为改变时同步更新注释；过期或误导性注释按缺陷处理。删除被改动路径上的注释代码和废弃注释。
+- 现有解释“为什么”的注释是承重结构（`json.go`、`spa.go`、`contractgen`、`build/alias.ts`、`vitest.config.ts` 等），重构前先理解，不要顺手删除。
+
+## 10. 验证清单
+
+前端改动：
+
+```powershell
+cd web
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm format:check
+pnpm build
+```
+
+Go 改动（在仓库根目录）：
+
+```powershell
+gofmt -w <改动的 .go 文件>
+go vet ./...
+go test ./...
+go build .
+```
+
+契约或迁移改动额外执行：
+
+```powershell
+go generate ./internal/contractgen
+go test ./internal/contractgen ./internal/httpapi ./internal/database/...
+```
+
+- 仓库未配置 golangci-lint，不要自行引入或大改 Go lint 规则。
+- 前端类型检查是 `vue-tsc --build`，包含 spec 的 `tsconfig.vitest.json`；不要只跑 `tsc`。
+- 新增依赖：前端在 `web/` 用 `pnpm add` 并提交 `pnpm-lock.yaml`；Go 在根目录用 `go get` / `go mod tidy`。不要手改 lockfile。
