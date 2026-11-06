@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import DangerZoneCard from '@/components/settings/DangerZoneCard.vue'
-import PasswordSettingsCard from '@/components/settings/PasswordSettingsCard.vue'
-import ProfileSettingsCard from '@/components/settings/ProfileSettingsCard.vue'
+import DangerZoneSection from '@/components/settings/DangerZoneSection.vue'
+import PasswordSettingsSection from '@/components/settings/PasswordSettingsSection.vue'
+import ProfileSettingsSection from '@/components/settings/ProfileSettingsSection.vue'
 </script>
 
 <template>
-  <ProfileSettingsCard />
-  <PasswordSettingsCard />
-  <DangerZoneCard />
+  <ProfileSettingsSection />
+  <PasswordSettingsSection />
+  <DangerZoneSection />
 </template>

@@ -34,9 +34,6 @@ export function useProfileSettings() {
   const currentRoleKey = computed(
     () => authStore.viewer?.authorization.role ?? null,
   )
-  const avatarFallbackText = computed(() =>
-    getAvatarFallbackText(currentIdentity.value?.username),
-  )
   const avatarImageSrc = computed(
     () => currentIdentity.value?.avatarUrl ?? null,
   )
@@ -143,7 +140,6 @@ export function useProfileSettings() {
 
   return {
     currentIdentity,
-    avatarFallbackText,
     avatarImageSrc,
     editDialogOpen,
     editForm,

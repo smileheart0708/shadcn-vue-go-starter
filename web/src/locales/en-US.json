@@ -8,8 +8,7 @@
     "action": {
       "back": "Back",
       "cancel": "Cancel",
-      "edit": "Edit",
-      "save": "Save"
+      "edit": "Edit"
     },
     "field": {
       "email": "Email",
@@ -81,16 +80,15 @@
   "systemConfig": {
     "title": "System Configuration",
     "description": "Manage account policies.",
-    "cardTitle": "Account Policies",
-    "cardDescription": "Changes take effect immediately.",
+    "groupTitle": "Account Policies",
     "fields": {
       "publicRegistrationEnabled": {
         "title": "Allow public registration",
-        "description": "When enabled, new users can sign up by themselves."
+        "description": "When enabled, visitors can create their own account."
       },
       "selfServiceAccountDeletionEnabled": {
-        "title": "Allow self-service account deletion",
-        "description": "When enabled, regular users can delete their own account. Owners can never self-delete."
+        "title": "Allow users to delete their own account",
+        "description": "When enabled, users can delete their own account. Owner accounts are protected and can never be self-deleted."
       }
     },
     "actions": {
@@ -99,7 +97,6 @@
     "feedback": {
       "loadFailedTitle": "Failed to load account policies",
       "loadFailed": "Refresh this page to try again.",
-      "saving": "Saving account policies...",
       "saved": "Account policies saved.",
       "saveFailed": "Failed to save account policies."
     }
@@ -113,7 +110,6 @@
     },
     "account": {
       "profile": "Profile Information",
-      "profileDesc": "Update your personal information",
       "profileUpdated": "Profile updated.",
       "saveProfile": "Save Profile",
       "savingProfile": "Saving...",
@@ -133,7 +129,6 @@
       "editProfileDesc": "Update your account information",
       "statusActive": "Active",
       "password": "Password",
-      "passwordDesc": "Change your password",
       "currentPassword": "Current Password",
       "currentPasswordPlaceholder": "Enter current password",
       "newPassword": "New Password",
@@ -145,20 +140,19 @@
       "updatingPassword": "Updating...",
       "updatePassword": "Update Password",
       "dangerZone": "Danger Zone",
-      "dangerZoneDesc": "Irreversible actions for your account",
       "dangerZoneConfirm": "I understand this action is permanent",
       "deleteAccount": "Delete Account",
       "deleteAccountConfirm": "This action cannot be undone. All your data will be permanently deleted.",
       "deleteAccountSuccess": "Account deleted."
     },
     "basic": {
+      "appearance": "Appearance",
       "theme": "Theme",
-      "themeDesc": "Choose how the application looks",
-      "colorTheme": "Color Theme",
       "language": "Language",
       "selectLanguage": "Select language",
-      "dataRefreshInterval": "Data Refresh Interval",
-      "dataRefreshIntervalDesc": "Auto refresh interval {seconds} seconds"
+      "dataRefresh": "Data Refresh",
+      "dataRefreshInterval": "Interval",
+      "dataRefreshIntervalDesc": "Auto refresh every {seconds} seconds"
     }
   },
   "setup": {

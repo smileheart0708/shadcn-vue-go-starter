@@ -9,7 +9,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
+  <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
     <PageHeader
       :title="t('settings.title')"
       :description="t('settings.description')"
@@ -17,9 +17,9 @@ const { t } = useI18n()
 
     <Tabs
       default-value="basic"
-      class="space-y-4"
+      class="flex flex-col gap-6"
     >
-      <TabsList>
+      <TabsList class="self-start">
         <TabsTrigger value="basic">{{ t('settings.tabs.basic') }}</TabsTrigger>
         <TabsTrigger value="account">{{
           t('settings.tabs.account')
@@ -28,14 +28,14 @@ const { t } = useI18n()
 
       <TabsContent
         value="basic"
-        class="space-y-4"
+        class="space-y-8"
       >
         <BasicSettingsTab />
       </TabsContent>
 
       <TabsContent
         value="account"
-        class="space-y-4"
+        class="space-y-8"
       >
         <AccountSettingsTab />
       </TabsContent>

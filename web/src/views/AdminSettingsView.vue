@@ -5,13 +5,6 @@ import { CircleAlert } from '@lucide/vue'
 import PageHeader from '@/components/app/PageHeader.vue'
 import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import {
   Empty,
   EmptyContent,
   EmptyHeader,
@@ -19,8 +12,9 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
+import SettingsGroup from '@/components/common/SettingsGroup.vue'
+import SettingsRow from '@/components/common/SettingsRow.vue'
 import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { useAuthStore } from '@/stores/auth'
 import { useSystemSettings } from '@/composables/system-settings/useSystemSettings'
@@ -29,8 +23,8 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 
 // The route only requires `systemSettingsRead`, so a read-only operator can inspect the
-// current policy. Saving is a separate capability; without this guard the switches and
-// the save button stay clickable and the PATCH answers 403.
+// current policy. Writing is a separate capability; without this guard the switches stay
+// clickable and the PATCH answers 403.
 const canUpdateSettings = computed(() =>
   authStore.can(CAPABILITY.systemSettingsUpdate),
 )
@@ -40,9 +34,9 @@ const {
   saving,
   loadFailed,
   form,
-  isDirty,
   loadSettings,
-  saveSettings,
+  setPublicRegistrationEnabled,
+  setSelfServiceAccountDeletionEnabled,
 } = useSystemSettings()
 </script>
 
@@ -53,19 +47,19 @@ const {
       :description="t('systemConfig.description')"
     />
 
-    <Card v-if="loading">
-      <CardHeader>
-        <Skeleton class="rounded-md block-6 inline-32" />
-      </CardHeader>
-      <CardContent class="space-y-4">
-        <Skeleton class="rounded-lg block-16" />
-        <Skeleton class="rounded-lg block-16" />
-        <div class="flex justify-end gap-2">
-          <Skeleton class="rounded-md block-10 inline-20" />
-          <Skeleton class="rounded-md block-10 inline-20" />
-        </div>
-      </CardContent>
-    </Card>
+    <SettingsGroup
+      v-if="loading"
+      :title="t('systemConfig.groupTitle')"
+    >
+      <div
+        v-for="row in 2"
+        :key="row"
+        class="space-y-2 px-4 py-3"
+      >
+        <Skeleton class="rounded-md block-4 inline-32" />
+        <Skeleton class="rounded-md block-4 inline-64" />
+      </div>
+    </SettingsGroup>
 
     <!--
       No bordered card wraps this placeholder, and it carries no error description:
@@ -89,76 +83,42 @@ const {
       </EmptyContent>
     </Empty>
 
-    <Card v-else>
-      <CardHeader>
-        <CardTitle>{{ t('systemConfig.cardTitle') }}</CardTitle>
-        <CardDescription>{{
-          t('systemConfig.cardDescription')
-        }}</CardDescription>
-      </CardHeader>
-      <CardContent class="space-y-4">
-        <label
-          class="flex items-center justify-between gap-4 rounded-lg border p-4"
-        >
-          <div class="space-y-1">
-            <div class="font-medium">
-              {{ t('systemConfig.fields.publicRegistrationEnabled.title') }}
-            </div>
-            <p class="text-sm text-muted-foreground">
-              {{
-                t('systemConfig.fields.publicRegistrationEnabled.description')
-              }}
-            </p>
-          </div>
-          <Switch
-            v-model="form.publicRegistrationEnabled"
-            :disabled="!canUpdateSettings"
-          />
-        </label>
+    <SettingsGroup
+      v-else
+      :title="t('systemConfig.groupTitle')"
+    >
+      <SettingsRow
+        :title="t('systemConfig.fields.publicRegistrationEnabled.title')"
+        :description="
+          t('systemConfig.fields.publicRegistrationEnabled.description')
+        "
+      >
+        <!-- 行标题不是 <label>，开关靠 aria-label 拿到可读名称。 -->
+        <Switch
+          :model-value="form.publicRegistrationEnabled"
+          :disabled="!canUpdateSettings || saving"
+          :aria-label="t('systemConfig.fields.publicRegistrationEnabled.title')"
+          @update:model-value="setPublicRegistrationEnabled"
+        />
+      </SettingsRow>
 
-        <label
-          class="flex items-center justify-between gap-4 rounded-lg border p-4"
-        >
-          <div class="space-y-1">
-            <div class="font-medium">
-              {{
-                t('systemConfig.fields.selfServiceAccountDeletionEnabled.title')
-              }}
-            </div>
-            <p class="text-sm text-muted-foreground">
-              {{
-                t(
-                  'systemConfig.fields.selfServiceAccountDeletionEnabled.description',
-                )
-              }}
-            </p>
-          </div>
-          <Switch
-            v-model="form.selfServiceAccountDeletionEnabled"
-            :disabled="!canUpdateSettings"
-          />
-        </label>
-
-        <div class="flex justify-end gap-2">
-          <Button
-            variant="outline"
-            :disabled="saving || !isDirty"
-            @click="loadSettings"
-          >
-            {{ t('common.action.cancel') }}
-          </Button>
-          <Button
-            :disabled="saving || !isDirty || !canUpdateSettings"
-            @click="saveSettings"
-          >
-            <Spinner
-              v-if="saving"
-              class="me-2"
-            />
-            {{ t('common.action.save') }}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      <SettingsRow
+        :title="
+          t('systemConfig.fields.selfServiceAccountDeletionEnabled.title')
+        "
+        :description="
+          t('systemConfig.fields.selfServiceAccountDeletionEnabled.description')
+        "
+      >
+        <Switch
+          :model-value="form.selfServiceAccountDeletionEnabled"
+          :disabled="!canUpdateSettings || saving"
+          :aria-label="
+            t('systemConfig.fields.selfServiceAccountDeletionEnabled.title')
+          "
+          @update:model-value="setSelfServiceAccountDeletionEnabled"
+        />
+      </SettingsRow>
+    </SettingsGroup>
   </div>
 </template>

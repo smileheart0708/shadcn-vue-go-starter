@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import SettingsSectionCard from '@/components/settings/common/SettingsSectionCard.vue'
+import SettingsGroup from '@/components/common/SettingsGroup.vue'
 import { usePasswordSettings } from '@/composables/settings/usePasswordSettings'
 
 const { t } = useI18n()
@@ -12,25 +12,21 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
 </script>
 
 <template>
-  <SettingsSectionCard
-    :title="t('settings.account.password')"
-    :description="t('settings.account.passwordDesc')"
-    content-class="space-y-4"
-    footer-class="justify-end"
-  >
-    <div class="space-y-2">
-      <Label for="current-password">{{
-        t('settings.account.currentPassword')
-      }}</Label>
-      <Input
-        id="current-password"
-        v-model="passwordForm.currentPassword"
-        type="password"
-        :placeholder="t('settings.account.currentPasswordPlaceholder')"
-      />
-    </div>
+  <SettingsGroup :title="t('settings.account.password')">
+    <!-- 表单是卡片的单个子节点，组内分隔线不会落到字段之间。 -->
+    <div class="space-y-4 p-4">
+      <div class="space-y-2">
+        <Label for="current-password">{{
+          t('settings.account.currentPassword')
+        }}</Label>
+        <Input
+          id="current-password"
+          v-model="passwordForm.currentPassword"
+          type="password"
+          :placeholder="t('settings.account.currentPasswordPlaceholder')"
+        />
+      </div>
 
-    <div class="grid gap-4 md:grid-cols-2">
       <div class="space-y-2">
         <Label for="new-password">{{
           t('settings.account.newPassword')
@@ -54,27 +50,27 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
           :placeholder="t('settings.account.confirmPasswordPlaceholder')"
         />
       </div>
-    </div>
 
-    <p
-      v-if="passwordError !== ''"
-      class="text-sm text-destructive"
-    >
-      {{ passwordError }}
-    </p>
-
-    <template #footer>
-      <Button
-        variant="outline"
-        :disabled="isUpdatingPassword"
-        @click="updatePassword"
+      <p
+        v-if="passwordError !== ''"
+        class="text-sm text-destructive"
       >
-        {{
-          isUpdatingPassword
-            ? t('settings.account.updatingPassword')
-            : t('settings.account.updatePassword')
-        }}
-      </Button>
-    </template>
-  </SettingsSectionCard>
+        {{ passwordError }}
+      </p>
+
+      <div class="flex justify-end">
+        <Button
+          variant="outline"
+          :disabled="isUpdatingPassword"
+          @click="updatePassword"
+        >
+          {{
+            isUpdatingPassword
+              ? t('settings.account.updatingPassword')
+              : t('settings.account.updatePassword')
+          }}
+        </Button>
+      </div>
+    </div>
+  </SettingsGroup>
 </template>

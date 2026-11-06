@@ -13,9 +13,9 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/spinner'
-import SettingsSectionCard from '@/components/settings/common/SettingsSectionCard.vue'
+import SettingsGroup from '@/components/common/SettingsGroup.vue'
+import SettingsRow from '@/components/common/SettingsRow.vue'
 import { useDeleteAccountFlow } from '@/composables/settings/useDeleteAccountFlow'
 
 const { t } = useI18n()
@@ -32,25 +32,21 @@ const {
 </script>
 
 <template>
-  <SettingsSectionCard
+  <SettingsGroup
     v-if="canDeleteAccount"
-    class="border-destructive/60"
     :title="t('settings.account.dangerZone')"
-    :description="t('settings.account.dangerZoneDesc')"
     title-class="text-destructive"
-    content-class="space-y-3"
+    content-class="border-destructive/60"
   >
-    <div class="flex items-center gap-2">
+    <SettingsRow :title="t('settings.account.dangerZoneConfirm')">
+      <!-- 行标题不再是 <label>，复选框要靠 aria-label 拿到可读名称。 -->
       <Checkbox
-        id="delete-account"
         v-model="deleteAccountConfirmed"
+        :aria-label="t('settings.account.dangerZoneConfirm')"
       />
-      <Label for="delete-account">{{
-        t('settings.account.dangerZoneConfirm')
-      }}</Label>
-    </div>
+    </SettingsRow>
 
-    <template #footer>
+    <SettingsRow :title="t('settings.account.deleteAccount')">
       <AlertDialog v-model:open="deleteDialogOpen">
         <AlertDialogTrigger as-child>
           <Button
@@ -97,6 +93,6 @@ const {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </template>
-  </SettingsSectionCard>
+    </SettingsRow>
+  </SettingsGroup>
 </template>

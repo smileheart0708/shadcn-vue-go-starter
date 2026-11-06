@@ -1,4 +1,4 @@
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
@@ -6,6 +6,7 @@ import {
   getAdminSystemSettings,
   updateSystemSettings,
   type SystemSettings,
+  type UpdateSystemSettingsInput,
 } from '@/lib/api/system-settings'
 import { useAuthStore } from '@/stores/auth'
 
@@ -14,28 +15,12 @@ export function useSystemSettings() {
   const authStore = useAuthStore()
 
   const loading = ref(true)
-  const saving = ref(false)
   const loadFailed = ref(false)
-  // `settings` holds the last server-confirmed state; `form` is the editable draft.
-  // Keeping both is what makes `isDirty` (and therefore the save/cancel buttons) work.
-  const settings = ref<SystemSettings | null>(null)
+  // 两个开关共用同一个 PATCH 端点：请求未返回前锁住整组，避免两次写入互相覆盖。
+  const saving = ref(false)
   const form = ref<SystemSettings>({
     publicRegistrationEnabled: false,
     selfServiceAccountDeletionEnabled: false,
-  })
-
-  const isDirty = computed(() => {
-    const currentSettings = settings.value
-    if (!currentSettings) {
-      return false
-    }
-
-    return (
-      form.value.publicRegistrationEnabled !==
-        currentSettings.publicRegistrationEnabled ||
-      form.value.selfServiceAccountDeletionEnabled !==
-        currentSettings.selfServiceAccountDeletionEnabled
-    )
   })
 
   onMounted(() => {
@@ -46,9 +31,7 @@ export function useSystemSettings() {
     loading.value = true
 
     try {
-      const nextSettings = await getAdminSystemSettings()
-      settings.value = nextSettings
-      form.value = { ...nextSettings }
+      form.value = await getAdminSystemSettings()
       loadFailed.value = false
     } catch (error) {
       loadFailed.value = true
@@ -61,43 +44,54 @@ export function useSystemSettings() {
     }
   }
 
-  async function saveSettings() {
-    if (!isDirty.value || saving.value) {
+  async function applyChange(patch: UpdateSystemSettingsInput) {
+    if (saving.value) {
       return
     }
 
+    // 开关要立刻反映点击结果，所以先写本地；失败时回滚到写入前的快照。
+    const previous = { ...form.value }
+    form.value = { ...form.value, ...patch }
     saving.value = true
-    const savePromise = updateSystemSettings({
-      publicRegistrationEnabled: form.value.publicRegistrationEnabled,
-      selfServiceAccountDeletionEnabled:
-        form.value.selfServiceAccountDeletionEnabled,
-    })
-
-    toast.promise(savePromise, {
-      loading: t('systemConfig.feedback.saving'),
-      success: () => t('systemConfig.feedback.saved'),
-      error: (error: unknown) =>
-        resolveAPIErrorMessage(t, error) ??
-        t('systemConfig.feedback.saveFailed'),
-    })
 
     try {
-      settings.value = await savePromise
-      form.value = { ...settings.value }
-
-      // These settings gate registration and self-service deletion, so the viewer's
-      // capability set can change as a result of saving them. Refresh both, but never
-      // let a refresh failure surface as a save failure — the save already succeeded.
-      await authStore.refreshPublicState()
-      await authStore.refreshViewer({ backgroundRequest: true })
+      // 只提交被切换的字段：另一个字段即使被其他管理员改过，本次写入也不会覆盖它。
+      form.value = await updateSystemSettings(patch)
+      toast.success(t('systemConfig.feedback.saved'))
     } catch (error) {
-      // Rejection of `savePromise` is already reported by toast.promise above; catching
-      // here keeps the awaited copy from becoming an unhandled rejection. The draft in
-      // `form` is intentionally left untouched so the user can retry.
-      console.warn('Failed to save or re-sync system settings', error)
+      form.value = previous
+      toast.error(
+        resolveAPIErrorMessage(t, error) ??
+          t('systemConfig.feedback.saveFailed'),
+      )
+      return
     } finally {
       saving.value = false
     }
+
+    // 走到这里说明写入已经成功。下面两个刷新只影响本地 viewer 与注册开关状态，失败
+    // 不能回滚 form、更不能报“保存失败”——否则用户会同时看到“已保存”和“保存失败”，
+    // 而服务端其实已经改了。旧实现只有一个 catch，重构时最容易在这里退回去。
+    const resynced = await Promise.allSettled([
+      authStore.refreshPublicState(),
+      authStore.refreshViewer({ backgroundRequest: true }),
+    ])
+    const rejected = resynced.filter((result) => result.status === 'rejected')
+    if (rejected.length > 0) {
+      console.warn(
+        'Failed to re-sync viewer after saving system settings',
+        rejected,
+      )
+    }
+  }
+
+  // 返回写入 Promise 只是为了让调用方（和 spec）能等到落库结果；模板里直接绑定即可。
+  async function setPublicRegistrationEnabled(value: boolean) {
+    return applyChange({ publicRegistrationEnabled: value })
+  }
+
+  async function setSelfServiceAccountDeletionEnabled(value: boolean) {
+    return applyChange({ selfServiceAccountDeletionEnabled: value })
   }
 
   return {
@@ -105,8 +99,8 @@ export function useSystemSettings() {
     saving,
     loadFailed,
     form,
-    isDirty,
     loadSettings,
-    saveSettings,
+    setPublicRegistrationEnabled,
+    setSelfServiceAccountDeletionEnabled,
   }
 }

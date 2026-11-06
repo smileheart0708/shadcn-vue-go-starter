@@ -8,8 +8,7 @@
     "action": {
       "back": "返回",
       "cancel": "取消",
-      "edit": "编辑",
-      "save": "保存"
+      "edit": "编辑"
     },
     "field": {
       "email": "邮箱",
@@ -81,16 +80,15 @@
   "systemConfig": {
     "title": "系统配置",
     "description": "管理账号策略。",
-    "cardTitle": "账号策略",
-    "cardDescription": "修改后立即生效。",
+    "groupTitle": "账号策略",
     "fields": {
       "publicRegistrationEnabled": {
         "title": "允许公开注册",
-        "description": "开启后允许新用户自行注册。"
+        "description": "开启后，未登录访客可以自行注册账号。"
       },
       "selfServiceAccountDeletionEnabled": {
-        "title": "允许用户自助注销",
-        "description": "开启后普通用户可删除自己的账号，owner 始终不可自删。"
+        "title": "允许用户自行删除账号",
+        "description": "开启后，普通用户可以删除自己的账号；所有者账号受保护，始终无法自行删除。"
       }
     },
     "actions": {
@@ -99,7 +97,6 @@
     "feedback": {
       "loadFailedTitle": "账号策略加载失败",
       "loadFailed": "请刷新页面后重试。",
-      "saving": "正在保存账号策略...",
       "saved": "账号策略已保存。",
       "saveFailed": "保存账号策略失败。"
     }
@@ -113,7 +110,6 @@
     },
     "account": {
       "profile": "个人信息",
-      "profileDesc": "更新你的个人信息",
       "profileUpdated": "资料已更新。",
       "saveProfile": "保存资料",
       "savingProfile": "保存中...",
@@ -133,7 +129,6 @@
       "editProfileDesc": "更新你的账号信息",
       "statusActive": "正常",
       "password": "密码",
-      "passwordDesc": "修改你的密码",
       "currentPassword": "当前密码",
       "currentPasswordPlaceholder": "请输入当前密码",
       "newPassword": "新密码",
@@ -145,19 +140,18 @@
       "updatingPassword": "更新中...",
       "updatePassword": "更新密码",
       "dangerZone": "危险区域",
-      "dangerZoneDesc": "不可逆的账号操作",
       "dangerZoneConfirm": "我理解此操作是永久性的",
       "deleteAccount": "删除账号",
       "deleteAccountConfirm": "此操作不可撤销。你的所有数据将被永久删除。",
       "deleteAccountSuccess": "账号已删除。"
     },
     "basic": {
+      "appearance": "外观",
       "theme": "主题",
-      "themeDesc": "选择应用的外观",
-      "colorTheme": "颜色主题",
       "language": "语言",
       "selectLanguage": "选择语言",
-      "dataRefreshInterval": "数据刷新间隔",
+      "dataRefresh": "数据刷新",
+      "dataRefreshInterval": "刷新间隔",
       "dataRefreshIntervalDesc": "自动刷新的时间间隔 {seconds} 秒"
     }
   },

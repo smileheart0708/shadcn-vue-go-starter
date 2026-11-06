@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -12,7 +11,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { AppLocale } from '@/plugins/i18n/locales'
 import type { ThemePreference } from '@/stores/theme'
 import type { LocaleOption } from '@/utils/settings/preferences'
-import SettingsSectionCard from '@/components/settings/common/SettingsSectionCard.vue'
+import SettingsGroup from '@/components/common/SettingsGroup.vue'
+import SettingsRow from '@/components/common/SettingsRow.vue'
 
 const props = defineProps<{
   theme: ThemePreference
@@ -29,13 +29,8 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <SettingsSectionCard
-    :title="t('settings.basic.theme')"
-    :description="t('settings.basic.themeDesc')"
-    content-class="space-y-6"
-  >
-    <div class="space-y-2">
-      <Label>{{ t('settings.basic.colorTheme') }}</Label>
+  <SettingsGroup :title="t('settings.basic.appearance')">
+    <SettingsRow :title="t('settings.basic.theme')">
       <Tabs
         :model-value="props.theme"
         @update:model-value="emit('update:theme', $event)"
@@ -48,15 +43,14 @@ const { t } = useI18n()
           }}</TabsTrigger>
         </TabsList>
       </Tabs>
-    </div>
+    </SettingsRow>
 
-    <div class="space-y-2">
-      <Label>{{ t('settings.basic.language') }}</Label>
+    <SettingsRow :title="t('settings.basic.language')">
       <Select
         :model-value="props.locale"
         @update:model-value="emit('update:locale', $event)"
       >
-        <SelectTrigger>
+        <SelectTrigger class="inline-full sm:inline-48">
           <SelectValue :placeholder="t('settings.basic.selectLanguage')" />
         </SelectTrigger>
         <SelectContent>
@@ -69,6 +63,6 @@ const { t } = useI18n()
           </SelectItem>
         </SelectContent>
       </Select>
-    </div>
-  </SettingsSectionCard>
+    </SettingsRow>
+  </SettingsGroup>
 </template>
