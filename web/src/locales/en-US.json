@@ -400,9 +400,7 @@
   "nav": {
     "main": {
       "dashboard": "Dashboard",
-      "lifecycle": "Lifecycle",
-      "analytics": "Analytics",
-      "projects": "Projects"
+      "analytics": "Analytics"
     },
     "management": {
       "systemConfig": "System Configuration",
@@ -412,7 +410,6 @@
     },
     "secondary": {
       "settings": "Settings",
-      "getHelp": "Get Help",
       "search": "Search"
     },
     "user": {

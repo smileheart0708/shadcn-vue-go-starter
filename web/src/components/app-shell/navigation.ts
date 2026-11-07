@@ -3,11 +3,8 @@ import type { RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   ChartColumn,
-  CircleHelp,
   Cog,
-  Folder,
   LayoutDashboard,
-  List,
   Logs,
   Search,
   Settings,
@@ -50,9 +47,7 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
         icon: LayoutDashboard,
         to: { name: 'dashboard' },
       },
-      { title: t('nav.main.lifecycle'), icon: List, disabled: true },
       { title: t('nav.main.analytics'), icon: ChartColumn, disabled: true },
-      { title: t('nav.main.projects'), icon: Folder, disabled: true },
     ],
     management: [
       ...(canReadSystemSettings.value
@@ -89,7 +84,6 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
         icon: Settings,
         to: { name: 'settings' },
       },
-      { title: t('nav.secondary.getHelp'), icon: CircleHelp, disabled: true },
       { title: t('nav.secondary.search'), icon: Search, disabled: true },
     ],
   }))

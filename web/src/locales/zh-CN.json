@@ -400,9 +400,7 @@
   "nav": {
     "main": {
       "dashboard": "仪表盘",
-      "lifecycle": "生命周期",
-      "analytics": "分析",
-      "projects": "项目"
+      "analytics": "分析"
     },
     "management": {
       "systemConfig": "系统配置",
@@ -412,7 +410,6 @@
     },
     "secondary": {
       "settings": "设置",
-      "getHelp": "获取帮助",
       "search": "搜索"
     },
     "user": {
