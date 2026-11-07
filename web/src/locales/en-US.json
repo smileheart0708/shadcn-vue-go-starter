@@ -89,11 +89,7 @@
         "description": "When enabled, users can delete their own account. Owner accounts are protected and can never be self-deleted."
       }
     },
-    "actions": {
-      "retry": "Retry"
-    },
     "feedback": {
-      "loadFailedTitle": "Failed to load account policies",
       "loadFailed": "Refresh this page to try again.",
       "saved": "Account policies saved.",
       "saveFailed": "Failed to save account policies."
@@ -235,7 +231,6 @@
   "adminUsers": {
     "actions": {
       "createUser": "Create User",
-      "retry": "Retry",
       "disable": "Disable",
       "enable": "Enable",
       "previousPage": "Previous",
@@ -281,7 +276,6 @@
       "enableDescription": "Restore access for {username}. They will need to sign in again."
     },
     "feedback": {
-      "loadFailedTitle": "Failed to load users",
       "loadFailed": "Refresh the page to try again.",
       "creating": "Creating user...",
       "createSuccess": "User created.",

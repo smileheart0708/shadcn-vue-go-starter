@@ -1,17 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { CircleAlert, ShieldBan, ShieldCheck } from '@lucide/vue'
+import { ShieldBan, ShieldCheck } from '@lucide/vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Empty,
-  EmptyContent,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import {
@@ -32,19 +25,18 @@ import {
   hasAdminUserAction,
 } from '@/utils/admin-users/table'
 
-defineProps<{
+const props = defineProps<{
   users: readonly ManagedUser[]
   loading: boolean
-  firstLoadPending: boolean
   refreshing: boolean
   loadFailed: boolean
   page: number
+  pageSize: number
   total: number
   totalPages: number
 }>()
 
 const emit = defineEmits<{
-  retry: []
   'previous-page': []
   'next-page': []
   'edit-user': [user: ManagedUser]
@@ -57,74 +49,34 @@ const dateTimeFormatter = computed(() =>
   createAdminUserDateFormatter(locale.value),
 )
 const neverUsedLabel = computed(() => t('common.state.neverUsed'))
+
+const showSkeleton = computed(() => props.loading || props.loadFailed)
+
+// 失败后骨架停在原位并停止脉冲：继续闪动等于谎称"仍在加载"，而此刻并没有在途请求。
+// 但背景刷新（创建/启停用户后的静默重载）必须重新给出反馈，否则用户会看到
+// "操作成功"的 toast 配一张静止的灰表，以为操作没生效。
+const isFailed = computed(
+  () => props.loadFailed && !props.loading && !props.refreshing,
+)
+const skeletonClass = computed(() => ({ 'animate-none': isFailed.value }))
 </script>
 
 <template>
-  <div
-    v-if="loading"
-    class="overflow-hidden rounded-lg border"
-  >
-    <Table>
-      <TableHeader class="bg-muted">
-        <TableRow class="hover:bg-transparent">
-          <TableHead>{{ t('adminUsers.table.user') }}</TableHead>
-          <TableHead>{{ t('adminUsers.table.email') }}</TableHead>
-          <TableHead>{{ t('adminUsers.table.role') }}</TableHead>
-          <TableHead>{{ t('adminUsers.table.status') }}</TableHead>
-          <TableHead>{{ t('adminUsers.table.lastActiveAt') }}</TableHead>
-          <TableHead>{{ t('adminUsers.table.createdAt') }}</TableHead>
-          <TableHead class="text-end">{{
-            t('adminUsers.table.actions')
-          }}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <TableRow
-          v-for="index in 8"
-          :key="index"
-        >
-          <TableCell
-            v-for="cell in 7"
-            :key="cell"
-          >
-            <Skeleton class="rounded-md block-5" />
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
-  </div>
-
   <!--
-    No bordered card wraps this placeholder, and it carries no error description:
-    the cause is already raised as a toast by `useAdminUsersList`, so repeating it
-    here would report the same failure twice. The retry action stays inline because
-    the toast disappears on its own.
+    骨架与真实行共用同一张表和同一个表头：列定义只写一次，加列/改列时同步两个 tbody 即可，
+    不会再出现"骨架表头和真实表头各写一份"的漂移。骨架行数取当前页容量，行高由首列的
+    32px 头像占位决定（与真实行一致），数据到达后在同一布局里就地填空，页头不重绘。
+    失败时骨架留在原位并停止脉冲、整体降对比：它表示"未就绪"，不表示"正在加载"。
+    原因由 useAdminUsersList 的 toast 承担，页面内不再重复一次；骨架是纯视觉占位，
+    所以失败时对辅助技术隐藏，避免被读成一张"没有数据"的空表。
   -->
-  <Empty v-else-if="loadFailed">
-    <EmptyHeader>
-      <EmptyMedia variant="icon">
-        <CircleAlert />
-      </EmptyMedia>
-      <EmptyTitle>{{ t('adminUsers.feedback.loadFailedTitle') }}</EmptyTitle>
-    </EmptyHeader>
-    <EmptyContent>
-      <Button @click="emit('retry')">{{
-        t('adminUsers.actions.retry')
-      }}</Button>
-    </EmptyContent>
-  </Empty>
-
-  <!--
-    首屏结果还没到，而骨架被 useStableLoading 的抑制窗口压住：此时既不是「空」，
-    也不该画空态（会闪一下「暂无用户」和页码条），留白即可。
-  -->
-  <template v-else-if="firstLoadPending"></template>
-
-  <div
-    v-else
-    class="space-y-4"
-  >
-    <div class="overflow-hidden rounded-lg border">
+  <div class="space-y-4">
+    <div
+      class="overflow-hidden rounded-lg border"
+      :class="{ 'opacity-60': isFailed }"
+      :aria-busy="loading || refreshing"
+      :aria-hidden="isFailed"
+    >
       <Table>
         <TableHeader class="bg-muted">
           <TableRow class="hover:bg-transparent">
@@ -139,7 +91,70 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
             }}</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
+
+        <TableBody v-if="showSkeleton">
+          <TableRow
+            v-for="index in pageSize"
+            :key="index"
+          >
+            <TableCell>
+              <div class="flex items-center gap-3">
+                <Skeleton
+                  class="rounded-lg block-8 inline-8"
+                  :class="skeletonClass"
+                />
+                <Skeleton
+                  class="rounded-md block-4 inline-20"
+                  :class="skeletonClass"
+                />
+              </div>
+            </TableCell>
+            <TableCell>
+              <Skeleton
+                class="rounded-md block-4 inline-48"
+                :class="skeletonClass"
+              />
+            </TableCell>
+            <TableCell>
+              <Skeleton
+                class="rounded-md block-4 inline-16"
+                :class="skeletonClass"
+              />
+            </TableCell>
+            <TableCell>
+              <Skeleton
+                class="rounded-md block-4 inline-12"
+                :class="skeletonClass"
+              />
+            </TableCell>
+            <TableCell>
+              <Skeleton
+                class="rounded-md block-4 inline-32"
+                :class="skeletonClass"
+              />
+            </TableCell>
+            <TableCell>
+              <Skeleton
+                class="rounded-md block-4 inline-32"
+                :class="skeletonClass"
+              />
+            </TableCell>
+            <TableCell>
+              <div class="flex justify-end gap-2">
+                <Skeleton
+                  class="rounded-md block-4 inline-20"
+                  :class="skeletonClass"
+                />
+                <Skeleton
+                  class="rounded-md block-4 inline-24"
+                  :class="skeletonClass"
+                />
+              </div>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+
+        <TableBody v-else>
           <template v-if="users.length > 0">
             <TableRow
               v-for="user in users"
@@ -246,7 +261,11 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
       </Table>
     </div>
 
-    <div class="flex items-center justify-between">
+    <!-- 骨架阶段不渲染分页条：页码在数据回来前没有意义，渲染出来只会上下跳一次。 -->
+    <div
+      v-if="!showSkeleton"
+      class="flex items-center justify-between"
+    >
       <div class="flex items-center gap-2 text-sm text-muted-foreground">
         <Spinner
           v-if="refreshing"

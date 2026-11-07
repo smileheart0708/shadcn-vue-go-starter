@@ -89,11 +89,7 @@
         "description": "开启后，普通用户可以删除自己的账号；所有者账号受保护，始终无法自行删除。"
       }
     },
-    "actions": {
-      "retry": "重试"
-    },
     "feedback": {
-      "loadFailedTitle": "账号策略加载失败",
       "loadFailed": "请刷新页面后重试。",
       "saved": "账号策略已保存。",
       "saveFailed": "保存账号策略失败。"
@@ -235,7 +231,6 @@
   "adminUsers": {
     "actions": {
       "createUser": "新建用户",
-      "retry": "重试",
       "disable": "禁用",
       "enable": "启用",
       "previousPage": "上一页",
@@ -281,7 +276,6 @@
       "enableDescription": "恢复 {username} 的登录能力，对方需要重新登录。"
     },
     "feedback": {
-      "loadFailedTitle": "用户列表加载失败",
       "loadFailed": "请刷新页面后重试。",
       "creating": "正在创建用户...",
       "createSuccess": "用户已创建。",

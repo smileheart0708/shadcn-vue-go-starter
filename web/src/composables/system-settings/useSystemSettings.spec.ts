@@ -78,13 +78,29 @@ describe('useSystemSettings', () => {
     )
   })
 
+  // form 保持 null 是刻意的：页面据此渲染值骨架，绝不拿默认 false 冒充服务端策略；
+  // 同时保证「没有值」时不会发出一次把未知状态写成 false 的 PATCH。
+  it('加载失败后不产出默认值，也不允许写入', async () => {
+    deps.getAdminSystemSettings.mockRejectedValue(new Error('offline'))
+
+    const { form, loadSettings, setPublicRegistrationEnabled } =
+      useSystemSettings()
+    await loadSettings()
+    await setPublicRegistrationEnabled(true)
+
+    expect(form.value).toBeNull()
+    expect(deps.updateSystemSettings).not.toHaveBeenCalled()
+  })
+
   it('只提交被切换的字段', async () => {
     deps.updateSystemSettings.mockResolvedValue({
       ...storedSettings,
       selfServiceAccountDeletionEnabled: true,
     })
 
-    const { form, setSelfServiceAccountDeletionEnabled } = useSystemSettings()
+    const { form, setSelfServiceAccountDeletionEnabled, loadSettings } =
+      useSystemSettings()
+    await loadSettings()
     await setSelfServiceAccountDeletionEnabled(true)
 
     expect(deps.updateSystemSettings).toHaveBeenCalledWith({
@@ -109,10 +125,12 @@ describe('useSystemSettings', () => {
     deps.refreshPublicState.mockRejectedValue(new Error('offline'))
     deps.refreshViewer.mockRejectedValue(new Error('offline'))
 
-    const { form, saving, setPublicRegistrationEnabled } = useSystemSettings()
+    const { form, saving, setPublicRegistrationEnabled, loadSettings } =
+      useSystemSettings()
+    await loadSettings()
     await setPublicRegistrationEnabled(true)
 
-    expect(form.value.publicRegistrationEnabled).toBe(true)
+    expect(form.value).toMatchObject({ publicRegistrationEnabled: true })
     expect(deps.toastSuccess).toHaveBeenCalledWith(
       'systemConfig.feedback.saved',
     )
@@ -125,7 +143,9 @@ describe('useSystemSettings', () => {
   it('写入失败时回滚到写入前的值并提示保存失败文案', async () => {
     deps.updateSystemSettings.mockRejectedValue(new Error('conflict'))
 
-    const { form, saving, setPublicRegistrationEnabled } = useSystemSettings()
+    const { form, saving, setPublicRegistrationEnabled, loadSettings } =
+      useSystemSettings()
+    await loadSettings()
     await setPublicRegistrationEnabled(true)
 
     expect(form.value).toEqual(storedSettings)
@@ -145,7 +165,9 @@ describe('useSystemSettings', () => {
       }),
     )
 
-    const { saving, setPublicRegistrationEnabled } = useSystemSettings()
+    const { saving, setPublicRegistrationEnabled, loadSettings } =
+      useSystemSettings()
+    await loadSettings()
     const first = setPublicRegistrationEnabled(true)
     await setPublicRegistrationEnabled(false)
 

@@ -12,7 +12,6 @@ import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { useAuthStore } from '@/stores/auth'
 import { useAdminUsersList } from '@/composables/admin-users/useAdminUsersList'
 import { useAdminUserMutations } from '@/composables/admin-users/useAdminUserMutations'
-import { useStableLoading } from '@/composables/useStableLoading'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -24,6 +23,7 @@ const {
   users,
   total,
   page,
+  pageSize,
   searchQuery,
   statusFilter,
   loading: usersLoading,
@@ -35,11 +35,6 @@ const {
   goToPreviousPage,
   goToNextPage,
 } = useAdminUsersList()
-
-const {
-  showLoading: showUsersLoading,
-  firstLoadPending: usersFirstLoadPending,
-} = useStableLoading(usersLoading)
 
 const {
   dialogOpen,
@@ -81,14 +76,13 @@ const {
 
     <AdminUsersTable
       :users="users"
-      :loading="showUsersLoading"
-      :first-load-pending="usersFirstLoadPending"
+      :loading="usersLoading"
       :refreshing="refreshing"
       :load-failed="loadFailed"
       :page="page"
+      :page-size="pageSize"
       :total="total"
       :total-pages="totalPages"
-      @retry="loadUsers"
       @previous-page="goToPreviousPage"
       @next-page="goToNextPage"
       @edit-user="openEditDialog"
