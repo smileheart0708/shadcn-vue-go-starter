@@ -1,19 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import ModeToggle from '@/components/theme/ModeToggle.vue'
-import { getRouteTitleKey, translateRouteTitle } from '@/router/route-title'
+import { useRouteTitle } from '@/composables/useRouteTitle'
 
-const route = useRoute()
-const { t } = useI18n()
-
-const title = computed(() => {
-  const titleKey = getRouteTitleKey(route)
-  return titleKey ? translateRouteTitle(titleKey) : t('app.name')
-})
+const title = useRouteTitle()
 </script>
 
 <template>

@@ -78,7 +78,6 @@
     "systemLogs": "系统日志"
   },
   "systemConfig": {
-    "title": "系统配置",
     "groupTitle": "账号策略",
     "fields": {
       "publicRegistrationEnabled": {
@@ -101,7 +100,6 @@
     }
   },
   "settings": {
-    "title": "设置",
     "tabs": {
       "basic": "基本",
       "account": "账号"
@@ -235,7 +233,6 @@
     }
   },
   "adminUsers": {
-    "title": "用户管理",
     "actions": {
       "createUser": "新建用户",
       "retry": "重试",
@@ -341,7 +338,6 @@
     "description": "您访问的页面不存在。"
   },
   "systemLogs": {
-    "title": "系统日志",
     "summary": {
       "buffered": "已缓冲 {count} 条"
     },

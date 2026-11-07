@@ -2,7 +2,7 @@
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import PageHeader from '@/components/app/PageHeader.vue'
+import AppShellPage from '@/components/app-shell/AppShellPage.vue'
 import SystemLogConsolePanel from '@/components/system-logs/SystemLogConsolePanel.vue'
 import { Badge } from '@/components/ui/badge'
 import { useSystemLogStream } from '@/composables/system-logs/useSystemLogStream'
@@ -35,20 +35,16 @@ const {
 </script>
 
 <template>
-  <div
-    class="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:overflow-hidden lg:p-6 lg:min-block-0"
-  >
-    <PageHeader :title="t('systemLogs.title')">
-      <template #meta>
-        <Badge variant="outline">
-          {{
-            t('systemLogs.summary.buffered', {
-              count: systemLogEntries.length,
-            })
-          }}
-        </Badge>
-      </template>
-    </PageHeader>
+  <AppShellPage variant="fill">
+    <template #meta>
+      <Badge variant="outline">
+        {{
+          t('systemLogs.summary.buffered', {
+            count: systemLogEntries.length,
+          })
+        }}
+      </Badge>
+    </template>
 
     <SystemLogConsolePanel
       v-if="canReadSystemLogs"
@@ -66,5 +62,5 @@ const {
       @update:history-limit="systemLogsPreferences.setHistoryLimit"
       @update:export-format="systemLogsPreferences.setExportFormat"
     />
-  </div>
+  </AppShellPage>
 </template>

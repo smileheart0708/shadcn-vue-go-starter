@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CircleAlert } from '@lucide/vue'
-import PageHeader from '@/components/app/PageHeader.vue'
+import AppShellPage from '@/components/app-shell/AppShellPage.vue'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
@@ -41,9 +41,7 @@ const {
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-    <PageHeader :title="t('systemConfig.title')" />
-
+  <AppShellPage>
     <SettingsGroup
       v-if="loading"
       :title="t('systemConfig.groupTitle')"
@@ -117,5 +115,5 @@ const {
         />
       </SettingsRow>
     </SettingsGroup>
-  </div>
+  </AppShellPage>
 </template>

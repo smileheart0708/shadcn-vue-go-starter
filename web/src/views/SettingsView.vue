@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import PageHeader from '@/components/app/PageHeader.vue'
+import AppShellPage from '@/components/app-shell/AppShellPage.vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import AccountSettingsTab from '@/components/settings/AccountSettingsTab.vue'
 import BasicSettingsTab from '@/components/settings/BasicSettingsTab.vue'
@@ -9,9 +9,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-    <PageHeader :title="t('settings.title')" />
-
+  <AppShellPage>
     <Tabs
       default-value="basic"
       class="flex flex-col gap-6"
@@ -37,5 +35,5 @@ const { t } = useI18n()
         <AccountSettingsTab />
       </TabsContent>
     </Tabs>
-  </div>
+  </AppShellPage>
 </template>

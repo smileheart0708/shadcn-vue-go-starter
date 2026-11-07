@@ -78,7 +78,6 @@
     "systemLogs": "System Logs"
   },
   "systemConfig": {
-    "title": "System Configuration",
     "groupTitle": "Account Policies",
     "fields": {
       "publicRegistrationEnabled": {
@@ -101,7 +100,6 @@
     }
   },
   "settings": {
-    "title": "Settings",
     "tabs": {
       "basic": "Basic",
       "account": "Account"
@@ -235,7 +233,6 @@
     }
   },
   "adminUsers": {
-    "title": "User Management",
     "actions": {
       "createUser": "Create User",
       "retry": "Retry",
@@ -341,7 +338,6 @@
     "description": "The page you are looking for does not exist."
   },
   "systemLogs": {
-    "title": "System Logs",
     "summary": {
       "buffered": "{count} buffered"
     },
