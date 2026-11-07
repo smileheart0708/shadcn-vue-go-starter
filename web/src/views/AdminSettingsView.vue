@@ -42,10 +42,7 @@ const {
 
 <template>
   <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-    <PageHeader
-      :title="t('systemConfig.title')"
-      :description="t('systemConfig.description')"
-    />
+    <PageHeader :title="t('systemConfig.title')" />
 
     <SettingsGroup
       v-if="loading"

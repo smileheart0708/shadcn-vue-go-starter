@@ -79,7 +79,6 @@
   },
   "systemConfig": {
     "title": "System Configuration",
-    "description": "Manage account policies.",
     "groupTitle": "Account Policies",
     "fields": {
       "publicRegistrationEnabled": {
@@ -103,7 +102,6 @@
   },
   "settings": {
     "title": "Settings",
-    "description": "Manage your account settings and preferences",
     "tabs": {
       "basic": "Basic",
       "account": "Account"
@@ -238,7 +236,6 @@
   },
   "adminUsers": {
     "title": "User Management",
-    "description": "Manage regular user accounts.",
     "actions": {
       "createUser": "Create User",
       "retry": "Retry",

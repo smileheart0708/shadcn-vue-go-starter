@@ -57,10 +57,7 @@ const {
 
 <template>
   <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-    <PageHeader
-      :title="t('adminUsers.title')"
-      :description="t('adminUsers.description')"
-    >
+    <PageHeader :title="t('adminUsers.title')">
       <template #actions>
         <Button
           :disabled="!canCreateUsers"

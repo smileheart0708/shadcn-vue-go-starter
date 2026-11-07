@@ -10,10 +10,7 @@ const { t } = useI18n()
 
 <template>
   <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-    <PageHeader
-      :title="t('settings.title')"
-      :description="t('settings.description')"
-    />
+    <PageHeader :title="t('settings.title')" />
 
     <Tabs
       default-value="basic"

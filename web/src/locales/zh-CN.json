@@ -79,7 +79,6 @@
   },
   "systemConfig": {
     "title": "系统配置",
-    "description": "管理账号策略。",
     "groupTitle": "账号策略",
     "fields": {
       "publicRegistrationEnabled": {
@@ -103,7 +102,6 @@
   },
   "settings": {
     "title": "设置",
-    "description": "管理你的账号设置和偏好",
     "tabs": {
       "basic": "基本",
       "account": "账号"
@@ -238,7 +236,6 @@
   },
   "adminUsers": {
     "title": "用户管理",
-    "description": "管理普通用户账号。",
     "actions": {
       "createUser": "新建用户",
       "retry": "重试",
