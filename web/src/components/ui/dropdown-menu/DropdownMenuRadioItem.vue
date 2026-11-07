@@ -5,7 +5,7 @@ import type {
 } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
-import { Circle } from '@lucide/vue'
+import { Check } from '@lucide/vue'
 import {
   DropdownMenuItemIndicator,
   DropdownMenuRadioItem,
@@ -40,7 +40,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     >
       <DropdownMenuItemIndicator>
         <slot name="indicator-icon">
-          <Circle class="fill-current block-2 inline-2" />
+          <Check class="block-4 inline-4" />
         </slot>
       </DropdownMenuItemIndicator>
     </span>
