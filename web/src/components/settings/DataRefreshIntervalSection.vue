@@ -34,6 +34,7 @@ const { t } = useI18n()
       <Slider
         class="inline-full sm:inline-64"
         :thumb-label="t('settings.basic.dataRefreshInterval')"
+        show-thumb-value
         :model-value="props.sliderValue"
         :min="POLLING_INTERVAL_MIN_SECONDS"
         :max="POLLING_INTERVAL_MAX_SECONDS"
