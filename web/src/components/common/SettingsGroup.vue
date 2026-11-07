@@ -21,8 +21,8 @@ const props = defineProps<{
 
     <!--
       卡片由「组」持有：一处一组，不再给单个设置项套第二层框。
-      阴影用 shadow-xs 而不是 ui/card 的 shadow-sm：要与组内带 shadow-xs 的输入类控件
-      （Select/Input/Switch/Checkbox）同一层级，shadow-sm 的透明度和扩散都明显更重。
+      阴影保持 shadow-xs：与组内带 shadow-xs 的输入类控件（Select/Input/Switch/Checkbox）
+      以及 ui/card 卡片同一层级；shadow-sm 的透明度和扩散都明显更重，会让卡片压过控件。
       直接子节点应是 SettingsRow，或一个包裹容器——否则 divide-y 会把分隔线切进表单字段之间。
       包裹容器要自带横向内边距（px-4）与行的内边距对齐；纵向可由内容决定（表单块用 p-4）。
     -->
