@@ -143,3 +143,33 @@
     transform: translateX(425%);
   }
 }
+
+/* 只有组件显式传入触发元素时 store 才写 data-theme-reveal，用它替换默认 cross-fade，
+   让新快照从该组件中心圆形揭示。属性名与下面两个自定义属性名由 THEME_REVEAL_CSS 声明，
+   theme.spec.ts 校验两边一致，改名必须同步。 */
+:root[data-theme-reveal]::view-transition-old(root),
+:root[data-theme-reveal]::view-transition-new(root) {
+  mix-blend-mode: normal;
+}
+
+:root[data-theme-reveal]::view-transition-image-pair(root) {
+  isolation: auto;
+}
+
+:root[data-theme-reveal]::view-transition-old(root) {
+  animation: none;
+}
+
+:root[data-theme-reveal]::view-transition-new(root) {
+  animation: theme-reveal 0.5s ease-in-out both;
+}
+
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0 at var(--theme-reveal-center));
+  }
+
+  to {
+    clip-path: circle(var(--theme-reveal-radius) at var(--theme-reveal-center));
+  }
+}

@@ -10,12 +10,21 @@ import {
 import { useThemeStore } from '@/stores/theme'
 import type { ThemePreference } from '@/stores/theme'
 import { useI18n } from 'vue-i18n'
+import type { ComponentPublicInstance } from 'vue'
+import { useTemplateRef } from 'vue'
+import { unrefElement } from '@vueuse/core'
 
 const { t } = useI18n()
 const themeStore = useThemeStore()
 
+const trigger = useTemplateRef<ComponentPublicInstance>('trigger')
+
 const icon = { light: Sun, dark: Moon, system: Monitor }
 const themes = ['light', 'dark', 'system'] as const
+
+function selectTheme(theme: ThemePreference) {
+  themeStore.setTheme(theme, unrefElement(trigger) ?? undefined)
+}
 
 // 穷尽 switch：i18n lint 只认 t() 里的字面量键，模板字符串键会被判为未使用。
 function themeLabel(theme: ThemePreference): string {
@@ -34,6 +43,7 @@ function themeLabel(theme: ThemePreference): string {
   <DropdownMenu>
     <DropdownMenuTrigger as-child>
       <Button
+        ref="trigger"
         variant="ghost"
         size="icon"
       >
@@ -48,7 +58,7 @@ function themeLabel(theme: ThemePreference): string {
       <DropdownMenuItem
         v-for="theme in themes"
         :key="theme"
-        @click="themeStore.setTheme(theme)"
+        @click="selectTheme(theme)"
       >
         <component
           :is="icon[theme]"
