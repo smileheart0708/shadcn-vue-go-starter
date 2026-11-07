@@ -40,6 +40,7 @@ import SystemLogsExportDialog from './SystemLogsExportDialog.vue'
 const props = defineProps<{
   entries: readonly SystemLogEntry[]
   loading: boolean
+  firstLoadPending: boolean
   connecting: boolean
   connected: boolean
   streamError: string
@@ -256,6 +257,7 @@ function handleHistoryLimitChange(value: unknown) {
           <SystemLogEntriesViewport
             :entries="visibleEntries"
             :loading="loading"
+            :first-load-pending="firstLoadPending"
           />
         </div>
       </div>

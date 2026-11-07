@@ -18,6 +18,7 @@ import {
 defineProps<{
   entries: readonly SystemLogEntry[]
   loading: boolean
+  firstLoadPending: boolean
 }>()
 
 const { t } = useI18n()
@@ -34,6 +35,12 @@ const { t } = useI18n()
       class="rounded-lg block-11"
     />
   </div>
+
+  <!--
+    首屏结果还没到，而骨架被 useStableLoading 的抑制窗口压住：此时既不是「空」，
+    也不该画空态（会闪一下「暂无日志」），留白即可。
+  -->
+  <template v-else-if="firstLoadPending"></template>
 
   <div
     v-else-if="entries.length === 0"

@@ -35,6 +35,7 @@ import {
 defineProps<{
   users: readonly ManagedUser[]
   loading: boolean
+  firstLoadPending: boolean
   refreshing: boolean
   loadFailed: boolean
   page: number
@@ -112,6 +113,12 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
       }}</Button>
     </EmptyContent>
   </Empty>
+
+  <!--
+    首屏结果还没到，而骨架被 useStableLoading 的抑制窗口压住：此时既不是「空」，
+    也不该画空态（会闪一下「暂无用户」和页码条），留白即可。
+  -->
+  <template v-else-if="firstLoadPending"></template>
 
   <div
     v-else

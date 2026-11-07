@@ -10,6 +10,8 @@ import type { Router } from 'vue-router'
  */
 export const BACKGROUND_REQUEST_HEADER = 'X-App-Background-Request'
 
+// Same numbers as `composables/useStableLoading.ts`: the bar and the page skeleton are
+// perceived as one loading affordance, so they appear and disappear on the same beats.
 const SHOW_DELAY_MS = 120
 const MIN_VISIBLE_MS = 80
 

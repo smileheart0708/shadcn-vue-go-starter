@@ -4,6 +4,7 @@ import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { installAuthGuard } from '@/middleware/auth'
 import { installRouteLoading } from '@/router/route-loading'
 import type { RouteTitleKey } from '@/router/route-title'
+import { installRouteViewTransitions } from '@/router/view-transitions'
 
 const AppShellLayout = async () => import('@/layouts/AppShellLayout.vue')
 const BlankLayout = async () => import('@/layouts/BlankLayout.vue')
@@ -119,5 +120,6 @@ const router = createRouter({
 
 installAuthGuard(router)
 installRouteLoading(router)
+installRouteViewTransitions(router)
 
 export default router

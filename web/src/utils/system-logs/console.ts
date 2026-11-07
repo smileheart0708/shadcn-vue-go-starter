@@ -13,6 +13,8 @@ const STREAM_ENTRY_BASE_BYTES = 64
 const RECONNECT_BASE_DELAY_MS = 1_000
 const RECONNECT_MAX_DELAY_MS = 30_000
 
+export const STREAM_CONNECTION_STABLE_MS = 2_000
+
 interface SelectVisibleSystemLogEntriesOptions {
   entries: readonly SystemLogEntry[]
   historyLimit: SystemLogHistoryLimit
@@ -171,6 +173,56 @@ export function getReconnectDelayMs(attempt: number): number {
     RECONNECT_MAX_DELAY_MS,
     RECONNECT_BASE_DELAY_MS * 2 ** exponent,
   )
+}
+
+export type SystemLogStreamPhase = 'connecting' | 'connected' | 'disconnected'
+
+export interface SystemLogStreamPresentation {
+  phase: SystemLogStreamPhase
+  error: string
+  loading: boolean
+}
+
+export type SystemLogStreamEvent =
+  | { type: 'start' }
+  | { type: 'entry' }
+  | { type: 'stable' }
+  | { type: 'failed'; message: string }
+  | { type: 'fatal'; message: string }
+
+export function createSystemLogStreamPresentation(): SystemLogStreamPresentation {
+  return { phase: 'connecting', error: '', loading: true }
+}
+
+/**
+ * A 200 response only proves the headers arrived: a proxy can accept an SSE request and
+ * drop it milliseconds later. Publishing every open/fail pair made the console flicker on
+ * each retry, so opening a stream is not an event here — only surviving the stable window is.
+ */
+export function reduceSystemLogStreamPresentation(
+  state: SystemLogStreamPresentation,
+  event: SystemLogStreamEvent,
+): SystemLogStreamPresentation {
+  switch (event.type) {
+    case 'start':
+      // Loading belongs to first paint; a new session must not replace the list with skeletons.
+      return { phase: 'connecting', error: '', loading: state.loading }
+    case 'entry':
+      return state.loading ? { ...state, loading: false } : state
+    case 'stable':
+      return { phase: 'connected', error: '', loading: false }
+    case 'failed':
+      // Keep the first message while retries fail in different ways, or the badge flashes too.
+      return {
+        phase: 'disconnected',
+        error: state.phase === 'disconnected' ? state.error : event.message,
+        loading: false,
+      }
+    case 'fatal':
+      // Retries are over, so the reason left on screen must be the one that ended this
+      // session — not the text of whichever earlier attempt happened to fail first.
+      return { phase: 'disconnected', error: event.message, loading: false }
+  }
 }
 
 export function formatSystemLogTimestamp(

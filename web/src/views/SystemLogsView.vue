@@ -6,6 +6,7 @@ import AppShellPage from '@/components/app-shell/AppShellPage.vue'
 import SystemLogConsolePanel from '@/components/system-logs/SystemLogConsolePanel.vue'
 import { Badge } from '@/components/ui/badge'
 import { useSystemLogStream } from '@/composables/system-logs/useSystemLogStream'
+import { useStableLoading } from '@/composables/useStableLoading'
 import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { useAuthStore } from '@/stores/auth'
 import { useSystemLogsPreferencesStore } from '@/stores/system-logs-preferences'
@@ -32,6 +33,11 @@ const {
 } = useSystemLogStream({
   historyLimit,
 })
+
+const {
+  showLoading: showSystemLogLoading,
+  firstLoadPending: systemLogFirstLoadPending,
+} = useStableLoading(systemLogLoading)
 </script>
 
 <template>
@@ -49,7 +55,8 @@ const {
     <SystemLogConsolePanel
       v-if="canReadSystemLogs"
       :entries="systemLogEntries"
-      :loading="systemLogLoading"
+      :loading="showSystemLogLoading"
+      :first-load-pending="systemLogFirstLoadPending"
       :connecting="connecting"
       :connected="connected"
       :stream-error="streamError"

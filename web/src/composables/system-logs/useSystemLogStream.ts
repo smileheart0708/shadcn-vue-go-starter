@@ -8,10 +8,14 @@ import {
   type SystemLogHistoryLimit,
 } from '@/lib/api/system-logs'
 import {
+  createSystemLogStreamPresentation,
   getReconnectDelayMs,
   historyLimitRank,
+  reduceSystemLogStreamPresentation,
   shouldRetryStreamError,
+  STREAM_CONNECTION_STABLE_MS,
   SystemLogBuffer,
+  type SystemLogStreamEvent,
 } from '@/utils/system-logs/console'
 
 interface UseSystemLogStreamOptions {
@@ -25,21 +29,40 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
   // `ref` (not `shallowRef`) so that the buffer's in-place mutations stay reactive.
   const buffer = ref(new SystemLogBuffer())
   const entries = computed(() => buffer.value.items)
-  const loading = ref(true)
-  const connecting = ref(false)
-  const connected = ref(false)
-  const streamError = ref('')
+  // One state source: the reducer owns the transitions, the three flags are projections of
+  // it. Mirrored refs would need a manual write per event and desync on the next one added.
+  const presentation = ref(createSystemLogStreamPresentation())
+  const loading = computed(() => presentation.value.loading)
+  const connecting = computed(() => presentation.value.phase === 'connecting')
+  const connected = computed(() => presentation.value.phase === 'connected')
+  const streamError = computed(() => presentation.value.error)
   const reconnectKey = ref(0)
   const pageVisible = computed(() => documentVisibility.value === 'visible')
 
   let abortController: AbortController | null = null
+  let stableTimer: ReturnType<typeof setTimeout> | null = null
+
+  function dispatch(event: SystemLogStreamEvent) {
+    presentation.value = reduceSystemLogStreamPresentation(
+      presentation.value,
+      event,
+    )
+  }
+
+  function clearStableTimer() {
+    if (stableTimer === null) {
+      return
+    }
+
+    clearTimeout(stableTimer)
+    stableTimer = null
+  }
 
   watch(
     () => [pageVisible.value, reconnectKey.value] as const,
     ([visible]) => {
       if (!visible) {
         disconnect()
-        loading.value = entries.value.length === 0
         return
       }
 
@@ -63,8 +86,7 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
     const controller = abortController
     abortController = null
     controller?.abort()
-    connecting.value = false
-    connected.value = false
+    clearStableTimer()
   }
 
   function clearEntries() {
@@ -72,19 +94,18 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
   }
 
   function reconnect() {
-    streamError.value = ''
     reconnectKey.value += 1
   }
 
   async function maintainStreamConnection(sessionSignal: AbortSignal) {
     let retryAttempt = 0
+    dispatch({ type: 'start' })
 
     while (!sessionSignal.aborted) {
       const controller = new AbortController()
       abortController = controller
-      connecting.value = true
-      connected.value = false
-      loading.value = entries.value.length === 0
+      let failed = false
+      let failure: unknown
 
       try {
         await openSystemLogsStream({
@@ -95,11 +116,10 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
               return
             }
 
-            retryAttempt = 0
-            connecting.value = false
-            connected.value = true
-            loading.value = false
-            streamError.value = ''
+            scheduleStable(controller, () => {
+              retryAttempt = 0
+              dispatch({ type: 'stable' })
+            })
           },
           onEntry(entry) {
             if (!isCurrentStream(controller)) {
@@ -107,51 +127,39 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
             }
 
             buffer.value.append(entry)
+            dispatch({ type: 'entry' })
           },
         })
       } catch (error) {
-        if (shouldStopStream(controller, sessionSignal)) {
-          return
-        }
-
-        connecting.value = false
-        connected.value = false
-        loading.value = false
-
-        const message =
-          resolveAPIErrorMessage(t, error) ??
-          t('apiError.system_log_stream_unavailable')
-        streamError.value = message
-
-        if (!shouldRetryStreamError(error)) {
-          toast.error(message)
-          return
-        }
-
-        retryAttempt += 1
-        if (
-          !(await waitForReconnect(
-            getReconnectDelayMs(retryAttempt),
-            sessionSignal,
-          ))
-        ) {
-          return
-        }
-        continue
+        failed = true
+        failure = error
       } finally {
+        clearStableTimer()
         if (abortController === controller) {
           abortController = null
         }
       }
 
+      // Normal end is as disconnected as a throw; the old branch was unreachable because
+      // `finally` cleared `abortController`, so this check uses the controller's own signal.
       if (shouldStopStream(controller, sessionSignal)) {
         return
       }
 
-      connecting.value = false
-      connected.value = false
-      loading.value = false
+      const message = failed
+        ? (resolveAPIErrorMessage(t, failure) ??
+          t('apiError.system_log_stream_unavailable'))
+        : t('apiError.system_log_stream_unavailable')
 
+      // `fatal` (not `failed`) so the badge and the toast carry *this* error: the reducer
+      // keeps the first retry message, which by now may describe a different attempt.
+      if (failed && !shouldRetryStreamError(failure)) {
+        dispatch({ type: 'fatal', message })
+        toast.error(message)
+        return
+      }
+
+      dispatch({ type: 'failed', message })
       retryAttempt += 1
       if (
         !(await waitForReconnect(
@@ -164,15 +172,29 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
     }
   }
 
+  function scheduleStable(controller: AbortController, onStable: () => void) {
+    clearStableTimer()
+    stableTimer = setTimeout(() => {
+      stableTimer = null
+      if (!isCurrentStream(controller)) {
+        return
+      }
+
+      onStable()
+    }, STREAM_CONNECTION_STABLE_MS)
+  }
+
   function isCurrentStream(controller: AbortController) {
     return abortController === controller && !controller.signal.aborted
   }
 
+  // Reading the flags through a call keeps the loop's `!aborted` narrowing from leaking
+  // into the post-await check.
   function shouldStopStream(
     controller: AbortController,
     sessionSignal: AbortSignal,
   ) {
-    return sessionSignal.aborted || !isCurrentStream(controller)
+    return sessionSignal.aborted || controller.signal.aborted
   }
 
   return {
