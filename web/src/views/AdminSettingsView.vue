@@ -63,7 +63,7 @@ const skeletonClass = computed(() => ({
         </template>
         <Skeleton
           v-else
-          class="rounded-full block-[1.15rem] inline-8"
+          class="rounded-full block-5.5 inline-10"
           :class="skeletonClass"
         />
       </SettingsRow>
@@ -88,7 +88,7 @@ const skeletonClass = computed(() => ({
         </template>
         <Skeleton
           v-else
-          class="rounded-full block-[1.15rem] inline-8"
+          class="rounded-full block-5.5 inline-10"
           :class="skeletonClass"
         />
       </SettingsRow>
