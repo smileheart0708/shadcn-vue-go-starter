@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
 import { parseExternalValue } from '@/lib/external-input'
 import { useAuthStore } from '@/stores/auth'
+import { isInternalRedirectPath } from '@/utils/auth/redirect'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -69,15 +70,6 @@ async function handleSubmit() {
   } finally {
     isSubmitting.value = false
   }
-}
-
-function isInternalRedirectPath(value: string) {
-  return (
-    value.startsWith('/') &&
-    !value.startsWith('//') &&
-    !value.startsWith('/\\') &&
-    !/^[A-Za-z][A-Za-z\d+.-]*:/.test(value)
-  )
 }
 </script>
 
