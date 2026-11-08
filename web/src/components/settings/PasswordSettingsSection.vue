@@ -17,37 +17,35 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
     <div class="space-y-4 p-4">
       <div class="space-y-2">
         <Label for="current-password">{{
-          t('settings.account.currentPassword')
+          t('common.field.currentPassword')
         }}</Label>
         <Input
           id="current-password"
           v-model="passwordForm.currentPassword"
           type="password"
-          :placeholder="t('settings.account.currentPasswordPlaceholder')"
+          :placeholder="t('common.placeholder.currentPassword')"
         />
       </div>
 
       <div class="space-y-2">
-        <Label for="new-password">{{
-          t('settings.account.newPassword')
-        }}</Label>
+        <Label for="new-password">{{ t('common.field.newPassword') }}</Label>
         <Input
           id="new-password"
           v-model="passwordForm.newPassword"
           type="password"
-          :placeholder="t('settings.account.newPasswordPlaceholder')"
+          :placeholder="t('common.placeholder.newPassword')"
         />
       </div>
 
       <div class="space-y-2">
         <Label for="confirm-password">{{
-          t('settings.account.confirmPassword')
+          t('common.field.confirmPassword')
         }}</Label>
         <Input
           id="confirm-password"
           v-model="passwordForm.confirmPassword"
           type="password"
-          :placeholder="t('settings.account.confirmPasswordPlaceholder')"
+          :placeholder="t('common.placeholder.confirmPassword')"
         />
       </div>
 
@@ -66,8 +64,8 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
         >
           {{
             isUpdatingPassword
-              ? t('settings.account.updatingPassword')
-              : t('settings.account.updatePassword')
+              ? t('common.state.saving')
+              : t('common.action.save')
           }}
         </Button>
       </div>

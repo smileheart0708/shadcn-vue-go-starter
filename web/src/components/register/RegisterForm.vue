@@ -77,7 +77,7 @@ async function handleSubmit() {
     return
   }
   if (password.value !== confirmPassword.value) {
-    toast.error(t('auth.signUp.passwordMismatch'))
+    toast.error(t('common.validation.passwordMismatch'))
     return
   }
 
@@ -89,7 +89,7 @@ async function handleSubmit() {
   })
 
   toast.promise(registerPromise, {
-    loading: t('auth.signUp.creating'),
+    loading: t('common.state.creating'),
     success: () => t('auth.signUp.registerSuccess'),
     error: (error: unknown) =>
       resolveAPIErrorMessage(t, error) ?? t('auth.signUp.registerFailed'),
@@ -133,7 +133,7 @@ async function handleSubmit() {
         }}</CardDescription>
       </CardHeader>
       <CardContent class="flex justify-center">
-        <Button @click="loadPolicy">{{ t('auth.signUp.retry') }}</Button>
+        <Button @click="loadPolicy">{{ t('common.action.retry') }}</Button>
       </CardContent>
     </Card>
 
@@ -183,7 +183,7 @@ async function handleSubmit() {
             id="username"
             v-model="username"
             autocomplete="username"
-            :placeholder="t('auth.signUp.usernamePlaceholder')"
+            :placeholder="t('common.placeholder.username')"
             required
             type="text"
           />
@@ -195,7 +195,7 @@ async function handleSubmit() {
             id="email"
             v-model="email"
             autocomplete="email"
-            :placeholder="t('auth.signUp.emailPlaceholder')"
+            :placeholder="t('common.placeholder.email')"
             type="email"
           />
           <FieldDescription>{{
@@ -211,7 +211,7 @@ async function handleSubmit() {
             id="password"
             v-model="password"
             autocomplete="new-password"
-            :placeholder="t('auth.signUp.passwordPlaceholder')"
+            :placeholder="t('common.placeholder.password')"
             minlength="8"
             required
             type="password"
@@ -220,13 +220,13 @@ async function handleSubmit() {
 
         <Field>
           <FieldLabel for="confirmPassword">{{
-            t('auth.signUp.confirmPassword')
+            t('common.field.confirmPassword')
           }}</FieldLabel>
           <Input
             id="confirmPassword"
             v-model="confirmPassword"
             autocomplete="new-password"
-            :placeholder="t('auth.signUp.confirmPasswordPlaceholder')"
+            :placeholder="t('common.placeholder.confirmPassword')"
             minlength="8"
             required
             type="password"
@@ -243,7 +243,9 @@ async function handleSubmit() {
               class="me-2"
             />
             {{
-              isSubmitting ? t('auth.signUp.creating') : t('auth.signUp.submit')
+              isSubmitting
+                ? t('common.state.creating')
+                : t('auth.signUp.submit')
             }}
           </Button>
         </Field>

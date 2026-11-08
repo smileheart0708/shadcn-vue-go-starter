@@ -42,11 +42,9 @@ const { t } = useI18n()
         <SelectItem value="ALL">{{
           t('adminUsers.filters.statusAll')
         }}</SelectItem>
-        <SelectItem value="active">{{
-          t('adminUsers.status.active')
-        }}</SelectItem>
+        <SelectItem value="active">{{ t('common.status.active') }}</SelectItem>
         <SelectItem value="disabled">{{
-          t('adminUsers.status.disabled')
+          t('common.status.disabled')
         }}</SelectItem>
       </SelectContent>
     </Select>

@@ -10,10 +10,10 @@ import (
 	"testing"
 )
 
-// The frontend locale files are validated from here because the repository has no
-// frontend test runner, and `go test ./...` is already the gate that reads them
-// (see TestErrorCodesMatchFrontendLocale). Keeping the locale invariants in one
-// place beats adding a second toolchain just to compare two JSON files.
+// The placeholder check sits next to the error-code contract test because both gates
+// read the same two locale files and `go test ./...` already runs them together.
+// Invariants that need nothing from the Go side (key order, `@:` link targets) live in
+// web/src/locales/locales.spec.ts instead of being duplicated here.
 
 // placeholderPattern matches the named-interpolation syntax vue-i18n understands.
 var placeholderPattern = regexp.MustCompile(`\{([A-Za-z0-9_]+)\}`)

@@ -23,7 +23,7 @@ onMounted(() => {
 
 function submit() {
   if (password.value !== confirmPassword.value) {
-    toast.error(t('setup.passwordMismatch'))
+    toast.error(t('common.validation.passwordMismatch'))
     return
   }
 
@@ -95,7 +95,7 @@ function submit() {
           size="lg"
           class="inline-full"
         >
-          {{ t('setup.admin.next') }}
+          {{ t('common.action.next') }}
           <ArrowRight class="ms-2 block-4 inline-4" />
         </Button>
       </Field>

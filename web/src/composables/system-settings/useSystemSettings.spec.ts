@@ -73,9 +73,7 @@ describe('useSystemSettings', () => {
 
     expect(loadFailed.value).toBe(true)
     expect(loading.value).toBe(false)
-    expect(deps.toastError).toHaveBeenCalledWith(
-      'systemConfig.feedback.loadFailed',
-    )
+    expect(deps.toastError).toHaveBeenCalledWith('common.feedback.loadFailed')
   })
 
   // form 保持 null 是刻意的：页面据此渲染值骨架，绝不拿默认 false 冒充服务端策略；
@@ -110,9 +108,7 @@ describe('useSystemSettings', () => {
       ...storedSettings,
       selfServiceAccountDeletionEnabled: true,
     })
-    expect(deps.toastSuccess).toHaveBeenCalledWith(
-      'systemConfig.feedback.saved',
-    )
+    expect(deps.toastSuccess).toHaveBeenCalledWith('common.feedback.saved')
   })
 
   // 锁住一次真实回归：写入已落库后再刷新 viewer，刷新失败曾被外层 catch 当成“保存失败”，
@@ -131,9 +127,7 @@ describe('useSystemSettings', () => {
     await setPublicRegistrationEnabled(true)
 
     expect(form.value).toMatchObject({ publicRegistrationEnabled: true })
-    expect(deps.toastSuccess).toHaveBeenCalledWith(
-      'systemConfig.feedback.saved',
-    )
+    expect(deps.toastSuccess).toHaveBeenCalledWith('common.feedback.saved')
     expect(deps.toastError).not.toHaveBeenCalled()
     // backgroundRequest 打的是“后台请求”标记：漏掉它，保存后这次 viewer 刷新会点亮顶部加载条。
     expect(deps.refreshViewer).toHaveBeenCalledWith({ backgroundRequest: true })
@@ -149,9 +143,7 @@ describe('useSystemSettings', () => {
     await setPublicRegistrationEnabled(true)
 
     expect(form.value).toEqual(storedSettings)
-    expect(deps.toastError).toHaveBeenCalledWith(
-      'systemConfig.feedback.saveFailed',
-    )
+    expect(deps.toastError).toHaveBeenCalledWith('common.feedback.saveFailed')
     expect(deps.toastSuccess).not.toHaveBeenCalled()
     // catch 里 return 也必须经过 finally 释放锁，否则失败一次后开关永久禁用。
     expect(saving.value).toBe(false)

@@ -83,8 +83,6 @@ describe('useAdminUsersList', () => {
     expect(loadFailed.value).toBe(true)
     expect(loading.value).toBe(false)
     expect(refreshing.value).toBe(false)
-    expect(deps.toastError).toHaveBeenCalledWith(
-      'adminUsers.feedback.loadFailed',
-    )
+    expect(deps.toastError).toHaveBeenCalledWith('common.feedback.loadFailed')
   })
 })

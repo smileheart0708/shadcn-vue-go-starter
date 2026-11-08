@@ -51,7 +51,7 @@ function themeLabel(theme: ThemePreference): string {
           :is="icon[themeStore.theme]"
           class="block-[1.2rem] inline-[1.2rem]"
         />
-        <span class="sr-only">Toggle theme</span>
+        <span class="sr-only">{{ t('common.aria.toggleTheme') }}</span>
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">

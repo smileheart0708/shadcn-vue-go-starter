@@ -43,9 +43,9 @@ async function handleLogout() {
         <img
           src="/logo.svg"
           class="block-8 inline-8"
-          alt="Logo"
+          :alt="t('app.logoAlt')"
         />
-        <span class="text-base font-semibold">web</span>
+        <span class="text-base font-semibold">{{ t('app.name') }}</span>
       </RouterLink>
     </SidebarHeader>
     <SidebarContent>

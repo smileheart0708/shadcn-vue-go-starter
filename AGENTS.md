@@ -73,6 +73,8 @@ Go 是契约的唯一事实来源，前端生成文件禁止手改：
 - i18n 是硬约束：禁止运行期拼键；数据驱动取键只能写成穷尽 `switch` 或内联到定义处；所有 `t()` 必须使用字面量 key。否则 `no-unused-keys` 看不到键，键会被误删，运行时静默显示原始 key。
 - 两个语言包同名 key 的 `{placeholder}` 集合必须一致（Go 测试 `TestLocalePlaceholdersMatch`）。
 - 错误提示默认用 `resolveErrorMessageOrInternal(t, error)`；调用方有专属文案时用 `resolveAPIErrorMessage(t, error) ?? t('...')`，不要让通用 `internal_error` 覆盖场景文案。
+- 文案分层：`common.*` 承载跨页面复用的动作（`action`）、字段标签与占位（`field`/`placeholder`）、状态（`state`）、通用结果（`feedback`）、校验（`validation`）、头像（`avatar`）与枚举目录（`status`/`role`/`theme`）；`<domain>.*` 只放该域独有的名词和说明。页面不要再自建 `retry`、`loadFailed`、`cancel`、`save` 这类通用键，同一个按钮在不同页面会漂成三种措辞。
+- 链接消息（`"@:other.key"`）只用于**必须逐字一致**的成对文案，典型是接口错误码与前端校验提示，例如 `apiError.avatar_invalid_type: "@:common.avatar.invalidType"`。区块标题、路由标题、导航标签、表格列名这类可独立演化的文案不要造链接，需要同词就直接在组件里 `t()` 通用键。`no-unused-keys` 会把整个语言包里所有 `@:` 目标都算作已使用，链接目标不需要再补一处 `t()` 引用。
 
 ## 6. 数据库与迁移
 

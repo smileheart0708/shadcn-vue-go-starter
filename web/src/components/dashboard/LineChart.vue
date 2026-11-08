@@ -2,6 +2,7 @@
 import type { ChartConfig } from '@/components/ui/chart'
 import { useResizeObserver } from '@vueuse/core'
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useSidebar } from '@/components/ui/sidebar'
 import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
 import {
@@ -136,18 +137,28 @@ const chartData = [
 ] as const
 
 type Data = (typeof chartData)[number]
-type TimeRange = '90d' | '30d' | '7d'
 
-const chartConfig = {
-  mobile: {
-    label: 'Mobile',
-    color: 'var(--chart-2)',
-  },
-  desktop: {
-    label: 'Desktop',
-    color: 'var(--chart-5)',
-  },
-} satisfies ChartConfig
+const TIME_RANGES = ['90d', '30d', '7d'] as const
+type TimeRange = (typeof TIME_RANGES)[number]
+
+const { t, locale } = useI18n()
+
+// 图例与提示浮层的系列名来自 ChartConfig，必须随语言切换重建，所以是 computed 而不是常量。
+// 用 `satisfies` 而不是类型标注：标注会把 mobile/desktop 退化成可选键，模板里的
+// `chartConfig.mobile.color` 就要逐处判空。
+const chartConfig = computed(
+  () =>
+    ({
+      mobile: {
+        label: t('dashboard.chart.series.mobile'),
+        color: 'var(--chart-2)',
+      },
+      desktop: {
+        label: t('dashboard.chart.series.desktop'),
+        color: 'var(--chart-5)',
+      },
+    }) satisfies ChartConfig,
+)
 
 const timeRange = ref<TimeRange>('90d')
 const chartWidth = ref(0)
@@ -262,18 +273,30 @@ onBeforeUnmount(() => {
 })
 
 function formatAxisDate(value: number) {
-  return new Date(value).toLocaleDateString('en-US', {
+  return new Date(value).toLocaleDateString(locale.value, {
     month: 'short',
     day: 'numeric',
   })
 }
 
 function formatTooltipDate(value: number | Date) {
-  return new Date(value).toLocaleDateString('en-US', {
+  return new Date(value).toLocaleDateString(locale.value, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   })
+}
+
+// 穷尽 switch：i18n lint 只认 t() 调用里的字面量键。
+function rangeLabel(range: TimeRange): string {
+  switch (range) {
+    case '90d':
+      return t('dashboard.chart.ranges.90d')
+    case '30d':
+      return t('dashboard.chart.ranges.30d')
+    case '7d':
+      return t('dashboard.chart.ranges.7d')
+  }
 }
 </script>
 
@@ -283,36 +306,26 @@ function formatTooltipDate(value: number | Date) {
       class="flex items-center gap-2 space-y-0 border-be py-5 sm:flex-row"
     >
       <div class="grid flex-1 gap-1">
-        <CardTitle>Area Chart - Interactive</CardTitle>
-        <CardDescription
-          >Showing total visitors for the last 3 months</CardDescription
-        >
+        <CardTitle>{{ t('dashboard.chart.title') }}</CardTitle>
+        <CardDescription>
+          {{ t('dashboard.chart.description') }}
+        </CardDescription>
       </div>
       <Select v-model="timeRange">
         <SelectTrigger
           class="hidden rounded-lg inline-40 sm:ms-auto sm:flex"
-          aria-label="Select a value"
+          :aria-label="t('dashboard.chart.rangeLabel')"
         >
-          <SelectValue placeholder="Last 3 months" />
+          <SelectValue :placeholder="t('dashboard.chart.rangeLabel')" />
         </SelectTrigger>
         <SelectContent class="rounded-xl">
           <SelectItem
-            value="90d"
+            v-for="range in TIME_RANGES"
+            :key="range"
+            :value="range"
             class="rounded-lg"
           >
-            Last 3 months
-          </SelectItem>
-          <SelectItem
-            value="30d"
-            class="rounded-lg"
-          >
-            Last 30 days
-          </SelectItem>
-          <SelectItem
-            value="7d"
-            class="rounded-lg"
-          >
-            Last 7 days
+            {{ rangeLabel(range) }}
           </SelectItem>
         </SelectContent>
       </Select>

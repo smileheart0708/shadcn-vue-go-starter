@@ -1,30 +1,73 @@
 {
   "app": {
     "name": "起始点",
+    "logoAlt": "应用图标",
     "title": "{name}",
-    "titleWithPage": "{name}-{page}"
+    "titleWithPage": "{name} - {page}"
   },
   "common": {
     "action": {
       "back": "返回",
       "cancel": "取消",
-      "edit": "编辑"
+      "create": "新建",
+      "edit": "编辑",
+      "next": "下一步",
+      "nextPage": "下一页",
+      "previousPage": "上一页",
+      "retry": "重试",
+      "save": "保存"
     },
     "field": {
+      "username": "用户名",
       "email": "邮箱",
       "password": "密码",
-      "username": "用户名",
-      "usernameOrEmail": "用户名或邮箱",
-      "confirmPassword": "确认密码"
+      "currentPassword": "当前密码",
+      "newPassword": "新密码",
+      "confirmPassword": "确认密码",
+      "usernameOrEmail": "用户名或邮箱"
     },
-    "feedback": {
-      "networkError": "网络异常，请稍后重试。",
-      "loadFailed": "页面加载失败，请刷新页面后重试。"
+    "placeholder": {
+      "username": "请输入用户名",
+      "email": "请输入邮箱",
+      "password": "请输入密码",
+      "currentPassword": "请输入当前密码",
+      "newPassword": "请输入新密码",
+      "confirmPassword": "再次输入密码",
+      "usernameOrEmail": "请输入用户名或邮箱"
     },
     "state": {
-      "disabled": "已禁用",
-      "loading": "加载中...",
-      "neverUsed": "从未使用"
+      "loading": "加载中",
+      "saving": "保存中",
+      "creating": "创建中",
+      "updating": "更新中",
+      "neverUsed": "从未使用",
+      "notSet": "未设置"
+    },
+    "feedback": {
+      "loadFailed": "加载失败，请刷新重试",
+      "saveFailed": "保存失败",
+      "createFailed": "创建失败",
+      "updateFailed": "更新失败",
+      "networkError": "网络异常，请稍后重试",
+      "saved": "已保存",
+      "created": "已创建",
+      "updated": "已更新",
+      "deleted": "已删除"
+    },
+    "validation": {
+      "usernameRequired": "请输入用户名",
+      "passwordMismatch": "两次输入的密码不一致"
+    },
+    "avatar": {
+      "change": "更换头像",
+      "hint": "支持 JPG、PNG、WebP，最大 5MB，上传前压缩",
+      "invalidType": "请选择 JPG、PNG 或 WebP 图片",
+      "tooLarge": "图片不能超过 5MB",
+      "processFailed": "头像处理失败，换一张试试"
+    },
+    "status": {
+      "active": "正常",
+      "disabled": "已禁用"
     },
     "role": {
       "owner": "所有者",
@@ -34,37 +77,40 @@
       "light": "浅色",
       "dark": "深色",
       "system": "跟随系统"
+    },
+    "aria": {
+      "toggleTheme": "切换主题"
     }
   },
   "apiError": {
-    "invalid_request": "请求格式有误，请重新提交。",
-    "invalid_credentials": "用户名、邮箱或密码错误。",
-    "invalid_token": "登录状态已失效，请重新登录。",
-    "unauthorized": "需要先登录。",
-    "forbidden": "没有访问该资源的权限。",
-    "account_disabled": "该账号已被禁用。",
-    "registration_disabled": "当前已禁止注册。",
-    "account_delete_forbidden": "当前账号不允许自助删除。",
-    "username_required": "请输入用户名。",
-    "username_taken": "该用户名已被占用。",
-    "email_taken": "该邮箱已被占用。",
-    "password_too_short": "密码至少需要 8 位。",
-    "current_password_invalid": "当前密码不正确。",
-    "invalid_id": "资源标识无效。",
-    "user_not_found": "用户不存在。",
-    "avatar_required": "请选择头像图片。",
-    "avatar_invalid_type": "请选择 JPG、PNG 或 WebP 格式的图片。",
-    "avatar_too_large": "图片不能超过 5MB。",
-    "setup_required": "系统尚未完成初始化，请先完成首次安装。",
-    "setup_completed": "系统已经完成初始化，不能再次执行 setup。",
-    "database_input_required": "请选择数据库后再完成初始化。",
-    "database_already_configured": "本次初始化已经配置了数据库，不能重复选择。",
-    "database_config_invalid": "数据库配置不完整或格式无效。",
-    "database_connection_failed": "无法连接到数据库，请检查地址、账号和网络。",
-    "database_not_empty": "该数据库不是空库，或已经被其他安装使用。",
-    "database_migration_failed": "数据库初始化失败，请确认账号拥有建表权限。",
-    "system_log_stream_unavailable": "系统日志流连接失败。",
-    "internal_error": "服务异常，请稍后重试。"
+    "invalid_request": "请求格式错误",
+    "invalid_credentials": "用户名、邮箱或密码不正确",
+    "invalid_token": "登录已失效，请重新登录",
+    "unauthorized": "请先登录",
+    "forbidden": "没有权限访问",
+    "account_disabled": "账号已被禁用",
+    "registration_disabled": "当前不开放注册",
+    "account_delete_forbidden": "该账号不能自行删除",
+    "username_required": "@:common.validation.usernameRequired",
+    "username_taken": "用户名已被占用",
+    "email_taken": "邮箱已被占用",
+    "password_too_short": "密码至少 8 位",
+    "current_password_invalid": "当前密码不正确",
+    "invalid_id": "资源标识无效",
+    "user_not_found": "用户不存在",
+    "avatar_required": "请选择头像图片",
+    "avatar_invalid_type": "@:common.avatar.invalidType",
+    "avatar_too_large": "@:common.avatar.tooLarge",
+    "setup_required": "系统尚未初始化",
+    "setup_completed": "系统已完成初始化",
+    "database_input_required": "请先选择数据库",
+    "database_already_configured": "本次初始化已配置数据库",
+    "database_config_invalid": "数据库配置不完整或格式错误",
+    "database_connection_failed": "无法连接数据库，请检查地址、账号和网络",
+    "database_not_empty": "数据库不是空库，或已被其他安装使用",
+    "database_migration_failed": "数据库初始化失败，请确认账号有建表权限",
+    "system_log_stream_unavailable": "日志流连接失败",
+    "internal_error": "服务异常，请稍后重试"
   },
   "route": {
     "systemConfig": "系统配置",
@@ -82,17 +128,12 @@
     "fields": {
       "publicRegistrationEnabled": {
         "title": "允许公开注册",
-        "description": "开启后，未登录访客可以自行注册账号。"
+        "description": "开启后访客可以自行注册"
       },
       "selfServiceAccountDeletionEnabled": {
-        "title": "允许用户自行删除账号",
-        "description": "开启后，普通用户可以删除自己的账号；所有者账号受保护，始终无法自行删除。"
+        "title": "允许用户删除自己的账号",
+        "description": "开启后用户可以删除自己的账号，所有者账号始终受保护"
       }
-    },
-    "feedback": {
-      "loadFailed": "请刷新页面后重试。",
-      "saved": "账号策略已保存。",
-      "saveFailed": "保存账号策略失败。"
     }
   },
   "settings": {
@@ -101,41 +142,14 @@
       "account": "账号"
     },
     "account": {
-      "profile": "个人信息",
-      "profileUpdated": "资料已更新。",
-      "saveProfile": "保存资料",
-      "savingProfile": "保存中...",
-      "changeAvatar": "更换头像",
-      "avatarHint": "支持 JPG、PNG 或 WebP，最大 5MB，上传后会在浏览器内压缩",
-      "avatarUnsupportedType": "请选择 JPG、PNG 或 WebP 格式的图片。",
-      "avatarFileTooLarge": "图片不能超过 5MB。",
-      "avatarProcessFailed": "头像处理失败，请换一张图片重试。",
-      "username": "用户名",
-      "usernameRequired": "请输入用户名。",
-      "usernamePlaceholder": "请输入你的用户名",
-      "email": "邮箱",
-      "emailNotSet": "暂未设置邮箱",
-      "emailPlaceholder": "请输入你的邮箱（可选）",
-      "edit": "编辑",
+      "profile": "个人资料",
       "editProfile": "编辑资料",
       "editProfileDesc": "更新你的账号信息",
-      "statusActive": "正常",
       "password": "密码",
-      "currentPassword": "当前密码",
-      "currentPasswordPlaceholder": "请输入当前密码",
-      "newPassword": "新密码",
-      "newPasswordPlaceholder": "请输入新密码",
-      "confirmPassword": "确认密码",
-      "confirmPasswordPlaceholder": "请再次输入新密码",
-      "passwordMismatch": "新密码与确认密码不一致。",
-      "passwordUpdated": "密码已更新。",
-      "updatingPassword": "更新中...",
-      "updatePassword": "更新密码",
       "dangerZone": "危险区域",
-      "dangerZoneConfirm": "我理解此操作是永久性的",
+      "dangerZoneConfirm": "我确认此操作不可撤销",
       "deleteAccount": "删除账号",
-      "deleteAccountConfirm": "此操作不可撤销。你的所有数据将被永久删除。",
-      "deleteAccountSuccess": "账号已删除。"
+      "deleteAccountConfirm": "删除后无法恢复，账号数据会被永久清除"
     },
     "basic": {
       "appearance": "外观",
@@ -144,31 +158,29 @@
       "selectLanguage": "选择语言",
       "dataRefresh": "数据刷新",
       "dataRefreshInterval": "刷新间隔",
-      "dataRefreshIntervalDesc": "自动刷新的时间间隔 {seconds} 秒"
+      "dataRefreshIntervalDesc": "每 {seconds} 秒自动刷新"
     }
   },
   "setup": {
-    "title": "欢迎使用",
+    "title": "初始化",
     "failed": "初始化失败",
-    "passwordMismatch": "密码与确认密码不一致。",
     "steps": {
-      "admin": "管理员账号",
+      "admin": "管理员",
       "database": "数据库",
       "done": "完成"
     },
     "admin": {
-      "title": "创建管理员账号",
-      "description": "此账号拥有系统最高权限，请妥善保管凭据。",
-      "next": "下一步"
+      "title": "创建管理员",
+      "description": "该账号拥有最高权限，请妥善保管"
     },
     "database": {
       "title": "选择数据库",
-      "description": "数据库将用于保存全部业务数据。",
+      "description": "所有业务数据都会保存在这个数据库",
       "driver": "数据库类型",
       "sqlite": "SQLite",
-      "sqliteDescription": "无需额外配置，数据保存在本机。",
+      "sqliteDescription": "无需额外配置，数据保存在本机",
       "postgresql": "PostgreSQL",
-      "postgresqlDescription": "请提供已创建的空数据库和具备建表权限的账号。",
+      "postgresqlDescription": "需要一个空数据库，以及能建表的账号",
       "host": "主机",
       "port": "端口",
       "database": "数据库名",
@@ -180,61 +192,49 @@
         "require": "要求加密",
         "verifyFull": "完整验证"
       },
-      "finalizationDescription": "将使用已保存的 {driver} 配置继续完成初始化。",
-      "finalizationHint": "数据库已完成迁移，本次只创建管理员。",
-      "submitting": "正在验证并初始化...",
+      "finalizationDescription": "使用已保存的 {driver} 配置继续",
+      "finalizationHint": "数据库已迁移，本次只创建管理员",
+      "submitting": "正在初始化",
       "submit": "验证并完成"
     },
     "done": {
       "title": "初始化完成",
-      "description": "管理员账号和数据库已经配置完成。",
-      "autoLoginFailed": "初始化已完成，但自动登录失败，请手动登录。",
+      "description": "管理员和数据库都已配置好",
+      "autoLoginFailed": "初始化已完成，但自动登录失败，请手动登录",
       "goDashboard": "进入应用",
-      "goLogin": "前往登录"
+      "goLogin": "去登录"
     }
   },
   "auth": {
     "signIn": {
-      "description": "使用你的账号凭据继续。",
-      "identifierPlaceholder": "请输入用户名或邮箱",
-      "loginFailed": "登录失败，请重试。",
-      "loginSuccess": "登录成功！",
-      "noAccount": "还没有账号？",
-      "passwordPlaceholder": "请输入你的密码",
-      "register": "立即注册",
-      "signingIn": "登录中...",
+      "title": "登录",
+      "description": "使用你的账号继续",
       "submit": "登录",
-      "title": "欢迎回来"
+      "signingIn": "登录中",
+      "loginSuccess": "登录成功",
+      "loginFailed": "登录失败，请重试",
+      "noAccount": "还没有账号？",
+      "register": "注册"
     },
     "signUp": {
       "title": "创建账号",
       "description": "已有账号？",
-      "disabledTitle": "当前禁止注册",
-      "disabledDescription": "当前未开放自助注册。",
-      "emailOptional": "邮箱为可选项。",
       "signIn": "登录",
-      "usernamePlaceholder": "请输入用户名",
-      "emailPlaceholder": "请输入电子邮箱",
-      "passwordPlaceholder": "请输入你的密码",
-      "confirmPassword": "确认密码",
-      "confirmPasswordPlaceholder": "请再次输入你的密码",
-      "passwordMismatch": "密码与确认密码不一致。",
-      "creating": "创建中...",
-      "registerSuccess": "账号创建成功。",
-      "registerFailed": "账号创建失败。",
-      "loadFailedTitle": "注册策略加载失败",
-      "policyLoadFailed": "无法获取当前注册策略，请稍后重试。",
-      "retry": "重试",
-      "submit": "创建账号"
+      "disabledTitle": "未开放注册",
+      "disabledDescription": "当前只能由管理员创建账号",
+      "emailOptional": "邮箱可以留空",
+      "submit": "创建账号",
+      "registerSuccess": "账号已创建",
+      "registerFailed": "创建失败，请重试",
+      "loadFailedTitle": "无法获取注册状态",
+      "policyLoadFailed": "注册状态加载失败，请稍后重试"
     }
   },
   "adminUsers": {
     "actions": {
       "createUser": "新建用户",
       "disable": "禁用",
-      "enable": "启用",
-      "previousPage": "上一页",
-      "nextPage": "下一页"
+      "enable": "启用"
     },
     "filters": {
       "searchPlaceholder": "搜索用户名或邮箱",
@@ -243,70 +243,45 @@
     },
     "table": {
       "user": "用户",
-      "email": "邮箱",
       "role": "角色",
       "status": "状态",
-      "lastActiveAt": "最后活跃时间",
+      "lastActiveAt": "最后活跃",
       "createdAt": "注册时间",
       "actions": "操作",
-      "empty": "没有匹配的用户。",
-      "noEmail": "未设置邮箱",
-      "readonly": "该账号仅可查看",
+      "empty": "没有匹配的用户",
+      "readonly": "仅可查看",
       "pageSummary": "第 {page} / {totalPages} 页，共 {total} 个用户"
-    },
-    "status": {
-      "active": "正常",
-      "disabled": "已禁用"
     },
     "dialog": {
       "createTitle": "新建用户",
-      "createDescription": "创建一个普通用户账号。",
-      "createSubmit": "创建用户",
+      "createDescription": "创建一个普通用户",
       "editTitle": "编辑用户",
-      "editDescription": "更新所选用户的资料。",
-      "editSubmit": "保存修改",
-      "usernamePlaceholder": "请输入用户名",
-      "emailPlaceholder": "请输入邮箱（可选）",
+      "editDescription": "修改用户资料",
       "passwordPlaceholder": "请输入初始密码"
     },
     "confirm": {
-      "disableTitle": "确认禁用用户",
-      "disableDescription": "禁用 {username} 并撤销其所有现有会话。",
-      "enableTitle": "确认启用用户",
-      "enableDescription": "恢复 {username} 的登录能力，对方需要重新登录。"
-    },
-    "feedback": {
-      "loadFailed": "请刷新页面后重试。",
-      "creating": "正在创建用户...",
-      "createSuccess": "用户已创建。",
-      "createFailed": "创建用户失败。",
-      "updating": "正在更新用户...",
-      "updateSuccess": "用户已更新。",
-      "updateFailed": "更新用户失败。",
-      "disabling": "正在禁用用户...",
-      "disableSuccess": "用户已禁用。",
-      "disableFailed": "禁用用户失败。",
-      "enabling": "正在启用用户...",
-      "enableSuccess": "用户已启用。",
-      "enableFailed": "启用用户失败。"
+      "disableTitle": "禁用此用户",
+      "disableDescription": "禁用 {username} 后，其所有登录状态会被撤销",
+      "enableTitle": "启用此用户",
+      "enableDescription": "恢复 {username} 的登录，对方需要重新登录"
     }
   },
   "dashboard": {
     "metric": {
       "totalRevenue": {
         "title": "总收入",
-        "summary": "本月呈上升趋势",
-        "detail": "近 6 个月访客数据"
+        "summary": "本月持续上升",
+        "detail": "近 6 个月访客"
       },
       "newCustomers": {
         "title": "新增客户",
         "summary": "本期下降 20%",
-        "detail": "获客情况需要关注"
+        "detail": "获客需要关注"
       },
       "activeAccounts": {
         "title": "活跃账户",
-        "summary": "用户留存表现良好",
-        "detail": "互动数据超出目标"
+        "summary": "留存表现稳定",
+        "detail": "互动超出目标"
       },
       "growthRate": {
         "title": "增长率",
@@ -314,22 +289,36 @@
         "detail": "达成增长预期"
       }
     },
+    "chart": {
+      "title": "访客趋势",
+      "description": "近 3 个月总访客",
+      "rangeLabel": "选择时间范围",
+      "ranges": {
+        "90d": "近 3 个月",
+        "30d": "近 30 天",
+        "7d": "近 7 天"
+      },
+      "series": {
+        "mobile": "移动端",
+        "desktop": "桌面端"
+      }
+    },
     "reservedPanel": {
       "eyebrow": "预留面板",
-      "title": "下一个组件位",
+      "title": "下一个模块",
       "badge": "占位",
-      "emptyTitle": "为下一个仪表盘模块预留",
-      "emptyDescription": "此面板可用于告警、转化漏斗或简要汇总表格，且不会影响当前桌面端的首屏布局。",
+      "emptyTitle": "留给下一个仪表盘模块",
+      "emptyDescription": "可以放告警、转化漏斗或汇总表格，不影响桌面端首屏布局",
       "suggestedWidth": "建议宽度",
       "suggestedWidthValue": "右侧辅助卡片",
       "suggestedContent": "建议内容",
-      "suggestedContentValue": "任务、通知或小型表格",
+      "suggestedContentValue": "任务、通知或小表格",
       "viewportRule": "视口规则",
       "viewportRuleValue": "桌面端不出现纵向滚动"
     }
   },
   "notFound": {
-    "description": "您访问的页面不存在。"
+    "description": "页面不存在"
   },
   "systemLogs": {
     "summary": {
@@ -345,14 +334,14 @@
     },
     "actions": {
       "clear": "清空",
-      "export": "导出日志",
+      "export": "导出",
       "pauseFollow": "暂停跟随",
-      "resumeFollow": "恢复跟随",
+      "resumeFollow": "继续跟随",
       "reconnect": "重新连接"
     },
     "export": {
-      "title": "导出系统日志",
-      "description": "将按当前控制台筛选导出 {count} 条日志。",
+      "title": "导出日志",
+      "description": "按当前筛选导出 {count} 条",
       "fields": {
         "format": "文件格式"
       },
@@ -361,14 +350,14 @@
         "txt": "TXT",
         "json": "JSON"
       },
-      "preview": "将导出 {count} 条日志。"
+      "preview": "将导出 {count} 条"
     },
     "filters": {
       "searchPlaceholder": "搜索消息、来源或上下文",
       "historyPlaceholder": "日志数量",
       "level": {
         "allSelected": "全部等级",
-        "noneSelected": "未选择等级",
+        "noneSelected": "未选等级",
         "DEBUG": "调试",
         "INFO": "信息",
         "WARN": "警告",
@@ -384,11 +373,11 @@
     },
     "empty": {
       "title": "没有匹配的日志",
-      "description": "等待新的日志到来，或者调整当前筛选条件。"
+      "description": "等待新日志，或调整筛选条件"
     },
     "feedback": {
-      "exportSuccess": "已导出 {count} 条日志。",
-      "exportEmpty": "当前导出条件下没有可导出的日志。"
+      "exportSuccess": "已导出 {count} 条",
+      "exportEmpty": "没有可导出的日志"
     }
   },
   "nav": {
@@ -407,7 +396,7 @@
       "search": "搜索"
     },
     "user": {
-      "account": "账户",
+      "account": "账号",
       "billing": "账单",
       "notifications": "通知",
       "language": "语言",

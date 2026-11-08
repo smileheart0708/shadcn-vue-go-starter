@@ -51,13 +51,13 @@ const {
             >
               {{
                 currentIdentity?.status === 'disabled'
-                  ? t('common.state.disabled')
-                  : t('settings.account.statusActive')
+                  ? t('common.status.disabled')
+                  : t('common.status.active')
               }}
             </Badge>
           </div>
           <p class="text-sm text-muted-foreground">
-            {{ currentIdentity?.email ?? t('settings.account.emailNotSet') }}
+            {{ currentIdentity?.email ?? t('common.state.notSet') }}
           </p>
         </div>
       </div>

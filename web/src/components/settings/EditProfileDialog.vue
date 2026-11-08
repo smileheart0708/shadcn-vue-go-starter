@@ -66,7 +66,7 @@ function saveProfile() {
         variant="outline"
         size="sm"
       >
-        {{ t('settings.account.edit') }}
+        {{ t('common.action.edit') }}
       </Button>
     </DialogTrigger>
     <DialogContent class="sm:max-inline-110">
@@ -95,10 +95,10 @@ function saveProfile() {
             type="button"
             @click="chooseAvatar"
           >
-            {{ t('settings.account.changeAvatar') }}
+            {{ t('common.avatar.change') }}
           </Button>
           <p class="text-xs text-muted-foreground">
-            {{ t('settings.account.avatarHint') }}
+            {{ t('common.avatar.hint') }}
           </p>
           <p
             v-if="props.profileError !== ''"
@@ -109,24 +109,22 @@ function saveProfile() {
         </div>
 
         <div class="space-y-2">
-          <Label for="edit-username">{{
-            t('settings.account.username')
-          }}</Label>
+          <Label for="edit-username">{{ t('common.field.username') }}</Label>
           <Input
             id="edit-username"
             :model-value="props.username"
-            :placeholder="t('settings.account.usernamePlaceholder')"
+            :placeholder="t('common.placeholder.username')"
             @update:model-value="handleUsernameUpdate"
           />
         </div>
 
         <div class="space-y-2">
-          <Label for="edit-email">{{ t('settings.account.email') }}</Label>
+          <Label for="edit-email">{{ t('common.field.email') }}</Label>
           <Input
             id="edit-email"
             :model-value="props.email"
             type="email"
-            :placeholder="t('settings.account.emailPlaceholder')"
+            :placeholder="t('common.placeholder.email')"
             @update:model-value="handleEmailUpdate"
           />
         </div>
@@ -142,8 +140,8 @@ function saveProfile() {
         >
           {{
             props.isSavingProfile
-              ? t('settings.account.savingProfile')
-              : t('settings.account.saveProfile')
+              ? t('common.state.saving')
+              : t('common.action.save')
           }}
         </Button>
       </DialogFooter>

@@ -35,8 +35,7 @@ export function useSystemSettings() {
     } catch (error) {
       loadFailed.value = true
       toast.error(
-        resolveAPIErrorMessage(t, error) ??
-          t('systemConfig.feedback.loadFailed'),
+        resolveAPIErrorMessage(t, error) ?? t('common.feedback.loadFailed'),
       )
     } finally {
       loading.value = false
@@ -62,12 +61,11 @@ export function useSystemSettings() {
     try {
       // 只提交被切换的字段：另一个字段即使被其他管理员改过，本次写入也不会覆盖它。
       form.value = await updateSystemSettings(patch)
-      toast.success(t('systemConfig.feedback.saved'))
+      toast.success(t('common.feedback.saved'))
     } catch (error) {
       form.value = previous
       toast.error(
-        resolveAPIErrorMessage(t, error) ??
-          t('systemConfig.feedback.saveFailed'),
+        resolveAPIErrorMessage(t, error) ?? t('common.feedback.saveFailed'),
       )
       return
     } finally {

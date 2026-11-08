@@ -22,7 +22,7 @@ export function usePasswordSettings() {
     passwordError.value = ''
 
     if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-      passwordError.value = t('settings.account.passwordMismatch')
+      passwordError.value = t('common.validation.passwordMismatch')
       return
     }
 
@@ -40,7 +40,7 @@ export function usePasswordSettings() {
         confirmPassword: '',
       }
 
-      toast.success(t('settings.account.passwordUpdated'))
+      toast.success(t('common.feedback.updated'))
       await router.push({ name: 'login' })
     } catch (error) {
       const message = resolveErrorMessageOrInternal(t, error)

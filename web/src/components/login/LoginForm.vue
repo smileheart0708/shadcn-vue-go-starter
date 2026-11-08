@@ -88,7 +88,7 @@ function isInternalRedirectPath(value: string) {
         <div class="flex flex-col items-center gap-2 text-center">
           <img
             src="/logo.svg"
-            alt="Logo"
+            :alt="t('app.logoAlt')"
             class="block-8 inline-8"
           />
           <h1 class="text-xl font-bold">{{ t('auth.signIn.title') }}</h1>
@@ -104,7 +104,7 @@ function isInternalRedirectPath(value: string) {
             id="identifier"
             v-model="identifier"
             type="text"
-            :placeholder="t('auth.signIn.identifierPlaceholder')"
+            :placeholder="t('common.placeholder.usernameOrEmail')"
             autocomplete="username"
             required
           />
@@ -117,7 +117,7 @@ function isInternalRedirectPath(value: string) {
             id="password"
             v-model="password"
             type="password"
-            :placeholder="t('auth.signIn.passwordPlaceholder')"
+            :placeholder="t('common.placeholder.password')"
             autocomplete="current-password"
             required
           />

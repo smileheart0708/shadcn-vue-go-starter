@@ -51,7 +51,7 @@ export function useAdminUsersList() {
     } catch (error) {
       loadFailed.value = true
       toast.error(
-        resolveAPIErrorMessage(t, error) ?? t('adminUsers.feedback.loadFailed'),
+        resolveAPIErrorMessage(t, error) ?? t('common.feedback.loadFailed'),
       )
     } finally {
       loading.value = false

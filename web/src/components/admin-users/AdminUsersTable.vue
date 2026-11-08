@@ -81,7 +81,7 @@ const skeletonClass = computed(() => ({ 'animate-none': isFailed.value }))
         <TableHeader class="bg-muted">
           <TableRow class="hover:bg-transparent">
             <TableHead>{{ t('adminUsers.table.user') }}</TableHead>
-            <TableHead>{{ t('adminUsers.table.email') }}</TableHead>
+            <TableHead>{{ t('common.field.email') }}</TableHead>
             <TableHead>{{ t('adminUsers.table.role') }}</TableHead>
             <TableHead>{{ t('adminUsers.table.status') }}</TableHead>
             <TableHead>{{ t('adminUsers.table.lastActiveAt') }}</TableHead>
@@ -172,7 +172,7 @@ const skeletonClass = computed(() => ({ 'animate-none': isFailed.value }))
                 </div>
               </TableCell>
               <TableCell>{{
-                user.email ?? t('adminUsers.table.noEmail')
+                user.email ?? t('common.state.notSet')
               }}</TableCell>
               <TableCell>
                 <Badge :variant="getUserRoleBadgeVariant(user.role)">
@@ -183,8 +183,8 @@ const skeletonClass = computed(() => ({ 'animate-none': isFailed.value }))
                 <Badge :variant="getAdminUserStatusBadgeVariant(user.status)">
                   {{
                     user.status === 'active'
-                      ? t('adminUsers.status.active')
-                      : t('adminUsers.status.disabled')
+                      ? t('common.status.active')
+                      : t('common.status.disabled')
                   }}
                 </Badge>
               </TableCell>
@@ -281,7 +281,7 @@ const skeletonClass = computed(() => ({ 'animate-none': isFailed.value }))
           :disabled="page <= 1 || refreshing"
           @click="emit('previous-page')"
         >
-          {{ t('adminUsers.actions.previousPage') }}
+          {{ t('common.action.previousPage') }}
         </Button>
         <Button
           size="sm"
@@ -289,7 +289,7 @@ const skeletonClass = computed(() => ({ 'animate-none': isFailed.value }))
           :disabled="page >= totalPages || refreshing"
           @click="emit('next-page')"
         >
-          {{ t('adminUsers.actions.nextPage') }}
+          {{ t('common.action.nextPage') }}
         </Button>
       </div>
     </div>

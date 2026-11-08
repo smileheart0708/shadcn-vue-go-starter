@@ -90,8 +90,8 @@ export function useProfileSettings() {
     if (!validation.ok) {
       profileError.value =
         validation.failure === 'unsupported-type'
-          ? t('settings.account.avatarUnsupportedType')
-          : t('settings.account.avatarFileTooLarge')
+          ? t('common.avatar.invalidType')
+          : t('common.avatar.tooLarge')
       avatarDialog.reset()
       return
     }
@@ -100,7 +100,7 @@ export function useProfileSettings() {
       pendingAvatarFile.value = await compressAvatarFile(file)
       profileError.value = ''
     } catch {
-      profileError.value = t('settings.account.avatarProcessFailed')
+      profileError.value = t('common.avatar.processFailed')
     } finally {
       avatarDialog.reset()
     }
@@ -109,7 +109,7 @@ export function useProfileSettings() {
   async function saveProfile() {
     const username = editForm.value.username.trim()
     if (username.length === 0) {
-      profileError.value = t('settings.account.usernameRequired')
+      profileError.value = t('common.validation.usernameRequired')
       return
     }
 
@@ -127,7 +127,7 @@ export function useProfileSettings() {
         pendingAvatarFile.value = null
       }
 
-      toast.success(t('settings.account.profileUpdated'))
+      toast.success(t('common.feedback.updated'))
       editDialogOpen.value = false
     } catch (error) {
       const message = resolveErrorMessageOrInternal(t, error)

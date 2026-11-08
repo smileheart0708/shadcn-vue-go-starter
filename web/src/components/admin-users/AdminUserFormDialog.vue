@@ -50,11 +50,11 @@ const { t } = useI18n()
       <div class="space-y-4 py-2">
         <Input
           v-model="form.username"
-          :placeholder="t('adminUsers.dialog.usernamePlaceholder')"
+          :placeholder="t('common.placeholder.username')"
         />
         <Input
           v-model="form.email"
-          :placeholder="t('adminUsers.dialog.emailPlaceholder')"
+          :placeholder="t('common.placeholder.email')"
         />
         <Input
           v-if="mode === 'create'"
@@ -82,8 +82,8 @@ const { t } = useI18n()
           />
           {{
             mode === 'create'
-              ? t('adminUsers.dialog.createSubmit')
-              : t('adminUsers.dialog.editSubmit')
+              ? t('common.action.create')
+              : t('common.action.save')
           }}
         </Button>
       </DialogFooter>

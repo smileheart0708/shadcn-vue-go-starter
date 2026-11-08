@@ -70,7 +70,7 @@ export function useDeleteAccountFlow() {
     try {
       await accountStore.deleteAccount()
       closeDeleteAccountFlow()
-      toast.success(t('settings.account.deleteAccountSuccess'))
+      toast.success(t('common.feedback.deleted'))
       await router.push({ name: 'login' })
     } catch (error) {
       toast.error(resolveErrorMessageOrInternal(t, error))

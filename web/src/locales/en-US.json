@@ -1,6 +1,7 @@
 {
   "app": {
     "name": "Starter",
+    "logoAlt": "App logo",
     "title": "{name}",
     "titleWithPage": "{name} - {page}"
   },
@@ -8,23 +9,65 @@
     "action": {
       "back": "Back",
       "cancel": "Cancel",
-      "edit": "Edit"
+      "create": "Create",
+      "edit": "Edit",
+      "next": "Next",
+      "nextPage": "Next",
+      "previousPage": "Previous",
+      "retry": "Retry",
+      "save": "Save"
     },
     "field": {
+      "username": "Username",
       "email": "Email",
       "password": "Password",
-      "username": "Username",
-      "usernameOrEmail": "Username or Email",
-      "confirmPassword": "Confirm Password"
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "usernameOrEmail": "Username or email"
     },
-    "feedback": {
-      "networkError": "Network error. Please try again.",
-      "loadFailed": "Failed to load the page. Please refresh and try again."
+    "placeholder": {
+      "username": "Enter username",
+      "email": "Enter email",
+      "password": "Enter password",
+      "currentPassword": "Enter current password",
+      "newPassword": "Enter new password",
+      "confirmPassword": "Re-enter password",
+      "usernameOrEmail": "Enter username or email"
     },
     "state": {
-      "disabled": "Disabled",
-      "loading": "Loading...",
-      "neverUsed": "Never used"
+      "loading": "Loading",
+      "saving": "Saving",
+      "creating": "Creating",
+      "updating": "Updating",
+      "neverUsed": "Never used",
+      "notSet": "Not set"
+    },
+    "feedback": {
+      "loadFailed": "Couldn't load. Refresh and try again",
+      "saveFailed": "Couldn't save",
+      "createFailed": "Couldn't create",
+      "updateFailed": "Couldn't update",
+      "networkError": "Network problem. Try again in a moment",
+      "saved": "Saved",
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted"
+    },
+    "validation": {
+      "usernameRequired": "Enter a username",
+      "passwordMismatch": "Passwords don't match"
+    },
+    "avatar": {
+      "change": "Change avatar",
+      "hint": "JPG, PNG or WebP up to 5MB, compressed before upload",
+      "invalidType": "Choose a JPG, PNG or WebP image",
+      "tooLarge": "Image must be 5MB or smaller",
+      "processFailed": "Couldn't process this image. Try another one"
+    },
+    "status": {
+      "active": "Active",
+      "disabled": "Disabled"
     },
     "role": {
       "owner": "Owner",
@@ -34,65 +77,63 @@
       "light": "Light",
       "dark": "Dark",
       "system": "System"
+    },
+    "aria": {
+      "toggleTheme": "Toggle theme"
     }
   },
   "apiError": {
-    "invalid_request": "The request body is missing or malformed.",
-    "invalid_credentials": "Incorrect username, email, or password.",
-    "invalid_token": "Your session is invalid or has expired. Please sign in again.",
-    "unauthorized": "Please sign in to continue.",
-    "forbidden": "You do not have permission to access this resource.",
-    "account_disabled": "This account has been disabled.",
-    "registration_disabled": "Registration is currently disabled.",
-    "account_delete_forbidden": "This account cannot be deleted by its owner.",
-    "username_required": "Please enter a username.",
-    "username_taken": "That username is already in use.",
-    "email_taken": "That email is already in use.",
-    "password_too_short": "Password must be at least 8 characters.",
-    "current_password_invalid": "Current password is incorrect.",
-    "invalid_id": "Invalid resource identifier.",
-    "user_not_found": "User not found.",
-    "avatar_required": "Please choose an avatar image.",
-    "avatar_invalid_type": "Please choose a JPG, PNG, or WebP image.",
-    "avatar_too_large": "Image size must be 5MB or smaller.",
-    "setup_required": "The application has not been initialized yet. Complete setup first.",
-    "setup_completed": "The application has already been initialized.",
-    "database_input_required": "Choose a database before completing setup.",
-    "database_already_configured": "This setup already has a database configuration.",
-    "database_config_invalid": "The database configuration is incomplete or invalid.",
-    "database_connection_failed": "Could not connect to the database. Check the address, credentials, and network.",
-    "database_not_empty": "The database is not empty or belongs to another installation.",
-    "database_migration_failed": "Database initialization failed. Make sure the account can create tables.",
-    "system_log_stream_unavailable": "Failed to connect to the system log stream.",
-    "internal_error": "The server encountered an error. Please try again later."
+    "invalid_request": "Malformed request",
+    "invalid_credentials": "Wrong username, email or password",
+    "invalid_token": "Session expired. Sign in again",
+    "unauthorized": "Sign in to continue",
+    "forbidden": "No access to this resource",
+    "account_disabled": "This account is disabled",
+    "registration_disabled": "Registration is closed",
+    "account_delete_forbidden": "This account can't delete itself",
+    "username_required": "@:common.validation.usernameRequired",
+    "username_taken": "That username is taken",
+    "email_taken": "That email is taken",
+    "password_too_short": "Password needs at least 8 characters",
+    "current_password_invalid": "Current password is wrong",
+    "invalid_id": "Invalid resource id",
+    "user_not_found": "User not found",
+    "avatar_required": "Choose an avatar image",
+    "avatar_invalid_type": "@:common.avatar.invalidType",
+    "avatar_too_large": "@:common.avatar.tooLarge",
+    "setup_required": "Finish setup first",
+    "setup_completed": "Setup is already complete",
+    "database_input_required": "Choose a database first",
+    "database_already_configured": "This setup already has a database",
+    "database_config_invalid": "Database config is incomplete or invalid",
+    "database_connection_failed": "Can't reach the database. Check the host, credentials and network",
+    "database_not_empty": "Database isn't empty or belongs to another install",
+    "database_migration_failed": "Database setup failed. Make sure the account can create tables",
+    "system_log_stream_unavailable": "Log stream connection failed",
+    "internal_error": "Server error. Try again in a moment"
   },
   "route": {
     "systemConfig": "System Configuration",
-    "adminUsers": "User Management",
+    "adminUsers": "Users",
     "dashboard": "Dashboard",
-    "login": "Login",
+    "login": "Sign in",
     "notFound": "Page not found",
     "settings": "Settings",
-    "register": "Register",
+    "register": "Sign up",
     "setup": "Setup",
-    "systemLogs": "System Logs"
+    "systemLogs": "Logs"
   },
   "systemConfig": {
-    "groupTitle": "Account Policies",
+    "groupTitle": "Account policies",
     "fields": {
       "publicRegistrationEnabled": {
-        "title": "Allow public registration",
-        "description": "When enabled, visitors can create their own account."
+        "title": "Allow public sign-up",
+        "description": "Visitors can create their own account"
       },
       "selfServiceAccountDeletionEnabled": {
-        "title": "Allow users to delete their own account",
-        "description": "When enabled, users can delete their own account. Owner accounts are protected and can never be self-deleted."
+        "title": "Let users delete their own account",
+        "description": "Users can delete their own account. Owner accounts stay protected"
       }
-    },
-    "feedback": {
-      "loadFailed": "Refresh this page to try again.",
-      "saved": "Account policies saved.",
-      "saveFailed": "Failed to save account policies."
     }
   },
   "settings": {
@@ -101,56 +142,28 @@
       "account": "Account"
     },
     "account": {
-      "profile": "Profile Information",
-      "profileUpdated": "Profile updated.",
-      "saveProfile": "Save Profile",
-      "savingProfile": "Saving...",
-      "changeAvatar": "Change Avatar",
-      "avatarHint": "Supports JPG, PNG, or WebP up to 5MB. Images are compressed in the browser.",
-      "avatarUnsupportedType": "Please choose a JPG, PNG, or WebP image.",
-      "avatarFileTooLarge": "Image size must be 5MB or smaller.",
-      "avatarProcessFailed": "Avatar processing failed. Please try a different image.",
-      "username": "Username",
-      "usernameRequired": "Please enter your username.",
-      "usernamePlaceholder": "Enter your username",
-      "email": "Email",
-      "emailNotSet": "No email configured",
-      "emailPlaceholder": "Enter your email (optional)",
-      "edit": "Edit",
-      "editProfile": "Edit Profile",
-      "editProfileDesc": "Update your account information",
-      "statusActive": "Active",
+      "profile": "Profile",
+      "editProfile": "Edit profile",
+      "editProfileDesc": "Update your account info",
       "password": "Password",
-      "currentPassword": "Current Password",
-      "currentPasswordPlaceholder": "Enter current password",
-      "newPassword": "New Password",
-      "newPasswordPlaceholder": "Enter new password",
-      "confirmPassword": "Confirm Password",
-      "confirmPasswordPlaceholder": "Confirm new password",
-      "passwordMismatch": "New password and confirmation must match.",
-      "passwordUpdated": "Password updated.",
-      "updatingPassword": "Updating...",
-      "updatePassword": "Update Password",
-      "dangerZone": "Danger Zone",
-      "dangerZoneConfirm": "I understand this action is permanent",
-      "deleteAccount": "Delete Account",
-      "deleteAccountConfirm": "This action cannot be undone. All your data will be permanently deleted.",
-      "deleteAccountSuccess": "Account deleted."
+      "dangerZone": "Danger zone",
+      "dangerZoneConfirm": "I understand this can't be undone",
+      "deleteAccount": "Delete account",
+      "deleteAccountConfirm": "This can't be undone. All account data is erased"
     },
     "basic": {
       "appearance": "Appearance",
       "theme": "Theme",
       "language": "Language",
       "selectLanguage": "Select language",
-      "dataRefresh": "Data Refresh",
+      "dataRefresh": "Auto refresh",
       "dataRefreshInterval": "Interval",
-      "dataRefreshIntervalDesc": "Auto refresh every {seconds} seconds"
+      "dataRefreshIntervalDesc": "Refresh every {seconds} seconds"
     }
   },
   "setup": {
-    "title": "Welcome",
+    "title": "Setup",
     "failed": "Setup failed",
-    "passwordMismatch": "Password and confirmation must match.",
     "steps": {
       "admin": "Administrator",
       "database": "Database",
@@ -158,17 +171,16 @@
     },
     "admin": {
       "title": "Create administrator",
-      "description": "This account has full system access. Keep its credentials safe.",
-      "next": "Next"
+      "description": "This account has full access. Keep it safe"
     },
     "database": {
       "title": "Choose a database",
-      "description": "All application data will be stored in this database.",
+      "description": "All app data lives in this database",
       "driver": "Database type",
       "sqlite": "SQLite",
-      "sqliteDescription": "No extra configuration; data stays on this machine.",
+      "sqliteDescription": "No setup needed. Data stays on this machine",
       "postgresql": "PostgreSQL",
-      "postgresqlDescription": "Provide an empty database and an account that can create tables.",
+      "postgresqlDescription": "Needs an empty database and an account that can create tables",
       "host": "Host",
       "port": "Port",
       "database": "Database",
@@ -176,65 +188,53 @@
       "password": "Database password",
       "sslMode": "SSL mode",
       "ssl": {
-        "disable": "Disabled",
+        "disable": "Off",
         "require": "Require encryption",
-        "verifyFull": "Full verification"
+        "verifyFull": "Verify fully"
       },
-      "finalizationDescription": "Continue setup with the saved {driver} configuration.",
-      "finalizationHint": "The schema is already migrated; this completes the administrator.",
-      "submitting": "Validating and initializing...",
+      "finalizationDescription": "Continue with the saved {driver} config",
+      "finalizationHint": "Database is migrated. This only creates the administrator",
+      "submitting": "Setting up",
       "submit": "Validate and finish"
     },
     "done": {
       "title": "Setup complete",
-      "description": "The administrator and database are configured.",
-      "autoLoginFailed": "Setup is complete, but automatic sign-in failed. Sign in manually.",
-      "goDashboard": "Enter application",
+      "description": "Administrator and database are ready",
+      "autoLoginFailed": "Setup is done but automatic sign-in failed. Sign in manually",
+      "goDashboard": "Enter app",
       "goLogin": "Go to sign in"
     }
   },
   "auth": {
     "signIn": {
-      "description": "Use your account credentials to continue.",
-      "identifierPlaceholder": "Enter your username or email",
-      "loginFailed": "Login failed. Please try again.",
-      "loginSuccess": "Login successful!",
-      "noAccount": "Need an account?",
-      "passwordPlaceholder": "Enter your password",
-      "register": "Register",
-      "signingIn": "Signing in...",
+      "title": "Sign in",
+      "description": "Continue with your account",
       "submit": "Sign in",
-      "title": "Welcome back"
+      "signingIn": "Signing in",
+      "loginSuccess": "Signed in",
+      "loginFailed": "Sign in failed. Try again",
+      "noAccount": "No account yet?",
+      "register": "Sign up"
     },
     "signUp": {
-      "title": "Create an account",
+      "title": "Create account",
       "description": "Already have an account?",
-      "disabledTitle": "Registration is disabled",
-      "disabledDescription": "Self-service registration is unavailable.",
-      "emailOptional": "Email is optional.",
       "signIn": "Sign in",
-      "usernamePlaceholder": "Enter your username",
-      "emailPlaceholder": "Enter your email",
-      "passwordPlaceholder": "Enter your password",
-      "confirmPassword": "Confirm Password",
-      "confirmPasswordPlaceholder": "Confirm your password",
-      "passwordMismatch": "Password and confirmation must match.",
-      "creating": "Creating account...",
-      "registerSuccess": "Account created successfully.",
-      "registerFailed": "Failed to create account.",
-      "loadFailedTitle": "Failed to load registration policy",
-      "policyLoadFailed": "Failed to load the current registration policy. Please try again.",
-      "retry": "Retry",
-      "submit": "Create Account"
+      "disabledTitle": "Sign-up is closed",
+      "disabledDescription": "Only administrators can create accounts right now",
+      "emailOptional": "Email can stay empty",
+      "submit": "Create account",
+      "registerSuccess": "Account created",
+      "registerFailed": "Couldn't create the account. Try again",
+      "loadFailedTitle": "Couldn't load sign-up status",
+      "policyLoadFailed": "Sign-up status failed to load. Try again in a moment"
     }
   },
   "adminUsers": {
     "actions": {
-      "createUser": "Create User",
+      "createUser": "New user",
       "disable": "Disable",
-      "enable": "Enable",
-      "previousPage": "Previous",
-      "nextPage": "Next"
+      "enable": "Enable"
     },
     "filters": {
       "searchPlaceholder": "Search username or email",
@@ -243,100 +243,89 @@
     },
     "table": {
       "user": "User",
-      "email": "Email",
       "role": "Role",
       "status": "Status",
-      "lastActiveAt": "Last Active",
-      "createdAt": "Registered At",
+      "lastActiveAt": "Last active",
+      "createdAt": "Joined",
       "actions": "Actions",
-      "empty": "No matching users found.",
-      "noEmail": "No email",
-      "readonly": "This account is read-only",
-      "pageSummary": "Page {page} of {totalPages} · {total} total user(s)"
-    },
-    "status": {
-      "active": "Active",
-      "disabled": "Disabled"
+      "empty": "No matching users",
+      "readonly": "View only",
+      "pageSummary": "Page {page} of {totalPages}, {total} users"
     },
     "dialog": {
-      "createTitle": "Create user",
-      "createDescription": "Create a regular user account.",
-      "createSubmit": "Create user",
+      "createTitle": "New user",
+      "createDescription": "Create a regular user",
       "editTitle": "Edit user",
-      "editDescription": "Update the selected user profile.",
-      "editSubmit": "Save changes",
-      "usernamePlaceholder": "Enter username",
-      "emailPlaceholder": "Enter email (optional)",
-      "passwordPlaceholder": "Enter initial password"
+      "editDescription": "Update this user's profile",
+      "passwordPlaceholder": "Enter an initial password"
     },
     "confirm": {
       "disableTitle": "Disable user",
-      "disableDescription": "Disable {username} and revoke all of their active sessions.",
+      "disableDescription": "Disabling {username} revokes all their sessions",
       "enableTitle": "Enable user",
-      "enableDescription": "Restore access for {username}. They will need to sign in again."
-    },
-    "feedback": {
-      "loadFailed": "Refresh the page to try again.",
-      "creating": "Creating user...",
-      "createSuccess": "User created.",
-      "createFailed": "Failed to create user.",
-      "updating": "Updating user...",
-      "updateSuccess": "User updated.",
-      "updateFailed": "Failed to update user.",
-      "disabling": "Disabling user...",
-      "disableSuccess": "User disabled.",
-      "disableFailed": "Failed to disable user.",
-      "enabling": "Enabling user...",
-      "enableSuccess": "User enabled.",
-      "enableFailed": "Failed to enable user."
+      "enableDescription": "Restore access for {username}. They need to sign in again"
     }
   },
   "dashboard": {
     "metric": {
       "totalRevenue": {
-        "title": "Total Revenue",
-        "summary": "Trending up this month",
-        "detail": "Visitors for the last 6 months"
+        "title": "Total revenue",
+        "summary": "Up this month",
+        "detail": "Visitors over 6 months"
       },
       "newCustomers": {
-        "title": "New Customers",
+        "title": "New customers",
         "summary": "Down 20% this period",
-        "detail": "Acquisition needs attention"
+        "detail": "Acquisition needs a look"
       },
       "activeAccounts": {
-        "title": "Active Accounts",
-        "summary": "Strong user retention",
-        "detail": "Engagement exceed targets"
+        "title": "Active accounts",
+        "summary": "Retention holds",
+        "detail": "Engagement beats target"
       },
       "growthRate": {
-        "title": "Growth Rate",
-        "summary": "Steady performance increase",
-        "detail": "Meets growth projections"
+        "title": "Growth rate",
+        "summary": "Steady gains",
+        "detail": "On track with forecast"
+      }
+    },
+    "chart": {
+      "title": "Visitors",
+      "description": "Total visitors over 3 months",
+      "rangeLabel": "Select range",
+      "ranges": {
+        "90d": "Last 3 months",
+        "30d": "Last 30 days",
+        "7d": "Last 7 days"
+      },
+      "series": {
+        "mobile": "Mobile",
+        "desktop": "Desktop"
       }
     },
     "reservedPanel": {
-      "eyebrow": "Reserved Panel",
-      "title": "Next Widget Slot",
+      "eyebrow": "Reserved panel",
+      "title": "Next slot",
       "badge": "Placeholder",
-      "emptyTitle": "Reserved for the next dashboard module",
-      "emptyDescription": "Keep this panel available for alerts, conversion funnels, or a quick summary table without changing the current desktop fold.",
+      "emptyTitle": "Left open for the next dashboard module",
+      "emptyDescription": "Room for alerts, a funnel or a summary table without changing the desktop fold",
       "suggestedWidth": "Suggested width",
-      "suggestedWidthValue": "Right-side companion card",
+      "suggestedWidthValue": "Side companion card",
       "suggestedContent": "Suggested content",
-      "suggestedContentValue": "Tasks, notices, or small table",
+      "suggestedContentValue": "Tasks, notices or a small table",
       "viewportRule": "Viewport rule",
       "viewportRuleValue": "No vertical scroll on desktop"
     }
   },
   "notFound": {
-    "description": "The page you are looking for does not exist."
+    "description": "This page doesn't exist"
   },
   "systemLogs": {
     "summary": {
       "buffered": "{count} buffered"
     },
     "console": {
-      "title": "Live Console"
+      "title": "Live console"
     },
     "connection": {
       "connecting": "Connecting",
@@ -345,26 +334,26 @@
     },
     "actions": {
       "clear": "Clear",
-      "export": "Export Logs",
-      "pauseFollow": "Pause Follow",
-      "resumeFollow": "Resume Follow",
+      "export": "Export",
+      "pauseFollow": "Pause",
+      "resumeFollow": "Follow",
       "reconnect": "Reconnect"
     },
     "export": {
-      "title": "Export System Logs",
-      "description": "Export {count} logs using the current console filters.",
+      "title": "Export logs",
+      "description": "Export {count} logs with the current filters",
       "fields": {
-        "format": "File Format"
+        "format": "File format"
       },
       "formats": {
         "csv": "CSV",
         "txt": "TXT",
         "json": "JSON"
       },
-      "preview": "{count} logs will be exported."
+      "preview": "{count} logs will be exported"
     },
     "filters": {
-      "searchPlaceholder": "Search message, source, or context",
+      "searchPlaceholder": "Search message, source or context",
       "historyPlaceholder": "Log count",
       "level": {
         "allSelected": "All levels",
@@ -384,11 +373,11 @@
     },
     "empty": {
       "title": "No matching logs",
-      "description": "Wait for new logs or adjust the current filters."
+      "description": "Wait for new logs or adjust the filters"
     },
     "feedback": {
-      "exportSuccess": "Exported {count} logs.",
-      "exportEmpty": "There are no logs matching the current export filters."
+      "exportSuccess": "Exported {count} logs",
+      "exportEmpty": "No logs to export"
     }
   },
   "nav": {
@@ -397,10 +386,10 @@
       "analytics": "Analytics"
     },
     "management": {
-      "systemConfig": "System Configuration",
-      "users": "User Management",
-      "systemLogs": "System Logs",
-      "label": "Management"
+      "systemConfig": "System",
+      "users": "Users",
+      "systemLogs": "Logs",
+      "label": "Manage"
     },
     "secondary": {
       "settings": "Settings",
@@ -411,7 +400,7 @@
       "billing": "Billing",
       "notifications": "Notifications",
       "language": "Language",
-      "logout": "Log out"
+      "logout": "Sign out"
     }
   }
 }

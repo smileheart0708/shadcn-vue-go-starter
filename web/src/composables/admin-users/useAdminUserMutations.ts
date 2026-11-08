@@ -83,18 +83,17 @@ export function useAdminUserMutations(options: UseAdminUserMutationsOptions) {
     }
 
     toast.promise(requestPromise, {
-      loading: creating
-        ? t('adminUsers.feedback.creating')
-        : t('adminUsers.feedback.updating'),
+      loading: creating ? t('common.state.creating') : t('common.state.saving'),
       success: () =>
-        creating
-          ? t('adminUsers.feedback.createSuccess')
-          : t('adminUsers.feedback.updateSuccess'),
+        creating ? t('common.feedback.created') : t('common.feedback.updated'),
+      // Creating and updating are different outcomes for the operator, so the network
+      // failure fallback has to follow the branch too; `saveFailed` would describe an
+      // action that never happened.
       error: (error: unknown) =>
         resolveAPIErrorMessage(t, error) ??
         (creating
-          ? t('adminUsers.feedback.createFailed')
-          : t('adminUsers.feedback.updateFailed')),
+          ? t('common.feedback.createFailed')
+          : t('common.feedback.updateFailed')),
     })
 
     try {
@@ -128,18 +127,12 @@ export function useAdminUserMutations(options: UseAdminUserMutationsOptions) {
       : enableAdminUser(target.id)
 
     toast.promise(requestPromise, {
-      loading: disabling
-        ? t('adminUsers.feedback.disabling')
-        : t('adminUsers.feedback.enabling'),
-      success: () =>
-        disabling
-          ? t('adminUsers.feedback.disableSuccess')
-          : t('adminUsers.feedback.enableSuccess'),
+      // Enable/disable is not a save: the "save" wording would name an operation that
+      // does not exist here, so this branch stays in the "update" family.
+      loading: t('common.state.updating'),
+      success: () => t('common.feedback.updated'),
       error: (error: unknown) =>
-        resolveAPIErrorMessage(t, error) ??
-        (disabling
-          ? t('adminUsers.feedback.disableFailed')
-          : t('adminUsers.feedback.enableFailed')),
+        resolveAPIErrorMessage(t, error) ?? t('common.feedback.updateFailed'),
     })
 
     try {
