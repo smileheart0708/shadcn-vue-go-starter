@@ -57,6 +57,7 @@ Go 是契约的唯一事实来源，前端生成文件禁止手改：
 - 响应格式固定：成功 `{success:true,data}`，失败 `{success:false,error:{code,message}}`；handler 不把领域错误原文返回给客户端。
 - 新增错误码只在“需要不同文案或不同后续动作”时添加；技术性失败统一 `internal_error`，细节写日志。
 - 全局 `WriteTimeout` 是 30s；SSE 路由必须用 `http.ResponseController` 按请求清除写超时，参考 `internal/httpapi/system_logs.go`。
+- SSE 订阅必须由 `main.go` 的 `Server.RegisterOnShutdown`（`logging.Stream.Shutdown`）结束：`Shutdown` 只关闭 listener 和空闲连接、不取消请求上下文，长连接会让停机等满 10s 超时。
 - JWT 签名密钥以数据库为准；`JWT_SECRET` 只是首次种子（≥32 字符）。不要新增写密钥文件，也不要记录 DSN、密码或令牌。
 
 ## 5. 错误码与 i18n 联动

@@ -71,15 +71,17 @@ func run() error {
 	logging.LogStartupBanner(logger, listenAddr, dataDir)
 
 	var installationService *installation.Service
+	// Set by PrepareRuntime before anything is published. buildAPI must never run
+	// while it is empty, or every token would be signed with an empty key.
 	var jwtSecret string
-	buildAPI := func(runtime *database.Runtime, secret string) http.Handler {
+	buildAPI := func(runtime *database.Runtime) http.Handler {
 		store := runtime.Store
 		authorizationService := authorization.NewService()
 		identityService := identity.NewService(store)
 		accountPoliciesService := accountpolicies.NewService(store)
 		setupService := setup.NewService(store)
 		authService := auth.NewService(auth.Options{
-			Secret:             []byte(secret),
+			Secret:             []byte(jwtSecret),
 			TTL:                cfg.JWTTTL,
 			RefreshIdleTTL:     cfg.RefreshIdleTTL,
 			RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
@@ -100,6 +102,8 @@ func run() error {
 		})
 	}
 
+	// installation.New only activates a runtime and never publishes, so the closure
+	// below cannot observe this nil between here and the assignment.
 	var dispatcher *httpapi.Dispatcher
 	installationService, err = installation.New(context.Background(), installation.Options{
 		DataDir:        dataDir,
@@ -115,7 +119,7 @@ func run() error {
 			return nil
 		},
 		Publish: func(runtime *database.Runtime) {
-			dispatcher.Publish(buildAPI(runtime, jwtSecret))
+			dispatcher.Publish(buildAPI(runtime))
 		},
 	})
 	if err != nil {
@@ -131,7 +135,7 @@ func run() error {
 	dispatcher = httpapi.NewDispatcher(frontendAssets, bootstrapAPI)
 
 	if runtime := installationService.Runtime(); runtime != nil && installationService.State().Phase == installation.PhaseCompleted {
-		dispatcher.Publish(buildAPI(runtime, jwtSecret))
+		dispatcher.Publish(buildAPI(runtime))
 	}
 
 	server := &http.Server{
@@ -144,7 +148,13 @@ func run() error {
 		WriteTimeout:   30 * time.Second,
 		IdleTimeout:    60 * time.Second,
 		MaxHeaderBytes: 1 << 20,
+		// Handler panics and accept failures otherwise go to the standard logger,
+		// i.e. never into the system log stream the UI shows.
+		ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
+	// The system log stream never returns on its own, and Shutdown waits for
+	// in-flight handlers, so close its subscriptions before waiting.
+	server.RegisterOnShutdown(func() { logStream.Shutdown("server_shutdown") })
 
 	serverErrCh := make(chan error, 1)
 	go func() {
@@ -172,7 +182,13 @@ func run() error {
 	defer cancel()
 
 	if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil {
-		return fmt.Errorf("shutdown http server: %w", shutdownErr)
+		// A handler that ignores cancellation keeps its connection active past the
+		// deadline; that is a slow stop, not a startup failure, so drop the rest
+		// instead of exiting non-zero on every stop.
+		slog.Warn("graceful shutdown timed out, closing remaining connections", "error", shutdownErr)
+		if closeErr := server.Close(); closeErr != nil {
+			slog.Warn("failed to close remaining http connections", "error", closeErr)
+		}
 	}
 
 	if serverErr := <-serverErrCh; serverErr != nil {
@@ -184,9 +200,6 @@ func run() error {
 }
 
 func closeInstallation(service *installation.Service) {
-	if service == nil {
-		return
-	}
 	hadDatabase := service.Runtime() != nil
 	if err := service.Close(); err != nil {
 		slog.Error("failed to close installation database", "error", err)

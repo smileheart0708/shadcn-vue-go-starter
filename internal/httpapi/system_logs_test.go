@@ -1,11 +1,15 @@
 package httpapi
 
 import (
+	"context"
+	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // Regression: requestLogger wraps the ResponseWriter in statusRecorder. Without
@@ -30,6 +34,70 @@ func TestRequestLoggerKeepsResponseControllerFlushable(t *testing.T) {
 	}
 	if flushErr != nil {
 		t.Fatalf("expected Flush through the request logger to succeed, got %v", flushErr)
+	}
+}
+
+// Regression: the log stream never returns on its own, so Shutdown burns its full
+// deadline on every stop while a log page is open. main.go ends the stream through
+// Server.RegisterOnShutdown; without that hook Shutdown reports a timeout and the
+// process treats a normal stop as a failure.
+func TestServerShutdownEndsOpenLogStream(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	session, _ := performSetup(t, ctx)
+
+	server := &http.Server{
+		Handler:           ctx.handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	server.RegisterOnShutdown(func() { ctx.logStream.Shutdown("server_shutdown") })
+	t.Cleanup(func() {
+		if closeErr := server.Close(); closeErr != nil {
+			t.Fatalf("close test server: %v", closeErr)
+		}
+	})
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	serveErrCh := make(chan error, 1)
+	go func() { serveErrCh <- server.Serve(listener) }()
+
+	request, err := http.NewRequest(http.MethodGet, "http://"+listener.Addr().String()+"/api/management/system-logs/stream", nil)
+	if err != nil {
+		t.Fatalf("build stream request: %v", err)
+	}
+	request.Header.Set("Authorization", "Bearer "+session.AccessToken)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatalf("open log stream: %v", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("stream status = %d, want %d", response.StatusCode, http.StatusOK)
+	}
+	// The handler subscribes before it flushes the response headers.
+	if count := ctx.logStream.SubscriberCount(); count != 1 {
+		t.Fatalf("subscribers = %d, want 1", count)
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil {
+		t.Fatalf("Shutdown() error = %v, want nil once the log stream is closed", shutdownErr)
+	}
+	if count := ctx.logStream.SubscriberCount(); count != 0 {
+		t.Fatalf("subscribers after Shutdown() = %d, want 0", count)
+	}
+	if serveErr := <-serveErrCh; !errors.Is(serveErr, http.ErrServerClosed) {
+		t.Fatalf("Serve() error = %v, want ErrServerClosed", serveErr)
 	}
 }
 

@@ -296,6 +296,25 @@ func (s *Stream) Unsubscribe(subscription *StreamSubscription, reason string) {
 	delete(s.subscribers, subscription.id)
 }
 
+// Shutdown closes every live subscription. Long-lived responses (SSE) never
+// return on their own, so http.Server.Shutdown would wait for its full deadline
+// unless something ends them; main.go registers this through
+// Server.RegisterOnShutdown. Publishing after this call is still safe: the
+// subscriber map is simply empty.
+func (s *Stream) Shutdown(reason string) {
+	if s == nil {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for id, subscription := range s.subscribers {
+		subscription.closeLocked(reason)
+		delete(s.subscribers, id)
+	}
+}
+
 func (s *Stream) SubscriberCount() int {
 	if s == nil {
 		return 0
