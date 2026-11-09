@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -68,7 +69,20 @@ func run() error {
 
 	listenAddr := fmt.Sprintf(":%d", cfg.Port)
 
-	logging.LogStartupBanner(logger, listenAddr, dataDir)
+	// Bind before touching the database: a port conflict then fails in
+	// milliseconds instead of paying for a migration that can never serve.
+	// The cost is a window where the socket accepts connections nobody answers,
+	// so a slow database dial looks like a hang instead of "connection refused".
+	// shortcut: noctx rejects net.Listen; keep the ListenConfig form until the
+	// linter set drops it.
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(context.Background(), "tcp", listenAddr)
+	if err != nil {
+		return fmt.Errorf("open listener: %w", err)
+	}
+	// No Close here: Serve closes the listener on return, and the only exit
+	// before Serve is a failed installation.New, which ends in os.Exit.
+	// Re-add a Close only if run() ever becomes callable in-process.
 
 	var installationService *installation.Service
 	// Set by PrepareRuntime before anything is published. buildAPI must never run
@@ -139,7 +153,6 @@ func run() error {
 	}
 
 	server := &http.Server{
-		Addr:              listenAddr,
 		Handler:           dispatcher,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
@@ -156,10 +169,12 @@ func run() error {
 	// in-flight handlers, so close its subscriptions before waiting.
 	server.RegisterOnShutdown(func() { logStream.Shutdown("server_shutdown") })
 
+	logging.LogStartupBanner(logger, listenAddr, dataDir)
+
 	serverErrCh := make(chan error, 1)
 	go func() {
-		if listenErr := server.ListenAndServe(); listenErr != nil && !errors.Is(listenErr, http.ErrServerClosed) {
-			serverErrCh <- listenErr
+		if serveErr := server.Serve(listener); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			serverErrCh <- serveErr
 			return
 		}
 		serverErrCh <- nil
