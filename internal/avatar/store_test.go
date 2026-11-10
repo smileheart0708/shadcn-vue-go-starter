@@ -1,6 +1,7 @@
 package avatar
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -95,5 +96,71 @@ func TestRemoveIsIdempotent(t *testing.T) {
 	}
 	if err := store.Remove(name); err != nil {
 		t.Fatalf("second Remove(%q) error = %v, want nil for a missing file", name, err)
+	}
+}
+
+// TestReconcileRemovesOrphanedAvatars locks the invariant behind avatar
+// reconciliation: the database is the source of truth and avatar files are derived,
+// so anything no live user references is leftover from a failed removal or an
+// interrupted upload.
+func TestReconcileRemovesOrphanedAvatars(t *testing.T) {
+	t.Parallel()
+
+	store := New(t.TempDir())
+	png := append(pngSignature, make([]byte, 32)...)
+
+	kept, err := store.Save(png)
+	if err != nil {
+		t.Fatalf("Save(kept) error = %v", err)
+	}
+	orphan, err := store.Save(png)
+	if err != nil {
+		t.Fatalf("Save(orphan) error = %v", err)
+	}
+
+	// A directory-wide sweep must leave files it never created and directories alone.
+	if err := os.WriteFile(filepath.Join(store.dir, "notes.txt"), []byte("not an avatar"), 0o600); err != nil {
+		t.Fatalf("write notes: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(store.dir, "nested"), 0o750); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+
+	// A failed reference read must not be mistaken for "nothing is referenced".
+	if _, err := store.Reconcile(context.Background(), func(context.Context) ([]string, error) {
+		return nil, errors.New("database unavailable")
+	}); err == nil {
+		t.Fatal("Reconcile(list error) error = nil, want the lister error")
+	}
+	for _, name := range []string{kept, orphan} {
+		if _, err := os.Stat(filepath.Join(store.dir, name)); err != nil {
+			t.Fatalf("stat %q after failed lister: %v", name, err)
+		}
+	}
+
+	// A path-valued reference must keep its file: only the base name is compared.
+	removed, err := store.Reconcile(context.Background(), func(context.Context) ([]string, error) {
+		return []string{filepath.Join("legacy", kept)}, nil
+	})
+	if err != nil {
+		t.Fatalf("Reconcile error = %v", err)
+	}
+	if removed != 1 {
+		t.Fatalf("Reconcile removed = %d, want 1", removed)
+	}
+	for _, name := range []string{kept, "notes.txt", "nested"} {
+		if _, err := os.Stat(filepath.Join(store.dir, name)); err != nil {
+			t.Fatalf("stat %q after Reconcile: %v", name, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(store.dir, orphan)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("orphan %q survived Reconcile, stat error = %v", orphan, err)
+	}
+
+	// A fresh installation has no avatar directory yet; that is not an error.
+	empty := New(t.TempDir())
+	noReferences := func(context.Context) ([]string, error) { return nil, nil }
+	if removed, err := empty.Reconcile(context.Background(), noReferences); err != nil || removed != 0 {
+		t.Fatalf("Reconcile on missing directory = (%d, %v), want (0, nil)", removed, err)
 	}
 }

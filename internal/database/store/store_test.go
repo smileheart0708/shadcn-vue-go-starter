@@ -254,6 +254,63 @@ func TestUpdateProfileWritesFieldsAndReportsMissingUser(t *testing.T) {
 	}
 }
 
+func TestListAvatarPathsTracksUserReferences(t *testing.T) {
+	t.Parallel()
+
+	repository := newTestStore(t)
+	ctx := context.Background()
+
+	paths, err := repository.ListAvatarPaths(ctx)
+	if err != nil {
+		t.Fatalf("ListAvatarPaths(empty) error = %v", err)
+	}
+	if len(paths) != 0 {
+		t.Fatalf("ListAvatarPaths(empty) = %v, want no entries", paths)
+	}
+
+	created, err := repository.CreateUser(ctx, identity.CreateUserParams{
+		Username:     "owner",
+		PasswordHash: "hash",
+		Role:         identity.RoleOwner,
+	})
+	if err != nil {
+		t.Fatalf("CreateUser() error = %v", err)
+	}
+
+	// A user without an avatar has NULL, which the query must not turn into a panic.
+	paths, err = repository.ListAvatarPaths(ctx)
+	if err != nil {
+		t.Fatalf("ListAvatarPaths(user without avatar) error = %v", err)
+	}
+	if len(paths) != 0 {
+		t.Fatalf("ListAvatarPaths(user without avatar) = %v, want no entries", paths)
+	}
+
+	name := "0123456789abcdef0123456789abcdef.png"
+	if _, err := repository.UpdateAvatar(ctx, created.ID, &name); err != nil {
+		t.Fatalf("UpdateAvatar() error = %v", err)
+	}
+
+	paths, err = repository.ListAvatarPaths(ctx)
+	if err != nil {
+		t.Fatalf("ListAvatarPaths() error = %v", err)
+	}
+	if len(paths) != 1 || paths[0] != name {
+		t.Fatalf("ListAvatarPaths() = %v, want [%q]", paths, name)
+	}
+
+	if err := repository.DeleteUser(ctx, created.ID); err != nil {
+		t.Fatalf("DeleteUser() error = %v", err)
+	}
+	paths, err = repository.ListAvatarPaths(ctx)
+	if err != nil {
+		t.Fatalf("ListAvatarPaths(after delete) error = %v", err)
+	}
+	if len(paths) != 0 {
+		t.Fatalf("ListAvatarPaths(after delete) = %v, want no entries", paths)
+	}
+}
+
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 

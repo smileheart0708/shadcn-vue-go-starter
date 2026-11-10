@@ -119,6 +119,13 @@ func run() error {
 	// installation.New only activates a runtime and never publishes, so the closure
 	// below cannot observe this nil between here and the assignment.
 	var dispatcher *httpapi.Dispatcher
+	// Reconcile before publishing the upload route: no Save can be in flight yet, so
+	// an unreferenced avatar file is genuinely orphaned. The Publish callback also runs
+	// on setup completion, where the bootstrap API is still the only handler.
+	publish := func(runtime *database.Runtime) {
+		reconcileAvatars(runtime, dataDir, logger)
+		dispatcher.Publish(buildAPI(runtime))
+	}
 	installationService, err = installation.New(context.Background(), installation.Options{
 		DataDir:        dataDir,
 		SelectionStore: database.NewSelectionStore(dataDir),
@@ -132,9 +139,7 @@ func run() error {
 			jwtSecret = secret
 			return nil
 		},
-		Publish: func(runtime *database.Runtime) {
-			dispatcher.Publish(buildAPI(runtime))
-		},
+		Publish: publish,
 	})
 	if err != nil {
 		return fmt.Errorf("initialize installation: %w", err)
@@ -149,7 +154,7 @@ func run() error {
 	dispatcher = httpapi.NewDispatcher(frontendAssets, bootstrapAPI)
 
 	if runtime := installationService.Runtime(); runtime != nil && installationService.State().Phase == installation.PhaseCompleted {
-		dispatcher.Publish(buildAPI(runtime))
+		publish(runtime)
 	}
 
 	server := &http.Server{
@@ -212,6 +217,17 @@ func run() error {
 
 	slog.Info("application stopped")
 	return nil
+}
+
+// reconcileAvatars deletes avatar files no user row references. Callers must run it
+// before the upload route is published; see avatar.Store.Reconcile for why.
+func reconcileAvatars(runtime *database.Runtime, dataDir string, logger *slog.Logger) {
+	removed, err := avatar.New(dataDir).Reconcile(context.Background(), runtime.Store.ListAvatarPaths)
+	if err != nil {
+		logger.Warn("avatar reconciliation incomplete", "removed", removed, "error", err)
+	} else if removed > 0 {
+		logger.Info("removed orphaned avatar files", "count", removed)
+	}
 }
 
 func closeInstallation(service *installation.Service) {

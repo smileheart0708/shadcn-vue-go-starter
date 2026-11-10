@@ -5,8 +5,10 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -34,6 +36,7 @@ type testContext struct {
 	policiesService *accountpolicies.Service
 	setupService    *setup.Service
 	logStream       *logging.Stream
+	dataDir         string
 }
 
 type testSuccessEnvelope[T any] struct {
@@ -268,6 +271,71 @@ func TestSelfServiceDeletionToggleControlsDeleteFlow(t *testing.T) {
 	}
 }
 
+// TestAccountDeletionClearsAssociatedData locks the deletion contract at the HTTP
+// boundary: cascading rows, immediate session loss and the avatar file itself.
+func TestAccountDeletionClearsAssociatedData(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
+
+	memberSession, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member1234")
+	member := findUserByUsername(t, ctx, "member")
+
+	uploadReq := newAvatarUploadRequest(t, memberSession.AccessToken, func(writer *multipart.Writer) {
+		part, err := writer.CreateFormFile("avatar", "avatar.png")
+		if err != nil {
+			t.Fatalf("create form file: %v", err)
+		}
+		if _, err := part.Write(append(pngSignature, make([]byte, 32)...)); err != nil {
+			t.Fatalf("write form file: %v", err)
+		}
+	})
+	uploadRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(uploadRec, uploadReq)
+	if uploadRec.Code != http.StatusOK {
+		t.Fatalf("expected upload status %d, got %d: %s", http.StatusOK, uploadRec.Code, uploadRec.Body.String())
+	}
+	var uploaded testSuccessEnvelope[viewerResponse]
+	decodeJSONResponse(t, uploadRec.Body.Bytes(), &uploaded)
+	if uploaded.Data.Identity.AvatarURL == nil {
+		t.Fatal("expected an avatar URL after upload")
+	}
+	avatarFile := filepath.Join(ctx.dataDir, "avatars", strings.TrimPrefix(*uploaded.Data.Identity.AvatarURL, "/api/avatars/"))
+	if _, err := os.Stat(avatarFile); err != nil {
+		t.Fatalf("stat stored avatar: %v", err)
+	}
+
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"selfServiceAccountDeletionEnabled":true}`)
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
+	deleteReq.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
+	deleteReq.AddCookie(memberCookie)
+	deleteRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(deleteRec, deleteReq)
+	if deleteRec.Code != http.StatusOK {
+		t.Fatalf("expected delete status %d, got %d: %s", http.StatusOK, deleteRec.Code, deleteRec.Body.String())
+	}
+
+	if _, err := ctx.identityService.GetUserByID(context.Background(), member.ID); !errors.Is(err, identity.ErrUserNotFound) {
+		t.Fatalf("GetUserByID after delete error = %v, want ErrUserNotFound", err)
+	}
+	assertUnauthorizedMeAndRefresh(t, ctx, memberSession.AccessToken, memberCookie)
+
+	loginReq := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"member","password":"member1234"}`))
+	loginReq.Header.Set("Content-Type", "application/json")
+	loginRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(loginRec, loginReq)
+	if loginRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected login status %d after delete, got %d", http.StatusUnauthorized, loginRec.Code)
+	}
+
+	if _, err := os.Stat(avatarFile); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("avatar file survived account deletion, stat error = %v", err)
+	}
+}
+
 func TestOwnerCanDisableUserAndInvalidateSessions(t *testing.T) {
 	t.Parallel()
 
@@ -463,7 +531,7 @@ func newTestContext(t *testing.T) *testContext {
 	})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	ctx := &testContext{logStream: logStream}
+	ctx := &testContext{logStream: logStream, dataDir: dataDir}
 	var dispatcher *Dispatcher
 	var installationService *installation.Service
 

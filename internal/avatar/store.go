@@ -6,6 +6,7 @@
 package avatar
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -23,6 +24,7 @@ const MaxFileSizeBytes int64 = 5 * 1024 * 1024
 const (
 	dirPermissions  = 0o750
 	filePermissions = 0o600
+	randomNameBytes = 16
 )
 
 // Rejections a caller must translate into its own response vocabulary. They are
@@ -111,8 +113,9 @@ func (s *Store) Path(name string) (string, error) {
 	return fullPath, nil
 }
 
-// Remove deletes a stored avatar. A missing file is not an error: cleanup runs after
-// the database row already changed, so a stale name must not fail the request.
+// Remove deletes a stored avatar. A missing file is not an error: callers run cleanup
+// after the database row changed or the upload failed, so a stale name must not fail
+// the request.
 func (s *Store) Remove(name string) error {
 	fullPath, err := s.Path(name)
 	if err != nil {
@@ -125,8 +128,88 @@ func (s *Store) Remove(name string) error {
 	return nil
 }
 
+// ReferenceLister reports the stored avatar names user rows still reference. Paths
+// are reduced to their base name, so a legacy value cannot hide a live file.
+type ReferenceLister func(ctx context.Context) ([]string, error)
+
+// Reconcile removes stored avatars that listReferences does not report. The database
+// is the source of truth and files are derived, so an unreferenced file is left over
+// from a failed removal, an interrupted upload, or a database that was reset or
+// restored. A lister error aborts the sweep before anything is deleted.
+//
+// Callers must run it while no upload can be in flight. main.go does so before the
+// API with the upload route is published, which also covers setup completion. Calling
+// it on a serving path would race Save — the file is written before the row records
+// it — and delete a live upload, so gate on file mtime or a lease first if that ever
+// changes.
+func (s *Store) Reconcile(ctx context.Context, listReferences ReferenceLister) (int, error) {
+	paths, err := listReferences(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("avatar: list references: %w", err)
+	}
+	referenced := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		referenced[filepath.Base(path)] = struct{}{}
+	}
+
+	entries, err := os.ReadDir(s.dir)
+	if errors.Is(err, os.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("avatar: read directory: %w", err)
+	}
+
+	var removed int
+	var failures []error
+	for _, entry := range entries {
+		name := entry.Name()
+		// IsRegular also excludes directories and symlinks, so the sweep never
+		// deletes anything but the flat files Save writes.
+		if !isStoredName(name) || !entry.Type().IsRegular() {
+			continue
+		}
+		if _, inUse := referenced[name]; inUse {
+			continue
+		}
+		if removeErr := s.Remove(name); removeErr != nil {
+			failures = append(failures, removeErr)
+			continue
+		}
+		removed++
+	}
+	return removed, errors.Join(failures...)
+}
+
+// isStoredName recognizes only names Save can produce, so a directory sweep never
+// touches files this package did not create.
+func isStoredName(name string) bool {
+	extension := filepath.Ext(name)
+	known := false
+	for _, allowed := range allowedTypes {
+		if allowed == extension {
+			known = true
+			break
+		}
+	}
+	if !known {
+		return false
+	}
+
+	stem := strings.TrimSuffix(name, extension)
+	if len(stem) != 2*randomNameBytes {
+		return false
+	}
+	for _, char := range stem {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
 func randomName(extension string) (string, error) {
-	buffer := make([]byte, 16)
+	buffer := make([]byte, randomNameBytes)
 	if _, err := rand.Read(buffer); err != nil {
 		return "", fmt.Errorf("avatar: generate file name: %w", err)
 	}

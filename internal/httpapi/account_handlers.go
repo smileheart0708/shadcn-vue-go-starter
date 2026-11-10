@@ -198,8 +198,12 @@ func (api *API) avatarHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, fullPath) //nolint:gosec // avatar.Store.Path only accepts bare file names, so the path cannot leave its directory
 }
 
-// removeAvatarFile deletes a stored file after the database row already changed, so a
-// failure is logged and never surfaced: the request has succeeded by then.
+// removeAvatarFile is best-effort: on delete and replace the row no longer references
+// the file, and on rollback the upload already failed, so an unlink error is logged
+// instead of turning into another failure. The next reconciliation collects whatever
+// is left behind.
+// shortcut: reconciliation only runs before the upload route is published, retry here
+// if that backstop is removed.
 func (api *API) removeAvatarFile(ctx context.Context, storedName string, reason string, userID int64) {
 	if storedName == "" {
 		return

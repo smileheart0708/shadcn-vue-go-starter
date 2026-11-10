@@ -180,6 +180,28 @@ func (s *Store) DeleteUser(ctx context.Context, userID int64) error {
 	return ensureUserUpdated(result)
 }
 
+// ListAvatarPaths reports the stored avatar names a user row still references.
+// Avatar reconciliation owns this query, so it stays a store-level read instead
+// of widening the identity domain interface.
+func (s *Store) ListAvatarPaths(ctx context.Context) ([]string, error) {
+	var rows []userRow
+	// avatar_path <> '' also drops NULL rows: comparing NULL with '' is UNKNOWN,
+	// never true. The loop can therefore trust the column without a nil check.
+	if err := s.db.NewSelect().
+		Model(&rows).
+		Column("avatar_path").
+		Where("avatar_path <> ''").
+		Scan(ctx); err != nil {
+		return nil, fmt.Errorf("identity: list avatar paths: %w", err)
+	}
+
+	paths := make([]string, 0, len(rows))
+	for _, row := range rows {
+		paths = append(paths, *row.AvatarPath)
+	}
+	return paths, nil
+}
+
 func (s *Store) ListUsers(ctx context.Context, params identity.ListUsersParams) (identity.ListUsersResult, error) {
 	rows := make([]userRow, 0, params.PageSize)
 	query := s.db.NewSelect().
