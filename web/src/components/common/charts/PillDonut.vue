@@ -1,56 +1,46 @@
 <script setup lang="ts">
 /**
  * 本组件直接挂 VisSingleContainer，没有复用同目录的 ChartContainer：
- * ChartContainer 强制 `aspect-video`，并通过 `--vis-*` 变量与 ChartStyle 承担
- * 容器撑满和主题色注入；药丸环形图要固定像素高度，且没有坐标轴、浮层和 SVG 文字，
- * 那套主题变量一个都用不上。不要为了「统一」把它塞进 ChartContainer，
- * 否则要么丢掉高度契约，要么被迫复制一份 ChartContainer 的样式覆盖。
+ * ChartContainer 承担的是 XY 图表的 `--vis-*` 浮层与坐标轴样式，环形图既没有
+ * 坐标轴也没有十字准线，套进去只会复制一份用不上的样式覆盖。
+ * 高度交由父容器决定（父级必须是确定高度或 flex 撑满），组件本身不再写死像素。
+ *
+ * 对外只保留 `data / colors / arcWidth / class`：环宽要跟随卡片高度变化，色板要和
+ * 图例共用同一份。间隙、圆角、过渡时长没有调用方需要调整，直接内联成常量，
+ * 避免维护一批永远走默认值的分支；将来确有调用方时再加 prop。
  */
-import type { PillDonutDatum } from './pill-donut'
+import type { DonutDatum, DonutPalette } from './donut'
 import { VisDonut, VisSingleContainer } from '@unovis/vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import {
-  describePillDonut,
-  hasVisibleValue,
-  resolveDatumColor,
-} from './pill-donut'
+import { describeDonut, donutColorAt, hasVisibleValue } from './donut'
+import { DONUT_COLORS } from './palette'
 
 interface Props {
-  data: readonly PillDonutDatum[]
-  colors?: readonly string[]
-  /** 环宽，像素。 */
+  data: readonly DonutDatum[]
+  colors?: DonutPalette
+  /** 环宽，像素；由调用方按可用高度缩放。 */
   arcWidth?: number
-  /** 段间间隙，弧度。 */
-  gap?: number
-  /** 端部圆角，默认取环宽的一半，保证端头是完整半圆。 */
-  cornerRadius?: number
-  /** 数据更新与移除的过渡时长，毫秒。 */
-  duration?: number
-  /** 入场扫开时长，毫秒。 */
-  enterDuration?: number
-  /** 组件高度，像素。宽度始终撑满父容器。 */
-  height?: number
-  ariaLabel?: string
   class?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  colors: () => [],
+  colors: () => DONUT_COLORS,
   arcWidth: 28,
-  gap: 0.07,
-  duration: 800,
-  enterDuration: 700,
-  height: 260,
-  ariaLabel: undefined,
-  cornerRadius: undefined,
   class: undefined,
 })
+
+/** 段间间隙，弧度。 */
+const ARC_GAP = 0.07
+/** 数据更新与移除的过渡时长，毫秒。 */
+const UPDATE_DURATION_MS = 800
+/** 入场扫开时长，毫秒。 */
+const ENTER_DURATION_MS = 700
 
 defineOptions({ name: 'PillDonut' })
 
 defineSlots<{ center?: () => unknown }>()
 
-const displayData = ref<PillDonutDatum[]>([])
+const displayData = ref<DonutDatum[]>([])
 const entering = ref(true)
 
 let timerId = 0
@@ -84,7 +74,7 @@ watch(
     if (!visible || !entering.value) return
     timerId = window.setTimeout(() => {
       entering.value = false
-    }, props.enterDuration + 60)
+    }, ENTER_DURATION_MS + 60)
   },
   { immediate: true },
 )
@@ -93,32 +83,23 @@ onBeforeUnmount(() => {
   window.clearTimeout(timerId)
 })
 
-const resolvedCornerRadius = computed(
-  () => props.cornerRadius ?? props.arcWidth / 2,
-)
-const resolvedAriaLabel = computed(
-  () => props.ariaLabel ?? describePillDonut(props.data),
-)
-const rootStyle = computed(() => ({
-  height: `${String(props.height)}px`,
-  '--pill-donut-enter-duration': `${String(props.enterDuration)}ms`,
-}))
+const resolvedAriaLabel = computed(() => describeDonut(props.data))
 
-function valueAccessor(datum: PillDonutDatum): number {
+function valueAccessor(datum: DonutDatum): number {
   return datum.value
 }
 
-function colorAccessor(datum: PillDonutDatum, index: number): string {
-  return resolveDatumColor(datum, index, props.colors)
+function colorAccessor(datum: DonutDatum, index: number): string {
+  return donutColorAt(datum, index, props.colors)
 }
 </script>
 
 <template>
   <div
     data-slot="pill-donut"
+    :style="{ '--pill-donut-enter-duration': `${String(ENTER_DURATION_MS)}ms` }"
     :data-entering="entering ? '' : undefined"
     :class="props.class"
-    :style="rootStyle"
     role="img"
     :aria-label="resolvedAriaLabel"
   >
@@ -131,9 +112,9 @@ function colorAccessor(datum: PillDonutDatum, index: number): string {
         :value="valueAccessor"
         :color="colorAccessor"
         :arc-width="arcWidth"
-        :pad-angle="gap"
-        :corner-radius="resolvedCornerRadius"
-        :duration="duration"
+        :pad-angle="ARC_GAP"
+        :corner-radius="arcWidth / 2"
+        :duration="UPDATE_DURATION_MS"
         :show-background="false"
       />
     </VisSingleContainer>
@@ -155,12 +136,13 @@ function colorAccessor(datum: PillDonutDatum, index: number): string {
 
 [data-slot='pill-donut'] {
   position: relative;
-  width: 100%;
+  block-size: 100%;
+  inline-size: 100%;
 }
 
 [data-slot='pill-donut-chart'] {
-  width: 100%;
-  height: 100%;
+  block-size: 100%;
+  inline-size: 100%;
 }
 
 [data-slot='pill-donut'][data-entering] [data-slot='pill-donut-chart'] {

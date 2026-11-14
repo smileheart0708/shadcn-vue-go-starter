@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import type { ChartConfig } from '@/components/ui/chart'
-import { useResizeObserver } from '@vueuse/core'
-import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import type { ChartSeries } from '@/components/common/charts'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useSidebar } from '@/components/ui/sidebar'
-import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
+import { TrendChart, TREND_COLORS } from '@/components/common/charts'
 import {
   Card,
   CardContent,
@@ -13,34 +11,19 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import {
-  ChartContainer,
-  ChartCrosshair,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-  componentToString,
-} from '@/components/ui/chart'
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useSidebar } from '@/components/ui/sidebar'
 
-defineOptions({ name: 'DashboardLineChart' })
+defineOptions({ name: 'DashboardTrendCard' })
 
 /**
- * Demo chart with static data — the only consumer of `@unovis` in the app.
- *
- * COST: unovis pulls in maplibre-gl transitively (hence the maplibre-gl / stylus /
- * vue-metamorph pins in pnpm-workspace.yaml) and makes DashboardView the largest chunk
- * in the bundle by a wide margin. It is lazily loaded with the route, so it costs
- * nothing until the dashboard is opened.
- *
- * If you are not shipping charts, deleting this component plus `components/ui/chart/`
- * lets you drop both `@unovis/*` dependencies and all three pnpm overrides. If you are,
- * replace `chartData` with a real series and keep the rest.
+ * Demo dashboard chart with static data. Swap `chartData` for a real series when the
+ * metrics endpoint exists; the chart layer itself carries no business copy.
  */
 const chartData = [
   { date: new Date('2024-04-01'), desktop: 222, mobile: 150 },
@@ -134,7 +117,7 @@ const chartData = [
   { date: new Date('2024-06-28'), desktop: 149, mobile: 200 },
   { date: new Date('2024-06-29'), desktop: 103, mobile: 160 },
   { date: new Date('2024-06-30'), desktop: 446, mobile: 400 },
-] as const
+]
 
 type Data = (typeof chartData)[number]
 
@@ -143,40 +126,30 @@ type TimeRange = (typeof TIME_RANGES)[number]
 
 const { t, locale } = useI18n()
 
-// 图例与提示浮层的系列名来自 ChartConfig，必须随语言切换重建，所以是 computed 而不是常量。
-// 用 `satisfies` 而不是类型标注：标注会把 mobile/desktop 退化成可选键，模板里的
-// `chartConfig.mobile.color` 就要逐处判空。
-const chartConfig = computed(
-  () =>
-    ({
-      mobile: {
-        label: t('dashboard.chart.series.mobile'),
-        color: 'var(--chart-line-1)',
-      },
-      desktop: {
-        label: t('dashboard.chart.series.desktop'),
-        color: 'var(--chart-line-2)',
-      },
-    }) satisfies ChartConfig,
-)
-
-const seriesColors = computed(() => [
-  chartConfig.value.mobile.color,
-  chartConfig.value.desktop.color,
-])
+const { open: sidebarOpen } = useSidebar()
 
 /**
- * 面积、折线与十字准线共用同一套系列色，避免三处 accessor 各自维护一份。
- * 这里不需要兜底颜色：unovis 只会按系列下标调用，而 seriesColors 由 chartConfig
- * 的两条系列派生，下标取模后必然命中。
+ * 侧栏展开/收起的过渡时长。图表层只消费 `freezeDuration`，不认识侧栏，
+ * 所以外壳动画若调整，只需要改这一个数字，不会出现图表冻结窗口与动画对不上的漂移。
  */
-function seriesColor(_datum: unknown, index: number): string {
-  return seriesColors.value[index % seriesColors.value.length]
-}
+const SIDEBAR_TRANSITION_MS = 220
+
+const series = computed<readonly ChartSeries<Data>[]>(() => [
+  {
+    key: 'mobile',
+    label: t('dashboard.chart.series.mobile'),
+    color: TREND_COLORS[0],
+    value: (datum) => datum.mobile,
+  },
+  {
+    key: 'desktop',
+    label: t('dashboard.chart.series.desktop'),
+    color: TREND_COLORS[1],
+    value: (datum) => datum.desktop,
+  },
+])
 
 const timeRange = ref<TimeRange>('90d')
-const chartWidth = ref(0)
-const displayedRange = computed(() => timeRange.value)
 
 const filteredChartData = computed<Data[]>(() => {
   const referenceDate = new Date('2024-06-30')
@@ -194,106 +167,18 @@ const filteredChartData = computed<Data[]>(() => {
   return chartData.filter((item) => item.date >= startDate)
 })
 
-const chartMargin = computed(() => {
-  const maxValue = filteredChartData.value.reduce(
-    (max, point) => Math.max(max, point.mobile, point.desktop),
-    0,
-  )
-  const yLabelWidth = maxValue.toLocaleString().length
-
-  return {
-    left: Math.min(Math.max(40, yLabelWidth * 8 + 12), 80),
-    right: 8,
-    top: 12,
-    bottom: 28,
-  }
-})
-
-const { open } = useSidebar()
-const sidebarAnimationMs = 220
-let freezeTimer: number | null = null
-const isChartFrozen = ref(false)
-const pendingChartWidth = ref<number | null>(null)
-const chartShell = useTemplateRef<HTMLElement>('chartShell')
-
-useResizeObserver(chartShell, (entries) => {
-  const nextWidth = Math.round(entries[0]?.contentRect.width ?? 0)
-  if (nextWidth <= 0) {
-    return
-  }
-
-  if (isChartFrozen.value) {
-    pendingChartWidth.value = nextWidth
-    return
-  }
-
-  chartWidth.value = nextWidth
-  pendingChartWidth.value = null
-})
-
-const clearFreezeTimer = () => {
-  if (freezeTimer !== null) {
-    window.clearTimeout(freezeTimer)
-    freezeTimer = null
-  }
+function xValue(datum: Data): Date {
+  return datum.date
 }
 
-const freezeChartDuringSidebarAnimation = () => {
-  const shell = chartShell.value
-  if (!shell) {
-    return
-  }
-
-  const visContainer = shell.querySelector<HTMLElement>(
-    '[data-vis-xy-container]',
-  )
-  if (!visContainer) {
-    return
-  }
-
-  const { width, height } = visContainer.getBoundingClientRect()
-  if (!width || !height) {
-    return
-  }
-
-  visContainer.style.width = String(width) + 'px'
-  visContainer.style.height = String(height) + 'px'
-  shell.style.overflow = 'hidden'
-  isChartFrozen.value = true
-
-  clearFreezeTimer()
-  freezeTimer = window.setTimeout(() => {
-    visContainer.style.removeProperty('width')
-    visContainer.style.removeProperty('height')
-    shell.style.removeProperty('overflow')
-    isChartFrozen.value = false
-    if (pendingChartWidth.value !== null) {
-      chartWidth.value = pendingChartWidth.value
-      pendingChartWidth.value = null
-    }
-  }, sidebarAnimationMs)
-}
-
-watch(
-  open,
-  () => {
-    freezeChartDuringSidebarAnimation()
-  },
-  { flush: 'sync' },
-)
-
-onBeforeUnmount(() => {
-  clearFreezeTimer()
-})
-
-function formatAxisDate(value: number) {
+function formatAxisDate(value: number): string {
   return new Date(value).toLocaleDateString(locale.value, {
     month: 'short',
     day: 'numeric',
   })
 }
 
-function formatTooltipDate(value: number | Date) {
+function formatTooltipDate(value: number | Date): string {
   return new Date(value).toLocaleDateString(locale.value, {
     year: 'numeric',
     month: 'short',
@@ -345,66 +230,16 @@ function rangeLabel(range: TimeRange): string {
       </Select>
     </CardHeader>
     <CardContent class="flex-1 px-2 py-4 min-block-0 sm:px-6 sm:pbs-6">
-      <div
-        ref="chartShell"
-        class="relative flex flex-col block-full min-block-0"
-      >
-        <div class="relative flex flex-1 block-full min-block-0">
-          <ChartContainer
-            v-if="filteredChartData.length > 0 && chartWidth > 0"
-            :config="chartConfig"
-            class="opacity-100 transition-[opacity,filter] duration-200 block-full inline-full min-block-0"
-            :cursor="false"
-          >
-            <VisXYContainer
-              :data="filteredChartData"
-              :width="chartWidth > 0 ? chartWidth : undefined"
-              :margin="chartMargin"
-              :auto-margin="false"
-              class="flex-1 block-auto! min-block-0"
-            >
-              <VisArea
-                :x="(d: Data) => d.date"
-                :y="[(d: Data) => d.mobile, (d: Data) => d.desktop]"
-                :color="seriesColor"
-                :opacity="0.4"
-              />
-              <VisLine
-                :x="(d: Data) => d.date"
-                :y="[(d: Data) => d.mobile, (d: Data) => d.mobile + d.desktop]"
-                :color="seriesColor"
-                :line-width="1"
-              />
-              <VisAxis
-                type="x"
-                :x="(d: Data) => d.date"
-                :tick-line="false"
-                :domain-line="false"
-                :grid-line="false"
-                :num-ticks="displayedRange === '7d' ? 7 : 6"
-                :tick-format="formatAxisDate"
-              />
-              <VisAxis
-                type="y"
-                :num-ticks="4"
-                :tick-line="false"
-                :domain-line="false"
-              />
-              <ChartTooltip />
-              <ChartCrosshair
-                :template="
-                  componentToString(chartConfig, ChartTooltipContent, {
-                    labelFormatter: formatTooltipDate,
-                  })
-                "
-                :color="seriesColor"
-              />
-            </VisXYContainer>
-
-            <ChartLegendContent />
-          </ChartContainer>
-        </div>
-      </div>
+      <TrendChart
+        :data="filteredChartData"
+        :series="series"
+        :x="xValue"
+        :x-tick-format="formatAxisDate"
+        :x-tooltip-format="formatTooltipDate"
+        :x-num-ticks="timeRange === '7d' ? 7 : 6"
+        :freeze-on-layout-change="sidebarOpen"
+        :freeze-duration="SIDEBAR_TRANSITION_MS"
+      />
     </CardContent>
   </Card>
 </template>

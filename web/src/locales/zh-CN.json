@@ -269,24 +269,16 @@
   "dashboard": {
     "metric": {
       "totalRevenue": {
-        "title": "总收入",
-        "summary": "本月持续上升",
-        "detail": "近 6 个月访客"
+        "title": "总收入"
       },
       "newCustomers": {
-        "title": "新增客户",
-        "summary": "本期下降 20%",
-        "detail": "获客需要关注"
+        "title": "新增客户"
       },
       "activeAccounts": {
-        "title": "活跃账户",
-        "summary": "留存表现稳定",
-        "detail": "互动超出目标"
+        "title": "活跃账户"
       },
       "growthRate": {
-        "title": "增长率",
-        "summary": "业绩稳步提升",
-        "detail": "达成增长预期"
+        "title": "增长率"
       }
     },
     "chart": {
@@ -303,18 +295,16 @@
         "desktop": "桌面端"
       }
     },
-    "reservedPanel": {
-      "eyebrow": "预留面板",
-      "title": "下一个模块",
-      "badge": "占位",
-      "emptyTitle": "留给下一个仪表盘模块",
-      "emptyDescription": "可以放告警、转化漏斗或汇总表格，不影响桌面端首屏布局",
-      "suggestedWidth": "建议宽度",
-      "suggestedWidthValue": "右侧辅助卡片",
-      "suggestedContent": "建议内容",
-      "suggestedContentValue": "任务、通知或小表格",
-      "viewportRule": "视口规则",
-      "viewportRuleValue": "桌面端不出现纵向滚动"
+    "trafficSources": {
+      "title": "会话来源",
+      "description": "近 30 天来源占比",
+      "total": "总会话",
+      "segments": {
+        "direct": "直接访问",
+        "search": "自然搜索",
+        "social": "社交媒体",
+        "referral": "推荐链接"
+      }
     }
   },
   "notFound": {

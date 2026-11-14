@@ -92,6 +92,7 @@ Go 是契约的唯一事实来源，前端生成文件禁止手改：
 - `views/` 只做页面编排；有状态逻辑放 composable；纯函数放 `utils`；无 UI 的基础能力放 `lib`。
 - `stores/` 只放跨路由或需要持久化的状态（auth、locale、theme、polling、system-logs preferences）。列表筛选、分页等页面状态留在 composable，不要复制进 Pinia。
 - `components/ui/` 是 shadcn-vue 风格基础组件：只做原语级修改，不写业务逻辑，不导入 store、router 或业务模块。
+- `components/common/charts/` 是图表能力层，也是唯一引入 `@unovis/*` 的地方：只放与业务无关的图表本体、图例、色板与取色函数，不读 i18n、store 或侧栏等外壳 context；页面级图表卡（标题、数据、选中项）留在 `components/<domain>/`。图表需要感知宿主布局时由调用方通过 props 传信号（如 `freezeOnLayoutChange`），不要反向依赖 SidebarProvider 之类的外壳上下文。
 - `@` 别名的唯一来源是 `web/build/alias.ts`；`tsconfig.json` 与 `tsconfig.app.json` 手工镜像，改别名必须三处同步。配置文件中导入它必须带 `.ts` 扩展名（Vite 原生加载器限制）。
 - API 层：`lib/api/*.ts` 使用 ky + zod。认证接口用 `authApi`（401 单飞刷新），公开/安装接口用 `baseApi`；统一 `.json<unknown>()` 后 `schema.parse`，异常交给 `normalizeAPIError(error)`。不要裸用 `fetch`，不要使用 `any`。
 - 成功响应用 `successEnvelopeSchema`；`roleKeySchema`、`userStatusSchema`、`managedUserActionSchema`、`capabilitySchema` 是线上词汇表，不要在业务代码中重复字面量。

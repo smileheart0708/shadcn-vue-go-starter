@@ -1,3 +1,6 @@
+# allowBuilds.maplibre-gl 与 overrides 的 maplibre-gl / stylus / vue-metamorph 为图表层
+# （components/common/charts/ → @unovis/ts，直接依赖带构建脚本的 maplibre-gl）钉住解析结果。
+# 单独删会让 pnpm 重新解析；移除图表层与 @unovis/* 后才可整组清理，file-entry-cache / glob 与之无关。
 allowBuilds:
   maplibre-gl: true
   vue-demi: true

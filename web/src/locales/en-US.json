@@ -269,24 +269,16 @@
   "dashboard": {
     "metric": {
       "totalRevenue": {
-        "title": "Total revenue",
-        "summary": "Up this month",
-        "detail": "Visitors over 6 months"
+        "title": "Total revenue"
       },
       "newCustomers": {
-        "title": "New customers",
-        "summary": "Down 20% this period",
-        "detail": "Acquisition needs a look"
+        "title": "New customers"
       },
       "activeAccounts": {
-        "title": "Active accounts",
-        "summary": "Retention holds",
-        "detail": "Engagement beats target"
+        "title": "Active accounts"
       },
       "growthRate": {
-        "title": "Growth rate",
-        "summary": "Steady gains",
-        "detail": "On track with forecast"
+        "title": "Growth rate"
       }
     },
     "chart": {
@@ -303,18 +295,16 @@
         "desktop": "Desktop"
       }
     },
-    "reservedPanel": {
-      "eyebrow": "Reserved panel",
-      "title": "Next slot",
-      "badge": "Placeholder",
-      "emptyTitle": "Left open for the next dashboard module",
-      "emptyDescription": "Room for alerts, a funnel or a summary table without changing the desktop fold",
-      "suggestedWidth": "Suggested width",
-      "suggestedWidthValue": "Side companion card",
-      "suggestedContent": "Suggested content",
-      "suggestedContentValue": "Tasks, notices or a small table",
-      "viewportRule": "Viewport rule",
-      "viewportRuleValue": "No vertical scroll on desktop"
+    "trafficSources": {
+      "title": "Traffic sources",
+      "description": "Share of sessions over 30 days",
+      "total": "Total sessions",
+      "segments": {
+        "direct": "Direct",
+        "search": "Organic search",
+        "social": "Social",
+        "referral": "Referrals"
+      }
     }
   },
   "notFound": {
