@@ -3,7 +3,7 @@
  * `ChartContainer`、`ChartTooltipContent`、`componentToString` 是 `TrendChart` 的
  * 内部实现，不对外暴露，否则会出现「直接用容器拼图」的第二套用法，两套并存后
  * 样式与交互必然漂移。需要新图表时，在层内组合后再从这里导出。
- * 移除本层可一并清理 `@unovis/*` 与 `pnpm-workspace.yaml` 的图表依赖项。
+ * 移除本层可一并清理 `@unovis/*` 依赖。
  */
 export { default as ChartLegend } from './ChartLegend.vue'
 export { default as PillDonut } from './PillDonut.vue'
