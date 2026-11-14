@@ -81,6 +81,18 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+  /*
+   * 图表组件专用的语义别名。这里只做 var() 转发，不要复制 --chart-* 的字面值：
+   * 复制会让同一个颜色出现两份源头，改主题时漏改一处，折线图就和其它图表漂移。
+   * 需要给某个图表单独换色时，改这里的指向，而不是另建一组数值。
+   */
+  --chart-line-1: var(--chart-2);
+  --chart-line-2: var(--chart-5);
+  --pill-donut-1: oklch(0.62 0.19 264);
+  --pill-donut-2: oklch(0.66 0.13 195);
+  --pill-donut-3: oklch(0.66 0.15 155);
+  --pill-donut-4: oklch(0.72 0.16 75);
+  --pill-donut-5: oklch(0.62 0.2 350);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -115,6 +127,14 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
+  /* 与亮色同名别名一致：只转发 --chart-*，不复制数值。 */
+  --chart-line-1: var(--chart-2);
+  --chart-line-2: var(--chart-5);
+  --pill-donut-1: oklch(0.72 0.16 264);
+  --pill-donut-2: oklch(0.78 0.12 195);
+  --pill-donut-3: oklch(0.78 0.14 155);
+  --pill-donut-4: oklch(0.84 0.15 75);
+  --pill-donut-5: oklch(0.74 0.17 350);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);

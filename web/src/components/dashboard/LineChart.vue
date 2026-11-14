@@ -151,14 +151,28 @@ const chartConfig = computed(
     ({
       mobile: {
         label: t('dashboard.chart.series.mobile'),
-        color: 'var(--chart-2)',
+        color: 'var(--chart-line-1)',
       },
       desktop: {
         label: t('dashboard.chart.series.desktop'),
-        color: 'var(--chart-5)',
+        color: 'var(--chart-line-2)',
       },
     }) satisfies ChartConfig,
 )
+
+const seriesColors = computed(() => [
+  chartConfig.value.mobile.color,
+  chartConfig.value.desktop.color,
+])
+
+/**
+ * 面积、折线与十字准线共用同一套系列色，避免三处 accessor 各自维护一份。
+ * 这里不需要兜底颜色：unovis 只会按系列下标调用，而 seriesColors 由 chartConfig
+ * 的两条系列派生，下标取模后必然命中。
+ */
+function seriesColor(_datum: unknown, index: number): string {
+  return seriesColors.value[index % seriesColors.value.length]
+}
 
 const timeRange = ref<TimeRange>('90d')
 const chartWidth = ref(0)
@@ -352,31 +366,13 @@ function rangeLabel(range: TimeRange): string {
               <VisArea
                 :x="(d: Data) => d.date"
                 :y="[(d: Data) => d.mobile, (d: Data) => d.desktop]"
-                :color="
-                  (datum: Data, index: number) => {
-                    void datum
-                    return (
-                      [chartConfig.mobile.color, chartConfig.desktop.color][
-                        index
-                      ] ?? 'var(--chart-1)'
-                    )
-                  }
-                "
+                :color="seriesColor"
                 :opacity="0.4"
               />
               <VisLine
                 :x="(d: Data) => d.date"
                 :y="[(d: Data) => d.mobile, (d: Data) => d.mobile + d.desktop]"
-                :color="
-                  (datum: Data, index: number) => {
-                    void datum
-                    return (
-                      [chartConfig.mobile.color, chartConfig.desktop.color][
-                        index
-                      ] ?? 'var(--chart-1)'
-                    )
-                  }
-                "
+                :color="seriesColor"
                 :line-width="1"
               />
               <VisAxis
@@ -401,16 +397,7 @@ function rangeLabel(range: TimeRange): string {
                     labelFormatter: formatTooltipDate,
                   })
                 "
-                :color="
-                  (datum: Data, index: number) => {
-                    void datum
-                    return (
-                      [chartConfig.mobile.color, chartConfig.desktop.color][
-                        index % 2
-                      ] ?? 'var(--chart-1)'
-                    )
-                  }
-                "
+                :color="seriesColor"
               />
             </VisXYContainer>
 
