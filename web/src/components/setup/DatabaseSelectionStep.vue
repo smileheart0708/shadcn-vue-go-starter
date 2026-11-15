@@ -199,7 +199,9 @@ function setSSLMode(value: unknown) {
         </div>
       </template>
 
-      <Field class="mbs-auto flex-row gap-3 pbs-2">
+      <!-- 动作行不能用 Field：vertical 变体会给直接子元素 inline-full，覆盖 flex-row 也去不掉，
+           两个按钮会各自占满整行，后面的按钮被卡片的 overflow-hidden 裁掉。 -->
+      <div class="mbs-auto flex gap-3 pbs-2">
         <Button
           type="button"
           size="lg"
@@ -231,7 +233,7 @@ function setSSLMode(value: unknown) {
               : t('setup.database.submit')
           }}
         </Button>
-      </Field>
+      </div>
     </FieldGroup>
   </form>
 </template>
