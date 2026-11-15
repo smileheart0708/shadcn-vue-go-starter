@@ -37,19 +37,14 @@ function submit() {
 
 <template>
   <form
-    class="flex flex-1 flex-col"
+    class="flex flex-col"
     @submit.prevent="submit"
   >
-    <div class="mbe-6 space-y-2">
-      <h2 class="text-xl font-semibold tracking-tight">
-        {{ t('setup.admin.title') }}
-      </h2>
-      <p class="text-sm text-muted-foreground">
-        {{ t('setup.admin.description') }}
-      </p>
-    </div>
+    <h1 class="mbe-6 text-xl font-semibold tracking-tight">
+      {{ t('setup.admin.title') }}
+    </h1>
 
-    <FieldGroup class="flex flex-1 flex-col gap-5">
+    <FieldGroup class="flex flex-col gap-5">
       <Field>
         <FieldLabel for="setup-username">{{
           t('common.field.username')
@@ -90,7 +85,7 @@ function submit() {
         />
       </Field>
 
-      <Field class="mbs-auto pbs-2">
+      <div class="pbs-2">
         <Button
           type="submit"
           size="lg"
@@ -99,7 +94,7 @@ function submit() {
           {{ t('common.action.next') }}
           <ArrowRight class="ms-2 block-4 inline-4" />
         </Button>
-      </Field>
+      </div>
     </FieldGroup>
   </form>
 </template>

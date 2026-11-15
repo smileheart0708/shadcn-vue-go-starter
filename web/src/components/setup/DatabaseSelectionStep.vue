@@ -45,25 +45,18 @@ function setSSLMode(value: unknown) {
 
 <template>
   <form
-    class="flex flex-1 flex-col"
+    class="flex flex-col"
     @submit.prevent="wizard.completeDatabase()"
   >
-    <div class="mbe-6 space-y-2">
-      <h2 class="text-xl font-semibold tracking-tight">
-        {{ t('setup.database.title') }}
-      </h2>
-      <p class="text-sm text-muted-foreground">
-        {{
-          finalizationRequired
-            ? t('setup.database.finalizationDescription', {
-                driver: selectedDriverLabel,
-              })
-            : t('setup.database.description')
-        }}
-      </p>
-    </div>
+    <h1 class="mbe-6 text-xl font-semibold tracking-tight">
+      {{
+        finalizationRequired
+          ? t('setup.database.finalizationTitle')
+          : t('setup.database.title')
+      }}
+    </h1>
 
-    <FieldGroup class="flex flex-1 flex-col gap-5">
+    <FieldGroup class="flex flex-col gap-5">
       <template v-if="finalizationRequired">
         <div
           class="flex items-center gap-3 rounded-lg border border-border/70 bg-muted/30 p-4"
@@ -97,19 +90,16 @@ function setSSLMode(value: unknown) {
               </SelectItem>
             </SelectContent>
           </Select>
-          <p class="text-sm text-muted-foreground">
-            {{
-              draft.driver === 'sqlite'
-                ? t('setup.database.sqliteDescription')
-                : t('setup.database.postgresqlDescription')
-            }}
-          </p>
         </Field>
 
         <div
           v-if="draft.driver === 'postgresql'"
           class="grid gap-5 sm:grid-cols-2"
         >
+          <p class="text-sm text-muted-foreground sm:col-span-2">
+            {{ t('setup.database.postgresqlDescription') }}
+          </p>
+
           <Field>
             <FieldLabel for="setup-pg-host">{{
               t('setup.database.host')
@@ -201,7 +191,7 @@ function setSSLMode(value: unknown) {
 
       <!-- 动作行不能用 Field：vertical 变体会给直接子元素 inline-full，覆盖 flex-row 也去不掉，
            两个按钮会各自占满整行，后面的按钮被卡片的 overflow-hidden 裁掉。 -->
-      <div class="mbs-auto flex gap-3 pbs-2">
+      <div class="flex gap-3 pbs-2">
         <Button
           type="button"
           size="lg"

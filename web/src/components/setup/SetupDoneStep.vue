@@ -11,27 +11,23 @@ const autoLoginFailed = computed(() => wizard.autoLoginFailed.value)
 </script>
 
 <template>
-  <div
-    class="flex flex-1 flex-col items-center justify-center gap-8 py-6 text-center sm:py-10"
-  >
+  <div class="flex flex-col items-center gap-6 py-6 text-center sm:py-10">
     <div
       class="flex items-center justify-center rounded-full bg-primary/10 text-primary block-20 inline-20"
     >
       <Check class="block-10 inline-10" />
     </div>
 
-    <div class="space-y-3">
-      <h2 class="text-3xl font-bold tracking-tight">
-        {{ t('setup.done.title') }}
-      </h2>
-      <p class="text-sm text-muted-foreground">
-        {{
-          autoLoginFailed
-            ? t('setup.done.autoLoginFailed')
-            : t('setup.done.description')
-        }}
-      </p>
-    </div>
+    <h1 class="text-2xl font-semibold tracking-tight">
+      {{ t('setup.done.title') }}
+    </h1>
+
+    <p
+      v-if="autoLoginFailed"
+      class="text-sm text-muted-foreground"
+    >
+      {{ t('setup.done.autoLoginFailed') }}
+    </p>
 
     <Button
       size="lg"

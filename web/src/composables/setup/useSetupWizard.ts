@@ -23,6 +23,9 @@ const MOTION_SAFE_RESET =
   'motion-reduce:translate-x-0 motion-reduce:opacity-100'
 const TRANSITION_REST = `translate-x-0 opacity-100 ${MOTION_SAFE_RESET}`
 
+// 与 enter-active 的 duration-300 对齐：卡片高度和内容一起收放，两段动画错开就会露出空白。
+export const STEP_ENTER_DURATION_MS = 300
+
 export function useSetupWizard(): SetupWizard {
   const { t } = useI18n()
   const router = useRouter()
@@ -80,16 +83,17 @@ export function useSetupWizard(): SetupWizard {
 
   const transitionClasses = computed(() => {
     const goingBackward = transitionDirection.value === 'backward'
-    const enterOffset = goingBackward ? '-translate-x-8' : 'translate-x-8'
-    const leaveOffset = goingBackward ? 'translate-x-8' : '-translate-x-8'
+    const enterOffset = goingBackward ? '-translate-x-3' : 'translate-x-3'
+    const leaveOffset = goingBackward ? 'translate-x-3' : '-translate-x-3'
 
     return {
       enterActive:
         'transition duration-300 ease-out motion-reduce:transition-none',
       enterFrom: `${enterOffset} opacity-0 ${MOTION_SAFE_RESET}`,
       enterTo: TRANSITION_REST,
+      // 离场只给 150ms：交接必须等它结束（mode="out-in"），这一步越快整体越利落。
       leaveActive:
-        'transition duration-200 ease-in motion-reduce:transition-none',
+        'transition duration-150 ease-in motion-reduce:transition-none',
       leaveFrom: TRANSITION_REST,
       leaveTo: `${leaveOffset} opacity-0 ${MOTION_SAFE_RESET}`,
     }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { ServerCrash } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 
 const { t } = useI18n()
@@ -13,14 +14,23 @@ function retry() {
 
 <template>
   <main class="flex items-center justify-center p-6 min-block-svh">
-    <div class="flex flex-col items-center gap-4 text-center max-inline-sm">
+    <div class="flex flex-col items-center gap-6 text-center max-inline-sm">
+      <div
+        class="flex items-center justify-center rounded-full bg-muted text-muted-foreground block-16 inline-16"
+      >
+        <ServerCrash class="block-7 inline-7" />
+      </div>
+
       <h1 class="text-lg font-semibold">
-        {{ t('common.feedback.loadFailed') }}
+        {{ t('common.feedback.serviceUnavailable') }}
       </h1>
-      <p class="text-sm text-muted-foreground">
-        {{ t('common.feedback.networkError') }}
-      </p>
-      <Button @click="retry">{{ t('common.action.retry') }}</Button>
+
+      <Button
+        size="lg"
+        @click="retry"
+      >
+        {{ t('common.action.retry') }}
+      </Button>
     </div>
   </main>
 </template>

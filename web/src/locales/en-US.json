@@ -49,6 +49,7 @@
       "createFailed": "Couldn't create",
       "updateFailed": "Couldn't update",
       "networkError": "Network problem. Try again in a moment",
+      "serviceUnavailable": "Service unavailable",
       "saved": "Saved",
       "created": "Created",
       "updated": "Updated",
@@ -163,7 +164,6 @@
     }
   },
   "setup": {
-    "title": "Setup",
     "failed": "Setup failed",
     "steps": {
       "admin": "Administrator",
@@ -171,15 +171,12 @@
       "done": "Done"
     },
     "admin": {
-      "title": "Create administrator",
-      "description": "This account has full access. Keep it safe"
+      "title": "Create administrator"
     },
     "database": {
       "title": "Choose a database",
-      "description": "All app data lives in this database",
       "driver": "Database type",
       "sqlite": "SQLite",
-      "sqliteDescription": "No setup needed. Data stays on this machine",
       "postgresql": "PostgreSQL",
       "postgresqlDescription": "Needs an empty database and an account that can create tables",
       "host": "Host",
@@ -193,14 +190,13 @@
         "require": "Require encryption",
         "verifyFull": "Verify fully"
       },
-      "finalizationDescription": "Continue with the saved {driver} config",
+      "finalizationTitle": "Confirm database",
       "finalizationHint": "Database is migrated. This only creates the administrator",
       "submitting": "Setting up",
       "submit": "Validate and finish"
     },
     "done": {
       "title": "Setup complete",
-      "description": "Administrator and database are ready",
       "autoLoginFailed": "Setup is done but automatic sign-in failed. Sign in manually",
       "goDashboard": "Enter app",
       "goLogin": "Go to sign in"
