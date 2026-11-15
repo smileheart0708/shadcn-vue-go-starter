@@ -127,7 +127,6 @@ func (f userFields) toDomain() identity.User {
 		Status:          f.Status,
 		Role:            f.Role,
 		SecurityVersion: f.SecurityVersion,
-		DisabledAt:      unixTimePtr(f.DisabledAt),
 		CreatedAt:       unixTime(f.CreatedAt),
 		UpdatedAt:       unixTime(f.UpdatedAt),
 	}

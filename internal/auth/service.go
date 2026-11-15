@@ -92,7 +92,6 @@ type SessionResult struct {
 	AccessToken  string
 	ExpiresAt    time.Time
 	RefreshToken string
-	SessionID    string
 }
 
 type RegisterParams struct {
@@ -226,7 +225,7 @@ func ValidateNewAccount(username string, password string) error {
 	if strings.TrimSpace(username) == "" {
 		return identity.ErrUsernameRequired
 	}
-	if len(strings.TrimSpace(password)) < MinPasswordLength {
+	if passwordTooShort(password) {
 		return ErrPasswordTooShort
 	}
 
@@ -390,7 +389,6 @@ func (s *Service) Refresh(ctx context.Context, rawToken string) (SessionResult, 
 		AccessToken:  accessToken,
 		ExpiresAt:    expiresAt,
 		RefreshToken: nextRefreshToken,
-		SessionID:    session.ID,
 	}, nil
 }
 
@@ -412,7 +410,7 @@ func (s *Service) Logout(ctx context.Context, rawToken string) error {
 }
 
 func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPassword string, newPassword string) error {
-	if len(strings.TrimSpace(newPassword)) < MinPasswordLength {
+	if passwordTooShort(newPassword) {
 		return ErrPasswordTooShort
 	}
 
@@ -496,7 +494,6 @@ func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, i
 		AccessToken:  accessToken,
 		ExpiresAt:    expiresAt,
 		RefreshToken: refreshToken,
-		SessionID:    sessionID,
 	}, nil
 }
 

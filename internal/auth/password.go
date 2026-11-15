@@ -9,6 +9,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -21,6 +22,20 @@ const (
 	passwordArgonMemory  = 64 * 1024
 	passwordArgonThreads = 2
 )
+
+// passwordTooShort is the single length rule for setting a password; every entry point
+// (setup, registration, administrative creation, change-password) must route here.
+//
+// It counts characters (code points), not bytes: len("密码密") is 9, so a byte-based
+// bound accepted a three-character password while the browser refused to submit it
+// (HTML `minlength` counts UTF-16 code units) and the "at least 8 characters" copy was
+// wrong for every non-ASCII password. An HTML code-unit count is never smaller than a
+// code-point count, so the client-side bound can only be looser than this one: a short
+// non-ASCII password reaches the server and gets the translated error instead of being
+// blocked in the browser with a message the UI cannot localise.
+func passwordTooShort(password string) bool {
+	return utf8.RuneCountInString(strings.TrimSpace(password)) < MinPasswordLength
+}
 
 func HashPassword(password string) (string, error) {
 	salt := make([]byte, passwordSaltBytes)

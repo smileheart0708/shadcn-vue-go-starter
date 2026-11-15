@@ -76,28 +76,17 @@ func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Reques
 	result, err := api.identities.ListUsers(r.Context(), identity.ListUsersParams{
 		Query:    r.URL.Query().Get("q"),
 		Status:   r.URL.Query().Get("status"),
-		Page:     parsePositiveIntQuery(r, "page", 1),
-		PageSize: parsePositiveIntQuery(r, "pageSize", 20),
+		Page:     parsePositiveIntQuery(r, "page"),
+		PageSize: parsePositiveIntQuery(r, "pageSize"),
 	})
 	if err != nil {
 		writeError(w, r, CodeInternalError, err)
 		return
 	}
 
-	actorTarget := identity.ManagedUserTarget{
-		UserID: actor.User.ID,
-		Role:   actor.User.Role,
-		Status: actor.User.Status,
-	}
-
 	items := make([]managedUserResponse, 0, len(result.Items))
 	for _, item := range result.Items {
-		target := identity.ManagedUserTarget{
-			UserID: item.ID,
-			Role:   item.Role,
-			Status: item.Status,
-		}
-		items = append(items, api.toManagedUserResponse(item, identity.ManagedUserActions(actorTarget, target)))
+		items = append(items, api.managedUserViewOf(actor, item))
 	}
 
 	writeSuccessJSON(w, http.StatusOK, managementUsersPageResponse{
@@ -141,11 +130,12 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	targetUser, actorTarget, targetTarget, ok := api.loadManagedUserTargets(w, r, actor, targetID)
+	targetUser, ok := api.loadManagedUser(w, r, targetID)
 	if !ok {
 		return
 	}
-	if !identity.CanManageUser(actorTarget, targetTarget, identity.ManagedUserActionUpdate) {
+	actorTarget := managedUserTargetOf(actor.User)
+	if !identity.CanManageUser(actorTarget, managedUserTargetOf(targetUser), identity.ManagedUserActionUpdate) {
 		writeError(w, r, CodeForbidden)
 		return
 	}
@@ -164,11 +154,7 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeSuccessJSON(w, http.StatusOK, api.toManagedUserResponse(updated, identity.ManagedUserActions(actorTarget, identity.ManagedUserTarget{
-		UserID: updated.ID,
-		Role:   updated.Role,
-		Status: updated.Status,
-	})))
+	writeSuccessJSON(w, http.StatusOK, api.managedUserViewOf(actor, updated))
 }
 
 func (api *API) disableManagementUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -191,49 +177,55 @@ func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	targetUser, actorTarget, targetTarget, ok := api.loadManagedUserTargets(w, r, actor, targetID)
+	targetUser, ok := api.loadManagedUser(w, r, targetID)
 	if !ok {
 		return
 	}
-	if !identity.CanManageUser(actorTarget, targetTarget, action) {
+	actorTarget := managedUserTargetOf(actor.User)
+	if !identity.CanManageUser(actorTarget, managedUserTargetOf(targetUser), action) {
 		writeError(w, r, CodeForbidden)
 		return
 	}
 
 	updated, err := api.identities.SetUserStatus(r.Context(), targetUser.ID, status)
 	if err != nil {
-		// loadManagedUserTargets already succeeded, so a not-found here means the target
-		// was deleted in between. The mapping table answers 404, which keeps the race
-		// from being misreported as a server fault.
+		// loadManagedUser already succeeded, so a not-found here means the target was
+		// deleted in between. The mapping table answers 404, which keeps the race from
+		// being misreported as a server fault.
 		writeDomainError(w, r, err)
 		return
 	}
 
-	writeSuccessJSON(w, http.StatusOK, api.toManagedUserResponse(updated, identity.ManagedUserActions(actorTarget, identity.ManagedUserTarget{
-		UserID: updated.ID,
-		Role:   updated.Role,
-		Status: updated.Status,
-	})))
+	writeSuccessJSON(w, http.StatusOK, api.managedUserViewOf(actor, updated))
 }
 
-func (api *API) loadManagedUserTargets(w http.ResponseWriter, r *http.Request, actor auth.Actor, targetID int64) (identity.User, identity.ManagedUserTarget, identity.ManagedUserTarget, bool) {
+func (api *API) loadManagedUser(w http.ResponseWriter, r *http.Request, targetID int64) (identity.User, bool) {
 	targetUser, err := api.identities.GetUserByID(r.Context(), targetID)
 	if err != nil {
 		writeDomainError(w, r, err)
-		return identity.User{}, identity.ManagedUserTarget{}, identity.ManagedUserTarget{}, false
+		return identity.User{}, false
 	}
+	return targetUser, true
+}
 
-	actorTarget := identity.ManagedUserTarget{
-		UserID: actor.User.ID,
-		Role:   actor.User.Role,
-		Status: actor.User.Status,
+// managedUserTargetOf is the single conversion from a user to a permission target.
+// The same three fields feed both ManagedUserActions and CanManageUser, so assembling
+// the struct by hand at each call site is how the list and the single-user response
+// drift apart.
+func managedUserTargetOf(user identity.User) identity.ManagedUserTarget {
+	return identity.ManagedUserTarget{
+		UserID: user.ID,
+		Role:   user.Role,
+		Status: user.Status,
 	}
-	targetTarget := identity.ManagedUserTarget{
-		UserID: targetUser.ID,
-		Role:   targetUser.Role,
-		Status: targetUser.Status,
-	}
-	return targetUser, actorTarget, targetTarget, true
+}
+
+// managedUserViewOf keeps every response that carries an action list on one path.
+func (api *API) managedUserViewOf(actor auth.Actor, user identity.User) managedUserResponse {
+	return api.toManagedUserResponse(user, identity.ManagedUserActions(
+		managedUserTargetOf(actor.User),
+		managedUserTargetOf(user),
+	))
 }
 
 func toAccountPoliciesResponse(policies accountpolicies.Policies) accountPoliciesResponse {
@@ -243,15 +235,13 @@ func toAccountPoliciesResponse(policies accountpolicies.Policies) accountPolicie
 	}
 }
 
-func parsePositiveIntQuery(r *http.Request, key string, fallback int) int {
-	value := strings.TrimSpace(r.URL.Query().Get(key))
-	if value == "" {
-		return fallback
-	}
-
-	parsed, err := strconv.Atoi(value)
+// parsePositiveIntQuery answers 0 for a value that is absent or unusable. The default
+// and the upper bound live in identity.normalizeListParams only: repeating them here
+// is how a paging contract ends up with two different sets of numbers.
+func parsePositiveIntQuery(r *http.Request, key string) int {
+	parsed, err := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get(key)))
 	if err != nil || parsed <= 0 {
-		return fallback
+		return 0
 	}
 	return parsed
 }

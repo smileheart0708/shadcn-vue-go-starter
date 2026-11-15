@@ -19,11 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type {
-  SystemLogEntry,
-  SystemLogHistoryLimit,
-  SystemLogLevel,
-} from '@/lib/api/system-logs'
+import type { SystemLogEntry } from '@/lib/api/system-logs'
 import {
   SYSTEM_LOG_EXPORT_FORMAT_VALUES,
   type SystemLogExportFormat,
@@ -31,13 +27,13 @@ import {
 import {
   createSystemLogExportBlob,
   getSystemLogExportFileName,
-  selectSystemLogEntries,
 } from '@/utils/system-logs/export'
 
 interface Props {
-  entries: readonly SystemLogEntry[]
-  historyLimit: SystemLogHistoryLimit
-  levels: readonly SystemLogLevel[]
+  // 名字带 visible 是有意的：这里只收列表已经算好的那批条目（级别/搜索/historyLimit
+  // 都由 selectVisibleSystemLogEntries 处理）。对话框自己再过滤一次，就会重演
+  // "屏幕 3 条、导出全量" —— 两份过滤实现迟早漂移。
+  visibleEntries: readonly SystemLogEntry[]
   open: boolean
 }
 
@@ -72,25 +68,18 @@ const openModel = computed({
   },
 })
 
-const exportableEntries = computed(() =>
-  selectSystemLogEntries({
-    entries: props.entries,
-    historyLimit: props.historyLimit,
-    levels: props.levels,
-  }),
-)
-const exportableCount = computed(() => exportableEntries.value.length)
-
 function handleExport() {
-  const count = exportableCount.value
-  if (count === 0) {
+  const entries = props.visibleEntries
+  if (entries.length === 0) {
     toast.error(t('systemLogs.feedback.exportEmpty'))
     return
   }
 
-  downloadSystemLogs(exportableEntries.value, exportFormat.value)
+  downloadSystemLogs(entries, exportFormat.value)
 
-  toast.success(t('systemLogs.feedback.exportSuccess', { count }))
+  toast.success(
+    t('systemLogs.feedback.exportSuccess', { count: entries.length }),
+  )
   openModel.value = false
 }
 
@@ -115,7 +104,9 @@ function downloadSystemLogs(
       <DialogHeader>
         <DialogTitle>{{ t('systemLogs.export.title') }}</DialogTitle>
         <DialogDescription>
-          {{ t('systemLogs.export.description', { count: exportableCount }) }}
+          {{
+            t('systemLogs.export.description', { count: visibleEntries.length })
+          }}
         </DialogDescription>
       </DialogHeader>
 
@@ -141,7 +132,7 @@ function downloadSystemLogs(
         </div>
 
         <p class="text-sm text-muted-foreground">
-          {{ t('systemLogs.export.preview', { count: exportableCount }) }}
+          {{ t('systemLogs.export.preview', { count: visibleEntries.length }) }}
         </p>
       </div>
 

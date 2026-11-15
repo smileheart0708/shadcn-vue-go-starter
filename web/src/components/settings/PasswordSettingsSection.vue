@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import SettingsGroup from '@/components/common/SettingsGroup.vue'
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password'
 import { usePasswordSettings } from '@/composables/settings/usePasswordSettings'
 
 const { t } = useI18n()
@@ -13,8 +14,12 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
 
 <template>
   <SettingsGroup :title="t('settings.account.password')">
-    <!-- 表单是卡片的单个子节点，组内分隔线不会落到字段之间。 -->
-    <div class="space-y-4 p-4">
+    <!-- 单个子节点，组内分隔线不会落到字段之间。必须是 form：改密码原先只有一个
+         click 按钮，浏览器从不校验 minlength，长度规则只能靠服务端 400 兜底。 -->
+    <form
+      class="space-y-4 p-4"
+      @submit.prevent="updatePassword"
+    >
       <div class="space-y-2">
         <Label for="current-password">{{
           t('common.field.currentPassword')
@@ -33,6 +38,7 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
           id="new-password"
           v-model="passwordForm.newPassword"
           type="password"
+          :minlength="MIN_PASSWORD_LENGTH"
           :placeholder="t('common.placeholder.newPassword')"
         />
       </div>
@@ -58,9 +64,9 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
 
       <div class="flex justify-end">
         <Button
+          type="submit"
           variant="outline"
           :disabled="isUpdatingPassword"
-          @click="updatePassword"
         >
           {{
             isUpdatingPassword
@@ -69,6 +75,6 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
           }}
         </Button>
       </div>
-    </div>
+    </form>
   </SettingsGroup>
 </template>

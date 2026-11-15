@@ -162,10 +162,12 @@ function handleHistoryLimitChange(value: unknown) {
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
+        <!-- 与对话框同源：按钮、计数、下载都只看 visibleEntries。用 entries.length 会让
+             搜索无结果时仍能点开一个 0 条的对话框，只能靠 exportEmpty 报错兜底。 -->
         <Button
           variant="outline"
           size="sm"
-          :disabled="entries.length === 0"
+          :disabled="visibleEntries.length === 0"
           @click="exportDialogOpen = true"
         >
           <Download class="block-4 inline-4" />
@@ -266,9 +268,7 @@ function handleHistoryLimitChange(value: unknown) {
     <SystemLogsExportDialog
       v-model:open="exportDialogOpen"
       v-model:format="exportFormatModel"
-      :entries="entries"
-      :history-limit="historyLimit"
-      :levels="levels"
+      :visible-entries="visibleEntries"
     />
   </Card>
 </template>

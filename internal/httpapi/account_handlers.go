@@ -195,7 +195,10 @@ func (api *API) avatarHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ServeFile answers 404 on its own when the row still names a file that is gone.
-	http.ServeFile(w, r, fullPath) //nolint:gosec // avatar.Store.Path only accepts bare file names, so the path cannot leave its directory
+	// shortcut: gosec's taint analysis cannot see avatar.Store.Path's validation, so the
+	// directive below has to stay; without it `golangci-lint run` fails with G703 and the
+	// report points at this call instead of at a real problem.
+	http.ServeFile(w, r, fullPath) //nolint:gosec // avatar.Store.Path only accepts bare file names, so fullPath cannot leave its directory
 }
 
 // removeAvatarFile is best-effort: on delete and replace the row no longer references

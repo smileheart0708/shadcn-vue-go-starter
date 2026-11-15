@@ -6,6 +6,7 @@ import { ArrowRight } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password'
 import type { SetupWizard } from '@/composables/setup/types'
 
 const { wizard } = defineProps<{ wizard: SetupWizard }>()
@@ -69,7 +70,7 @@ function submit() {
           id="setup-password"
           v-model="password"
           autocomplete="new-password"
-          minlength="8"
+          :minlength="MIN_PASSWORD_LENGTH"
           required
           type="password"
         />
@@ -83,7 +84,7 @@ function submit() {
           id="setup-confirm-password"
           v-model="confirmPassword"
           autocomplete="new-password"
-          minlength="8"
+          :minlength="MIN_PASSWORD_LENGTH"
           required
           type="password"
         />

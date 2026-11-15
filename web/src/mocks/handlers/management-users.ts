@@ -1,6 +1,7 @@
 import { http } from 'msw'
 import { ROLE_KEY, type ManagedUserAction } from '@/lib/api/contract.generated'
 import { CAPABILITY } from '@/lib/auth/capabilities.generated'
+import { meetsMinPasswordLength } from '@/lib/auth/password'
 import { hasCapability } from '@/mocks/handlers/permissions'
 import { clearSession, requireAuthenticated } from '@/mocks/handlers/session'
 import {
@@ -143,7 +144,7 @@ export const managementUsersHandlers = [
     if (username === '') {
       return jsonError(400, 'username_required', 'Username is required.')
     }
-    if (payload.password.trim().length < 8) {
+    if (!meetsMinPasswordLength(payload.password)) {
       return jsonError(
         400,
         'password_too_short',

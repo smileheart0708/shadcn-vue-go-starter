@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"main/internal/accountpolicies"
 	"main/internal/installation"
 )
 
@@ -30,7 +29,10 @@ func NewBootstrapAPIHandler(options BootstrapOptions) http.Handler {
 	mux := http.NewServeMux()
 	registerSharedRoutes(mux, api)
 	mux.HandleFunc("GET /api/auth/public-config", func(w http.ResponseWriter, _ *http.Request) {
-		writeSuccessJSON(w, http.StatusOK, accountpolicies.PublicAuthConfig{RegistrationEnabled: false})
+		// Same response type as the installed handler: registration cannot be enabled
+		// before an owner exists, so the bootstrap answer is a fixed false with the
+		// identical body shape.
+		writeSuccessJSON(w, http.StatusOK, publicAuthConfigResponse{RegistrationEnabled: false})
 	})
 	setupRequired := func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, CodeSetupRequired)

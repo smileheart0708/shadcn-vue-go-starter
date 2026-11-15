@@ -5,18 +5,22 @@ import (
 	"errors"
 )
 
+// These types carry no JSON tags on purpose: the wire shape belongs to internal/httpapi
+// (see accountPoliciesResponse and publicAuthConfigResponse). A tag here would be a
+// second, silently authoritative definition of the API contract — renaming a field for
+// the domain would rename it on the wire and only the frontend zod schema would notice.
 type Policies struct {
-	PublicRegistrationEnabled         bool `json:"publicRegistrationEnabled"`
-	SelfServiceAccountDeletionEnabled bool `json:"selfServiceAccountDeletionEnabled"`
+	PublicRegistrationEnabled         bool
+	SelfServiceAccountDeletionEnabled bool
 }
 
 type UpdateInput struct {
-	PublicRegistrationEnabled         *bool `json:"publicRegistrationEnabled"`
-	SelfServiceAccountDeletionEnabled *bool `json:"selfServiceAccountDeletionEnabled"`
+	PublicRegistrationEnabled         *bool
+	SelfServiceAccountDeletionEnabled *bool
 }
 
 type PublicAuthConfig struct {
-	RegistrationEnabled bool `json:"registrationEnabled"`
+	RegistrationEnabled bool
 }
 
 // Repository is the persistence seam for the singleton account policies.

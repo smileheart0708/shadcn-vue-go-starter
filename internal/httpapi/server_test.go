@@ -448,6 +448,36 @@ func TestManagedUserResponsesIncludeLastActiveAt(t *testing.T) {
 	t.Fatalf("expected to find managed user %d in list response", created.ID)
 }
 
+// The paging default lives in identity.normalizeListParams, not in the handler. This
+// locks the wire answer for both the absent and the malformed case so a second default
+// sneaking back into parsePositiveIntQuery cannot go unnoticed.
+func TestManagementUserListAppliesDefaultPaging(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+
+	for _, target := range []string{
+		"/api/management/users",
+		"/api/management/users?page=0&pageSize=abc",
+	} {
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		req.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+		rec := httptest.NewRecorder()
+		ctx.handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: expected status %d, got %d: %s", target, http.StatusOK, rec.Code, rec.Body.String())
+		}
+
+		var envelope testSuccessEnvelope[managementUsersPageResponse]
+		decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
+		if envelope.Data.Page != 1 || envelope.Data.PageSize != 20 {
+			t.Fatalf("%s: expected page 1 / pageSize 20, got %d / %d", target, envelope.Data.Page, envelope.Data.PageSize)
+		}
+	}
+}
+
 func TestSPAFallbackAndGzipStillWork(t *testing.T) {
 	t.Parallel()
 

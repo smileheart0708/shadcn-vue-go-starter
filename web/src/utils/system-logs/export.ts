@@ -1,28 +1,15 @@
-import {
-  isSystemLogLevel,
-  type SystemLogEntry,
-  type SystemLogHistoryLimit,
-  type SystemLogLevel,
-} from '@/lib/api/system-logs'
+import type { SystemLogEntry } from '@/lib/api/system-logs'
 import type { SystemLogExportFormat } from '@/stores/system-logs-preferences'
-import { applyHistoryLimit, formatSystemLogTimestamp } from './console'
+import { formatSystemLogTimestamp } from './console'
 
-interface ExportSystemLogsOptions {
-  entries: readonly SystemLogEntry[]
-  historyLimit: SystemLogHistoryLimit
-  levels: readonly SystemLogLevel[]
-}
-
-export function selectSystemLogEntries(
-  options: ExportSystemLogsOptions,
-): SystemLogEntry[] {
-  const selectedLevels = new Set(options.levels)
-  const filteredEntries = options.entries.filter(
-    (entry) => isSystemLogLevel(entry.level) && selectedLevels.has(entry.level),
-  )
-  return applyHistoryLimit(filteredEntries, options.historyLimit)
-}
-
+/**
+ * Serializes entries the caller already filtered.
+ *
+ * Do not add level/search/history filtering here: the visible list and the export
+ * must come from the same `selectVisibleSystemLogEntries` result, otherwise the
+ * dialog counts and downloads a set the user is not looking at. Keeping the filter
+ * in one place is the only thing that keeps those two in sync.
+ */
 export function createSystemLogExportBlob(
   entries: readonly SystemLogEntry[],
   format: SystemLogExportFormat,

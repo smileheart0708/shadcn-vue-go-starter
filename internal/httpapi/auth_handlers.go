@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"main/internal/accountpolicies"
 	"main/internal/auth"
 	"main/internal/installation"
 )
@@ -102,13 +103,25 @@ func toInstallationDatabase(input *installDatabaseRequest) *installation.Databas
 	return databaseInput
 }
 
+// publicAuthConfigResponse is the transport shape of /api/auth/public-config. It is a
+// separate type from accountpolicies.PublicAuthConfig so the response field name cannot
+// change just because the domain field was renamed; the bootstrap handler serves the
+// same endpoint and shares this type.
+type publicAuthConfigResponse struct {
+	RegistrationEnabled bool `json:"registrationEnabled"`
+}
+
+func toPublicAuthConfigResponse(config accountpolicies.PublicAuthConfig) publicAuthConfigResponse {
+	return publicAuthConfigResponse{RegistrationEnabled: config.RegistrationEnabled}
+}
+
 func (api *API) publicAuthConfigHandler(w http.ResponseWriter, r *http.Request) {
 	config, err := api.policies.PublicAuthConfig(r.Context())
 	if err != nil {
 		writeError(w, r, CodeInternalError, err)
 		return
 	}
-	writeSuccessJSON(w, http.StatusOK, config)
+	writeSuccessJSON(w, http.StatusOK, toPublicAuthConfigResponse(config))
 }
 
 func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {

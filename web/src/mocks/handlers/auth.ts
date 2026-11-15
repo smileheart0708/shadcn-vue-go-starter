@@ -1,4 +1,5 @@
 import { http } from 'msw'
+import { meetsMinPasswordLength } from '@/lib/auth/password'
 import { toViewer } from '@/mocks/handlers/permissions'
 import {
   clearSession,
@@ -84,7 +85,7 @@ export const authHandlers = [
     if (username === '') {
       return jsonError(400, 'username_required', 'Username is required.')
     }
-    if (payload.password.trim().length < 8) {
+    if (!meetsMinPasswordLength(payload.password)) {
       return jsonError(
         400,
         'password_too_short',

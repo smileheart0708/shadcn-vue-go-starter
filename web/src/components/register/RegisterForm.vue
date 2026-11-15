@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { cn } from '@/lib/utils'
+import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password'
 import { normalizeOptionalEmail } from '@/utils/email'
 import { Button } from '@/components/ui/button'
 import {
@@ -212,7 +213,7 @@ async function handleSubmit() {
             v-model="password"
             autocomplete="new-password"
             :placeholder="t('common.placeholder.password')"
-            minlength="8"
+            :minlength="MIN_PASSWORD_LENGTH"
             required
             type="password"
           />
@@ -227,7 +228,7 @@ async function handleSubmit() {
             v-model="confirmPassword"
             autocomplete="new-password"
             :placeholder="t('common.placeholder.confirmPassword')"
-            minlength="8"
+            :minlength="MIN_PASSWORD_LENGTH"
             required
             type="password"
           />

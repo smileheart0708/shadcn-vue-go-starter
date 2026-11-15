@@ -2,8 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -66,9 +64,11 @@ func ResolveJWTSecret(ctx context.Context, repository JWTSecretRepository, envSe
 }
 
 func generateJWTSecret() (string, error) {
-	secret := make([]byte, jwtSecretEntropyBytes)
-	if _, err := rand.Read(secret); err != nil {
+	// Shares the token generator so the entropy source and the hex encoding cannot
+	// diverge between the signing secret and session tokens.
+	secret, err := randomTokenComponent(jwtSecretEntropyBytes)
+	if err != nil {
 		return "", fmt.Errorf("auth: generate JWT secret: %w", err)
 	}
-	return hex.EncodeToString(secret), nil
+	return secret, nil
 }

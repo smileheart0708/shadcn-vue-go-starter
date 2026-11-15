@@ -61,7 +61,6 @@ type User struct {
 	Status          string
 	Role            string
 	SecurityVersion int64
-	DisabledAt      *time.Time
 	LastActiveAt    *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time

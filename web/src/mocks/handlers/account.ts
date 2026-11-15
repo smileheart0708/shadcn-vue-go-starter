@@ -1,5 +1,6 @@
 import { http } from 'msw'
 import { CAPABILITY } from '@/lib/auth/capabilities.generated'
+import { meetsMinPasswordLength } from '@/lib/auth/password'
 import { hasCapability, toViewer } from '@/mocks/handlers/permissions'
 import { clearSession, requireAuthenticated } from '@/mocks/handlers/session'
 import {
@@ -76,7 +77,7 @@ export const accountHandlers = [
         'Current password is invalid.',
       )
     }
-    if (payload.newPassword.trim().length < 8) {
+    if (!meetsMinPasswordLength(payload.newPassword)) {
       return jsonError(
         400,
         'password_too_short',

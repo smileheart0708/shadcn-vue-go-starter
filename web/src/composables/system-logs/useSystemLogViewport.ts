@@ -43,10 +43,11 @@ export function useSystemLogViewport() {
     autoScroll.value = distanceFromBottom <= SCROLL_BOTTOM_THRESHOLD
   }
 
+  // resumeAutoScroll stays private: only toggleAutoScroll drives it today, and
+  // exporting it invited callers to bypass the toggle's scroll position handling.
   return {
     autoScroll,
     toggleAutoScroll,
-    resumeAutoScroll,
     scrollToBottom,
     handleViewportScroll,
   }

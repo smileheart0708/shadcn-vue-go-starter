@@ -77,6 +77,29 @@ func TestCreateManagedUserValidatesUsernameBeforePassword(t *testing.T) {
 	}
 }
 
+// The UI states the rule as "at least 8 characters", so the server has to count
+// characters. 密码密 is 3 characters but 9 bytes, which passed a byte-based bound while
+// the browser refused to submit it; nothing else notices the unit until a non-ASCII
+// password is tried, so both directions are pinned here.
+func TestValidateNewAccountCountsPasswordCharacters(t *testing.T) {
+	t.Parallel()
+
+	tooShort := []string{
+		"密码密",                                    // 3 characters, 9 bytes
+		"密码密码",                                   // 4 characters, 12 bytes
+		strings.Repeat("a", MinPasswordLength-1), // ASCII must keep working
+	}
+	for _, password := range tooShort {
+		if err := ValidateNewAccount("alice", password); !errors.Is(err, ErrPasswordTooShort) {
+			t.Fatalf("expected %q to be rejected as too short, got %v", password, err)
+		}
+	}
+
+	if err := ValidateNewAccount("alice", "密码密码密码密码"); err != nil {
+		t.Fatalf("expected eight characters to be accepted, got %v", err)
+	}
+}
+
 // managedUserRepositoryStub only implements CreateUser; the embedded interface makes any
 // other repository call panic, which is what a test wants.
 type managedUserRepositoryStub struct {
