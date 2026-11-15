@@ -212,7 +212,7 @@ function rangeLabel(range: TimeRange): string {
       </div>
       <Select v-model="timeRange">
         <SelectTrigger
-          class="hidden rounded-lg inline-40 sm:ms-auto sm:flex"
+          class="hidden rounded-lg sm:ms-auto sm:flex"
           :aria-label="t('dashboard.chart.rangeLabel')"
         >
           <SelectValue :placeholder="t('dashboard.chart.rangeLabel')" />
