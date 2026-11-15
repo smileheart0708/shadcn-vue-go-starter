@@ -2,13 +2,15 @@
 import type { ChartLegendItem, ChartSeries, TooltipSeries } from './chart.ts'
 import { useResizeObserver } from '@vueuse/core'
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
-import {
-  VisArea,
-  VisAxis,
-  VisCrosshair,
-  VisTooltip,
-  VisXYContainer,
-} from '@unovis/vue'
+// Deep imports (each subpath is a default export), not the package root: the root
+// re-exports every component, which pulls in the map stack and emits a 484 kB maplibre
+// worker chunk that nothing ever requests — it still landed in the Go binary through
+// `//go:embed web/dist`.
+import VisArea from '@unovis/vue/components/area'
+import VisAxis from '@unovis/vue/components/axis'
+import VisCrosshair from '@unovis/vue/components/crosshair'
+import VisTooltip from '@unovis/vue/components/tooltip'
+import VisXYContainer from '@unovis/vue/containers/xy-container'
 import { cn } from '@/lib/utils'
 import ChartContainer from './ChartContainer.vue'
 import ChartLegend from './ChartLegend.vue'

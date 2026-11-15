@@ -1,13 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import {
-  Bell,
-  CircleUserRound,
-  CreditCard,
-  EllipsisVertical,
-  Globe,
-  LogOut,
-} from '@lucide/vue'
+import { EllipsisVertical, Globe, LogOut } from '@lucide/vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -134,18 +127,9 @@ function switchLanguage(newLocale: unknown) {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <CircleUserRound />
-              {{ t('nav.user.account') }}
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <CreditCard />
-              {{ t('nav.user.billing') }}
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Bell />
-              {{ t('nav.user.notifications') }}
-            </DropdownMenuItem>
+            <!-- Only entries with a destination belong here. The template's account /
+                 billing / notifications items had no handler and no route, so they closed
+                 the menu and did nothing; profile editing already lives on settings. -->
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <Globe />

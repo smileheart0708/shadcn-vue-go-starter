@@ -65,16 +65,13 @@ function Start-Build {
 
     Push-Location $frontendPath
 
-    # 检查 node_modules
-    if (-not (Test-Path "node_modules")) {
-        Write-Host "正在安装依赖..." -ForegroundColor Yellow
-        pnpm install --frozen-lockfile
-        if ($LASTEXITCODE -ne 0) {
-            Pop-Location
-            Exit-WithError "依赖安装失败"
-        }
-    } else {
-        Write-Host "依赖已存在，跳过安装阶段..." -ForegroundColor Gray
+    # 无条件安装：node_modules 存在不代表和 pnpm-lock.yaml 一致，改过依赖却没重装时
+    # 会静默构建出旧包。--frozen-lockfile 在全命中缓存时只是秒级的幂等校验。
+    Write-Host "正在校验并安装依赖..." -ForegroundColor Yellow
+    pnpm install --frozen-lockfile
+    if ($LASTEXITCODE -ne 0) {
+        Pop-Location
+        Exit-WithError "依赖安装失败"
     }
 
     # 构建前端

@@ -10,7 +10,9 @@
  * 避免维护一批永远走默认值的分支；将来确有调用方时再加 prop。
  */
 import type { DonutDatum, DonutPalette } from './donut'
-import { VisDonut, VisSingleContainer } from '@unovis/vue'
+// Deep imports keep the map stack out of the bundle; see the note in TrendChart.vue.
+import VisDonut from '@unovis/vue/components/donut'
+import VisSingleContainer from '@unovis/vue/containers/single-container'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { describeDonut, donutColorAt, hasVisibleValue } from './donut'
 import { DONUT_COLORS } from './palette'

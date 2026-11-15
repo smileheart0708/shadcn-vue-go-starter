@@ -47,6 +47,7 @@ const (
 	CodeDatabaseConnectionFailed   ErrorCode = "database_connection_failed"
 	CodeDatabaseNotEmpty           ErrorCode = "database_not_empty"
 	CodeDatabaseMigrationFailed    ErrorCode = "database_migration_failed"
+	CodeJWTSecretInvalid           ErrorCode = "jwt_secret_invalid"
 	CodeSystemLogStreamUnavailable ErrorCode = "system_log_stream_unavailable"
 	CodeInternalError              ErrorCode = "internal_error"
 )
@@ -91,6 +92,7 @@ var errorDefinitions = map[ErrorCode]errorDefinition{
 	CodeDatabaseConnectionFailed:   {status: http.StatusUnprocessableEntity, message: "Could not connect to the database with the supplied settings."},
 	CodeDatabaseNotEmpty:           {status: http.StatusConflict, message: "The database is not empty or belongs to another installation."},
 	CodeDatabaseMigrationFailed:    {status: http.StatusUnprocessableEntity, message: "The database could not be initialized. Check the account's schema permissions."},
+	CodeJWTSecretInvalid:           {status: http.StatusInternalServerError, message: "The JWT signing secret is missing, empty, or shorter than 32 characters. Check JWT_SECRET."},
 	CodeSystemLogStreamUnavailable: {status: http.StatusServiceUnavailable, message: "System log stream is unavailable."},
 	CodeInternalError:              {status: http.StatusInternalServerError, message: "The server encountered an unexpected error."},
 }
@@ -124,6 +126,11 @@ var domainErrorMappings = []errorMapping{
 	{installation.ErrDatabaseConnection, CodeDatabaseConnectionFailed},
 	{installation.ErrDatabaseNotEmpty, CodeDatabaseNotEmpty},
 	{installation.ErrDatabaseMigration, CodeDatabaseMigrationFailed},
+	// Setup resolves the signing secret before the owner transaction commits. Without
+	// these rows a too-short JWT_SECRET reached the client as an anonymous 500, which
+	// told the operator nothing about the one thing they had to fix.
+	{auth.ErrJWTSecretTooShort, CodeJWTSecretInvalid},
+	{auth.ErrJWTSecretInvalid, CodeJWTSecretInvalid},
 	{avatar.ErrEmpty, CodeAvatarRequired},
 	{avatar.ErrTooLarge, CodeAvatarTooLarge},
 	{avatar.ErrUnsupportedType, CodeAvatarInvalidType},

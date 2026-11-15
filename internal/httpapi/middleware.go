@@ -46,16 +46,24 @@ func RequireSetupCompleted(setupService *setup.Service) Middleware {
 // RequireAuth authenticates the bearer token and puts the actor on the request
 // context. The authenticator is an interface rather than *auth.Service so the gate
 // can be exercised without constructing a full auth service.
+//
+// Only errors that classify the token itself answer 401. Anything else is an
+// infrastructure failure and must stay a 500: answering 401 makes the client discard a
+// perfectly good session (and triggers a pointless refresh round-trip) every time the
+// database hiccups, while hiding the real cause behind "session invalid".
 func RequireAuth(authenticator requestAuthenticator) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			actor, err := authenticator.AuthenticateRequest(r.Context(), r.Header.Get("Authorization"))
 			if err != nil {
-				if errors.Is(err, auth.ErrMissingBearerToken) {
+				switch {
+				case errors.Is(err, auth.ErrMissingBearerToken):
 					writeError(w, r, CodeUnauthorized, err)
-					return
+				case errors.Is(err, auth.ErrInvalidToken):
+					writeError(w, r, CodeInvalidToken, err)
+				default:
+					writeError(w, r, CodeInternalError, err)
 				}
-				writeError(w, r, CodeInvalidToken, err)
 				return
 			}
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -30,16 +30,15 @@ const authStore = useAuthStore()
 const identifier = ref('')
 const password = ref('')
 const isSubmitting = ref(false)
+// The config comes from `initialize()` in the route guard, which awaits before this page
+// renders. Fetching it again here only doubled the request pair and produced an
+// unhandled rejection on failure, leaving the "no account yet" entry silently hidden.
 const canRegister = computed(
   () => authStore.publicAuthConfig?.registrationEnabled === true,
 )
 
 const internalRedirectPathSchema = z.string().refine(isInternalRedirectPath)
 const dashboardRedirectTarget = { name: 'dashboard' as const }
-
-onMounted(() => {
-  void authStore.refreshPublicState()
-})
 
 async function handleSubmit() {
   if (isSubmitting.value) {

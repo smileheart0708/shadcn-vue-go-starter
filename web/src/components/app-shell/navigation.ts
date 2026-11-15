@@ -1,23 +1,14 @@
 import { computed, type Component, type ComputedRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import {
-  ChartColumn,
-  Cog,
-  LayoutDashboard,
-  Logs,
-  Search,
-  Settings,
-  Users,
-} from '@lucide/vue'
+import { Cog, LayoutDashboard, Logs, Settings, Users } from '@lucide/vue'
 import { CAPABILITY } from '@/lib/auth/capabilities.generated'
 import { useAuthStore } from '@/stores/auth'
 
 export interface AppShellNavItem {
   title: string
   icon?: Component
-  to?: RouteLocationRaw
-  disabled?: boolean
+  to: RouteLocationRaw
 }
 
 export interface AppShellNavigation {
@@ -47,7 +38,6 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
         icon: LayoutDashboard,
         to: { name: 'dashboard' },
       },
-      { title: t('nav.main.analytics'), icon: ChartColumn, disabled: true },
     ],
     management: [
       ...(canReadSystemSettings.value
@@ -84,7 +74,6 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
         icon: Settings,
         to: { name: 'settings' },
       },
-      { title: t('nav.secondary.search'), icon: Search, disabled: true },
     ],
   }))
 }

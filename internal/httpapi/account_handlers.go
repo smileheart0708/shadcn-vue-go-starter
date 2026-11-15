@@ -30,9 +30,8 @@ type deleteAccountResponse struct {
 }
 
 func (api *API) updateProfileHandler(w http.ResponseWriter, r *http.Request) {
-	actor, ok := api.currentActor(r.Context())
+	actor, ok := api.requireActor(w, r)
 	if !ok {
-		writeError(w, r, CodeUnauthorized)
 		return
 	}
 
@@ -57,9 +56,8 @@ func (api *API) updateProfileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) updateAvatarHandler(w http.ResponseWriter, r *http.Request) {
-	actor, ok := api.currentActor(r.Context())
+	actor, ok := api.requireActor(w, r)
 	if !ok {
-		writeError(w, r, CodeUnauthorized)
 		return
 	}
 
@@ -135,9 +133,8 @@ func writeAvatarUploadError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 func (api *API) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
-	actor, ok := api.currentActor(r.Context())
+	actor, ok := api.requireActor(w, r)
 	if !ok {
-		writeError(w, r, CodeUnauthorized)
 		return
 	}
 
@@ -157,9 +154,8 @@ func (api *API) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) deleteAccountHandler(w http.ResponseWriter, r *http.Request) {
-	actor, ok := api.currentActor(r.Context())
+	actor, ok := api.requireActor(w, r)
 	if !ok {
-		writeError(w, r, CodeUnauthorized)
 		return
 	}
 	// Deliberately checked here instead of via RequireCapability middleware:

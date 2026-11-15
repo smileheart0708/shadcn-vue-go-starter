@@ -4,7 +4,7 @@
 
 ## 1. 技术栈与运行形态
 
-- 单仓库全栈：Go 1.27（module 名为 `main`）+ Vue 3.5 / Vite 8 / pnpm 11；命令示例使用 PowerShell。
+- 单仓库全栈：Go 1.27（module 名为 `main`）+ Vue 3.5 / Vite 8 / pnpm 12（版本由 `web/package.json` 的 `packageManager` 锁定，Dockerfile 只做 `corepack enable`）；命令示例使用 PowerShell。
 - 生产形态是单二进制：`frontend_embed.go` 通过 `//go:embed web/dist` 嵌入前端，`main.go` 启动 HTTP 服务并托管 SPA。
 - 仓库没有 CI 配置，本地命令就是唯一门禁。
 - 运行时数据在 `.data/`；SQLite 固定使用 `.data/data.db`，PostgreSQL 连接信息保存在 `.data/database.json`。
@@ -25,6 +25,7 @@ go build .
 
 - `.\build.ps1` 已封装正确顺序：前端构建 -> `go mod tidy` -> `go build`，产物为 `app.exe`。
 - 只改 Go 且 `web/dist` 已存在时，可只跑 Go 命令；改前端或契约后必须先 `pnpm build` 再构建 Go。
+- `pnpm build` 失败时会先清空 `web/dist`，随后 `go build` / `go test` 因 `//go:embed web/dist` 直接失败，且报错只指向 Go。前端构建红着时先修前端，不要转而排查 Go。
 - Vite 会生成 `.gz` 旁路文件，`internal/httpapi/spa.go` 按 `Accept-Encoding` 提供预压缩版本；不要删除或绕开这段逻辑。
 
 ## 3. 契约与生成代码
@@ -92,7 +93,7 @@ Go 是契约的唯一事实来源，前端生成文件禁止手改：
 - `views/` 只做页面编排；有状态逻辑放 composable；纯函数放 `utils`；无 UI 的基础能力放 `lib`。
 - `stores/` 只放跨路由或需要持久化的状态（auth、locale、theme、polling、system-logs preferences）。列表筛选、分页等页面状态留在 composable，不要复制进 Pinia。
 - `components/ui/` 是 shadcn-vue 风格基础组件：只做原语级修改，不写业务逻辑，不导入 store、router 或业务模块。
-- `components/common/charts/` 是图表能力层，也是唯一引入 `@unovis/*` 的地方：只放与业务无关的图表本体、图例、色板与取色函数，不读 i18n、store 或侧栏等外壳 context；页面级图表卡（标题、数据、选中项）留在 `components/<domain>/`。图表需要感知宿主布局时由调用方通过 props 传信号（如 `freezeOnLayoutChange`），不要反向依赖 SidebarProvider 之类的外壳上下文。
+- `components/common/charts/` 是图表能力层，也是唯一引入 `@unovis/*` 的地方：只放与业务无关的图表本体、图例、色板与取色函数，不读 i18n、store 或侧栏等外壳 context；页面级图表卡（标题、数据、选中项）留在 `components/<domain>/`。图表需要感知宿主布局时由调用方通过 props 传信号（如 `freezeOnLayoutChange`），不要反向依赖 SidebarProvider 之类的外壳上下文。引入 `@unovis/*` 必须走子路径 default 导出（`@unovis/vue/components/<name>`、`@unovis/vue/containers/<xy|single>-container`）：改回包根会静默把 485 kB 的 maplibre worker chunk 带回产物并随之嵌入二进制，构建不会报错。子路径不执行上游 `styles.js`，`.unovis-*-container` 的定位样式由 `src/style.css` 手工补齐，升级 unovis 时逐字核对。
 - `@` 别名的唯一来源是 `web/build/alias.ts`；`tsconfig.json` 与 `tsconfig.app.json` 手工镜像，改别名必须三处同步。配置文件中导入它必须带 `.ts` 扩展名（Vite 原生加载器限制）。
 - API 层：`lib/api/*.ts` 使用 ky + zod。认证接口用 `authApi`（401 单飞刷新），公开/安装接口用 `baseApi`；统一 `.json<unknown>()` 后 `schema.parse`，异常交给 `normalizeAPIError(error)`。不要裸用 `fetch`，不要使用 `any`。
 - 成功响应用 `successEnvelopeSchema`；`roleKeySchema`、`userStatusSchema`、`managedUserActionSchema`、`capabilitySchema` 是线上词汇表，不要在业务代码中重复字面量。

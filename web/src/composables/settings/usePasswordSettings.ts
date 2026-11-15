@@ -43,9 +43,9 @@ export function usePasswordSettings() {
       toast.success(t('common.feedback.updated'))
       await router.push({ name: 'login' })
     } catch (error) {
-      const message = resolveErrorMessageOrInternal(t, error)
-      passwordError.value = message
-      toast.error(message)
+      // `passwordError` is rendered under the form, so a toast here said the same thing
+      // twice and could drift to a second wording.
+      passwordError.value = resolveErrorMessageOrInternal(t, error)
     } finally {
       isUpdatingPassword.value = false
     }

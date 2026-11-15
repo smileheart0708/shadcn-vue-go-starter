@@ -1,6 +1,9 @@
 # Stage 1: Build Frontend
 FROM node:24-alpine AS frontend-builder
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Version comes from `packageManager` in web/package.json, so local, CI and image builds
+# use the same pnpm. `pnpm@latest` here silently broke the frozen lockfile whenever a new
+# major shipped.
+RUN corepack enable
 WORKDIR /app/web
 COPY web/package.json web/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile

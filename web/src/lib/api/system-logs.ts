@@ -107,6 +107,27 @@ export function formatSystemLogHistoryLimit(
   return value === 'ALL' ? 'all' : String(value)
 }
 
+/**
+ * Parses one SSE frame, returning `null` when this build cannot read it.
+ *
+ * A throw here would escape `parser.feed()` into `openSystemLogsStream`'s catch, where a
+ * malformed frame is indistinguishable from a dropped connection: `shouldRetryStreamError`
+ * only recognises `APIError` / `TypeError`, so one bad line (a truncated write, a proxy
+ * injecting its own body, a contract change) would end the whole session instead of
+ * dropping that line. Losing a frame is recoverable; losing the stream is not.
+ */
+export function parseSystemLogEntry(data: string): SystemLogEntry | null {
+  let payload: unknown
+  try {
+    payload = JSON.parse(data)
+  } catch {
+    return null
+  }
+
+  const parsed = systemLogEntrySchema.safeParse(payload)
+  return parsed.success ? parsed.data : null
+}
+
 function handleStreamEvent(
   event: EventSourceMessage,
   onEntry: (entry: SystemLogEntry) => void,
@@ -115,6 +136,8 @@ function handleStreamEvent(
     return
   }
 
-  const payload: unknown = JSON.parse(event.data)
-  onEntry(systemLogEntrySchema.parse(payload))
+  const entry = parseSystemLogEntry(event.data)
+  if (entry !== null) {
+    onEntry(entry)
+  }
 }

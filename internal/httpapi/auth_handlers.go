@@ -203,9 +203,8 @@ func (api *API) logoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) meHandler(w http.ResponseWriter, r *http.Request) {
-	actor, ok := api.currentActor(r.Context())
+	actor, ok := api.requireActor(w, r)
 	if !ok {
-		writeError(w, r, CodeUnauthorized)
 		return
 	}
 

@@ -109,6 +109,7 @@
     "database_connection_failed": "无法连接数据库，请检查地址、账号和网络",
     "database_not_empty": "数据库不是空库，或已被其他安装使用",
     "database_migration_failed": "数据库初始化失败，请确认账号有建表权限",
+    "jwt_secret_invalid": "JWT 签名密钥无效，请检查 JWT_SECRET 是否为空或少于 32 个字符",
     "system_log_stream_unavailable": "日志流连接失败",
     "internal_error": "服务异常，请稍后重试"
   },
@@ -372,8 +373,7 @@
   },
   "nav": {
     "main": {
-      "dashboard": "仪表盘",
-      "analytics": "分析"
+      "dashboard": "仪表盘"
     },
     "management": {
       "systemConfig": "系统配置",
@@ -382,13 +382,9 @@
       "label": "管理"
     },
     "secondary": {
-      "settings": "设置",
-      "search": "搜索"
+      "settings": "设置"
     },
     "user": {
-      "account": "账号",
-      "billing": "账单",
-      "notifications": "通知",
       "language": "语言",
       "logout": "退出登录"
     }

@@ -21,9 +21,8 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	actor, authenticated := api.currentActor(r.Context())
+	actor, authenticated := api.requireActor(w, r)
 	if !authenticated {
-		writeError(w, r, CodeUnauthorized)
 		return
 	}
 

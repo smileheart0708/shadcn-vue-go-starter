@@ -14,6 +14,15 @@ vi.mock('@/lib/api/admin-users', () => ({
   listAdminUsers: deps.listAdminUsers,
 }))
 
+// 手动控制 settle 时机，才能构造“先发出的请求后返回”这个顺序。
+function deferred<T>() {
+  let resolve: (value: T) => void = () => undefined
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
+
 const managedUser: ManagedUser = {
   id: 1,
   username: 'owner',
@@ -71,6 +80,35 @@ describe('useAdminUsersList', () => {
     expect(loading.value).toBe(false)
 
     await pending
+    expect(refreshing.value).toBe(false)
+  })
+
+  // 回归：翻页请求与筛选提交并发时，先发出的响应后到会把 page 写回旧值，
+  // 表格停在第 2 页而筛选框显示的是新条件。
+  it('并发请求只让最新一次写入状态', async () => {
+    const stale = deferred<typeof firstPage>()
+    const fresh = deferred<typeof firstPage>()
+    deps.listAdminUsers
+      .mockReturnValueOnce(stale.promise)
+      .mockReturnValueOnce(fresh.promise)
+
+    const { users, page, total, refreshing, loadUsers } = useAdminUsersList()
+
+    page.value = 2
+    const staleRun = loadUsers({ background: true })
+
+    page.value = 1
+    const freshRun = loadUsers()
+
+    fresh.resolve({ items: [managedUser], page: 1, pageSize: 10, total: 1 })
+    await freshRun
+
+    stale.resolve({ items: [], page: 2, pageSize: 10, total: 1 })
+    await staleRun
+
+    expect(page.value).toBe(1)
+    expect(users.value).toEqual([managedUser])
+    expect(total.value).toBe(1)
     expect(refreshing.value).toBe(false)
   })
 

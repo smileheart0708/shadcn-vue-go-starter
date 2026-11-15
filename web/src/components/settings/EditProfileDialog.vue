@@ -16,9 +16,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 const props = defineProps<{
-  open: boolean
-  username: string
-  email: string
   avatarImageSrc: string | null
   avatarFallbackText: string
   profileError: string
@@ -26,41 +23,27 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'update:open': [value: boolean]
-  'update:username': [value: string]
-  'update:email': [value: string]
   'choose-avatar': []
   'save-profile': []
 }>()
 
+// The dialog owns no state: `open`/`username`/`email` are the parent's, so they use
+// `defineModel` like the sibling AdminUserFormDialog instead of five forwarding wrappers.
+const open = defineModel<boolean>('open', { required: true })
+const username = defineModel<string>('username', { required: true })
+const email = defineModel<string>('email', { required: true })
+
 const { t } = useI18n()
 
-function handleOpenUpdate(value: boolean) {
-  emit('update:open', value)
-}
-
-function handleUsernameUpdate(value: string | number) {
-  emit('update:username', String(value))
-}
-
-function handleEmailUpdate(value: string | number) {
-  emit('update:email', String(value))
-}
-
-function chooseAvatar() {
-  emit('choose-avatar')
-}
-
-function saveProfile() {
-  emit('save-profile')
+// `Input` models `string | number` because it also backs numeric fields; both profile
+// fields are text, so narrow at the boundary rather than widening the model.
+function toText(value: string | number): string {
+  return String(value)
 }
 </script>
 
 <template>
-  <Dialog
-    :open="props.open"
-    @update:open="handleOpenUpdate"
-  >
+  <Dialog v-model:open="open">
     <DialogTrigger as-child>
       <Button
         variant="outline"
@@ -83,7 +66,7 @@ function saveProfile() {
             <AvatarImage
               v-if="props.avatarImageSrc !== null"
               :src="props.avatarImageSrc"
-              :alt="props.username"
+              :alt="username"
             />
             <AvatarFallback class="rounded-full">{{
               props.avatarFallbackText
@@ -93,7 +76,7 @@ function saveProfile() {
             variant="outline"
             size="sm"
             type="button"
-            @click="chooseAvatar"
+            @click="emit('choose-avatar')"
           >
             {{ t('common.avatar.change') }}
           </Button>
@@ -112,9 +95,9 @@ function saveProfile() {
           <Label for="edit-username">{{ t('common.field.username') }}</Label>
           <Input
             id="edit-username"
-            :model-value="props.username"
+            :model-value="username"
             :placeholder="t('common.placeholder.username')"
-            @update:model-value="handleUsernameUpdate"
+            @update:model-value="username = toText($event)"
           />
         </div>
 
@@ -122,10 +105,10 @@ function saveProfile() {
           <Label for="edit-email">{{ t('common.field.email') }}</Label>
           <Input
             id="edit-email"
-            :model-value="props.email"
+            :model-value="email"
             type="email"
             :placeholder="t('common.placeholder.email')"
-            @update:model-value="handleEmailUpdate"
+            @update:model-value="email = toText($event)"
           />
         </div>
       </div>
@@ -136,7 +119,7 @@ function saveProfile() {
         </DialogClose>
         <Button
           :disabled="props.isSavingProfile"
-          @click="saveProfile"
+          @click="emit('save-profile')"
         >
           {{
             props.isSavingProfile

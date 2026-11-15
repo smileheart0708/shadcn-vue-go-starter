@@ -130,9 +130,10 @@ export function useProfileSettings() {
       toast.success(t('common.feedback.updated'))
       editDialogOpen.value = false
     } catch (error) {
-      const message = resolveErrorMessageOrInternal(t, error)
-      profileError.value = message
-      toast.error(message)
+      // Inline only. `profileError` is rendered inside the dialog, and the toast would
+      // repeat the same sentence on top of it. Same rule as the admin users table: one
+      // owner per error surface.
+      profileError.value = resolveErrorMessageOrInternal(t, error)
     } finally {
       isSavingProfile.value = false
     }

@@ -109,6 +109,7 @@
     "database_connection_failed": "Can't reach the database. Check the host, credentials and network",
     "database_not_empty": "Database isn't empty or belongs to another install",
     "database_migration_failed": "Database setup failed. Make sure the account can create tables",
+    "jwt_secret_invalid": "The JWT signing secret is invalid. Check that JWT_SECRET is set and at least 32 characters long",
     "system_log_stream_unavailable": "Log stream connection failed",
     "internal_error": "Server error. Try again in a moment"
   },
@@ -372,8 +373,7 @@
   },
   "nav": {
     "main": {
-      "dashboard": "Dashboard",
-      "analytics": "Analytics"
+      "dashboard": "Dashboard"
     },
     "management": {
       "systemConfig": "System",
@@ -382,13 +382,9 @@
       "label": "Manage"
     },
     "secondary": {
-      "settings": "Settings",
-      "search": "Search"
+      "settings": "Settings"
     },
     "user": {
-      "account": "Account",
-      "billing": "Billing",
-      "notifications": "Notifications",
       "language": "Language",
       "logout": "Sign out"
     }

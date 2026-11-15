@@ -67,9 +67,8 @@ func (api *API) updateAccountPoliciesHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Request) {
-	actor, ok := api.currentActor(r.Context())
+	actor, ok := api.requireActor(w, r)
 	if !ok {
-		writeError(w, r, CodeUnauthorized)
 		return
 	}
 
@@ -119,9 +118,8 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Request) {
-	actor, ok := api.currentActor(r.Context())
+	actor, ok := api.requireActor(w, r)
 	if !ok {
-		writeError(w, r, CodeUnauthorized)
 		return
 	}
 
@@ -166,9 +164,8 @@ func (api *API) enableManagementUserHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Request, status string, action identity.ManagedUserAction) {
-	actor, ok := api.currentActor(r.Context())
+	actor, ok := api.requireActor(w, r)
 	if !ok {
-		writeError(w, r, CodeUnauthorized)
 		return
 	}
 

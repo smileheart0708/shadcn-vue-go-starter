@@ -527,16 +527,27 @@ func (s *Service) ParseAccessToken(token string) (Principal, error) {
 
 func (s *Service) actorForPrincipal(ctx context.Context, principal Principal) (Actor, error) {
 	user, err := s.identities.GetUserByID(ctx, principal.UserID)
-	if err != nil {
+	switch {
+	case errors.Is(err, identity.ErrUserNotFound):
 		return Actor{}, ErrInvalidToken
+	case err != nil:
+		// Only a genuinely gone user is a bad token. A database outage or a cancelled
+		// request must keep its own identity so RequireAuth can answer 500 instead of
+		// telling the client to throw away a valid session. Refresh already works this
+		// way (IsSessionInvalidError); folding both cases into ErrInvalidToken here was
+		// the same bug on the access-token path.
+		return Actor{}, err
 	}
 	if user.SecurityVersion != principal.SecurityVersion || user.Status != identity.StatusActive {
 		return Actor{}, ErrInvalidToken
 	}
 
 	session, err := s.getSessionByID(ctx, principal.SessionID)
-	if err != nil {
+	switch {
+	case errors.Is(err, ErrSessionNotFound):
 		return Actor{}, ErrInvalidToken
+	case err != nil:
+		return Actor{}, err
 	}
 
 	now := time.Now().UTC()

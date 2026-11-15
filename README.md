@@ -11,13 +11,13 @@
 
 ## 技术栈
 
-- Backend: Go 1.27.3, Bun ORM (`uptrace/bun`) + SQLite（`modernc.org/sqlite`，纯 Go 无 CGO）或 PostgreSQL（`pgx` + `pgdialect`）, `net/http`
+- Backend: Go 1.27+（`go.mod` 声明 1.27.0）, Bun ORM (`uptrace/bun`) + SQLite（`modernc.org/sqlite`，纯 Go 无 CGO）或 PostgreSQL（`pgx` + `pgdialect`）, `net/http`
 - Frontend: Vue 3, TypeScript, Vite 8, Tailwind CSS 4
-- Tooling: pnpm 11, ESLint, Prettier, `vue-tsc`
+- Tooling: pnpm 12（版本由 `web/package.json` 的 `packageManager` 锁定）, ESLint, Prettier, `vue-tsc`
 
 ## 快速开始
 
-需要 Go 1.27.3、Node.js 和仓库指定版本的 pnpm。首次运行时可按需复制配置模板：
+需要 Go 1.27+、Node.js 24（与 `Dockerfile` 一致），以及 `web/package.json` 中 `packageManager` 指定的 pnpm 版本（corepack 会据此选择，不需要手动装别的版本）。首次运行时可按需复制配置模板：
 
 ```powershell
 Copy-Item .env.example .env

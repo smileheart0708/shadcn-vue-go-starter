@@ -193,3 +193,16 @@
     clip-path: circle(var(--theme-reveal-radius) at var(--theme-reveal-center));
   }
 }
+
+/*
+ * 图表组件用 `@unovis/vue/*` 子路径导入（避免把 maplibre worker 打进产物），而
+ * @unovis/vue 1.8.1 的这几条容器样式放在 `styles.js` 里用 injectGlobal 注入，子路径
+ * 不会执行它。缺了它们容器在 flex 行里会缩成内容宽度，tooltip 与准线的定位也会偏。
+ * 规则与上游 styles.js 逐字一致：升级 @unovis 时同步核对，别在这里加自己的覆盖。
+ */
+.unovis-single-container,
+.unovis-xy-container {
+  display: block;
+  position: relative;
+  width: 100%;
+}

@@ -47,6 +47,7 @@ const API_ERROR_MESSAGES = {
   database_not_empty: (t: Translate) => t('apiError.database_not_empty'),
   database_migration_failed: (t: Translate) =>
     t('apiError.database_migration_failed'),
+  jwt_secret_invalid: (t: Translate) => t('apiError.jwt_secret_invalid'),
   system_log_stream_unavailable: (t: Translate) =>
     t('apiError.system_log_stream_unavailable'),
   internal_error: (t: Translate) => t('apiError.internal_error'),

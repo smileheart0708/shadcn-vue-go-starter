@@ -226,9 +226,9 @@ func (s *Service) DeleteUser(ctx context.Context, userID int64) error {
 	if err != nil {
 		return err
 	}
-	if _, lookupErr := repository.GetUserByID(ctx, userID); lookupErr != nil {
-		return lookupErr
-	}
+	// No existence pre-check: the delete reports identity.ErrUserNotFound from its own
+	// affected-rows count, and a read-then-write would only add a round-trip plus a
+	// window where the row disappears between the two statements.
 	return repository.DeleteUser(ctx, userID)
 }
 

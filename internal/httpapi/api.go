@@ -1,8 +1,8 @@
 package httpapi
 
 import (
-	"context"
 	"log/slog"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
@@ -91,8 +91,18 @@ type installStateResponse struct {
 	CompletedAt    *time.Time `json:"completedAt"`
 }
 
-func (api *API) currentActor(ctx context.Context) (auth.Actor, bool) {
-	return auth.ActorFromContext(ctx)
+// requireActor returns the actor RequireAuth put on the request context.
+//
+// The middleware already rejects unauthenticated requests, so the `false` branch only
+// fires for a route registered without it. Keeping the check here instead of copying it
+// into every handler means a forgotten middleware fails closed with the same 401
+// everywhere, and the defensive branch cannot drift between endpoints.
+func (api *API) requireActor(w http.ResponseWriter, r *http.Request) (auth.Actor, bool) {
+	actor, ok := auth.ActorFromContext(r.Context())
+	if !ok {
+		writeError(w, r, CodeUnauthorized)
+	}
+	return actor, ok
 }
 
 func (api *API) toViewerResponse(viewer auth.Viewer) viewerResponse {

@@ -37,6 +37,45 @@ func TestRequireAuthRecognizesWrappedMissingBearerToken(t *testing.T) {
 	decodeErrorCode(t, rec.Body.Bytes(), string(CodeUnauthorized))
 }
 
+// A database outage must not look like an expired session: answering 401 makes the
+// client throw away a valid session and hides the cause. Only errors that classify the
+// token itself may answer 401; everything else stays a 500.
+func TestRequireAuthMapsInfrastructureErrorsToInternalError(t *testing.T) {
+	t.Parallel()
+
+	handler := RequireAuth(failingAuthenticator{
+		err: errors.Join(errors.New("auth: resolve actor"), errors.New("dial tcp: connection refused")),
+	})(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("next handler should not be called")
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/auth/me", nil))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
+	}
+	decodeErrorCode(t, rec.Body.Bytes(), string(CodeInternalError))
+}
+
+func TestRequireAuthMapsInvalidTokenToUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	handler := RequireAuth(failingAuthenticator{
+		err: errors.Join(errors.New("wrapped"), auth.ErrInvalidToken),
+	})(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("next handler should not be called")
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/auth/me", nil))
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+	decodeErrorCode(t, rec.Body.Bytes(), string(CodeInvalidToken))
+}
+
 func TestRequireAuthAcceptsAuthenticatedActor(t *testing.T) {
 	t.Parallel()
 
@@ -151,6 +190,14 @@ func TestRequireCapabilityGatesOnGrantedCapabilities(t *testing.T) {
 	if allowedRec.Code != http.StatusNoContent {
 		t.Fatalf("expected status %d, got %d", http.StatusNoContent, allowedRec.Code)
 	}
+}
+
+type failingAuthenticator struct {
+	err error
+}
+
+func (f failingAuthenticator) AuthenticateRequest(context.Context, string) (auth.Actor, error) {
+	return auth.Actor{}, f.err
 }
 
 type staticAuthenticator struct {

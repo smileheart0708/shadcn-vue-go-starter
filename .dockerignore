@@ -1,0 +1,11 @@
+# Build inputs only. `COPY . .` in the Dockerfile used to drag in the local toolchain
+# state: web/node_modules (hundreds of MB, and it invalidates the Go layer cache on every
+# install) and .data/, which holds data.db with the JWT signing secret plus
+# database.json with the PostgreSQL DSN. Neither may end up in a layer.
+.git
+.data
+.env
+.env.*
+web/node_modules
+web/dist
+*.exe

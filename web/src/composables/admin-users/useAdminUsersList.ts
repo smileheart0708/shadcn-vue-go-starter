@@ -28,7 +28,14 @@ export function useAdminUsersList() {
     void loadUsers()
   })
 
+  // Every request takes a ticket and only the newest one may write state. Paging and
+  // filtering can overlap — the status select submits immediately while a page request is
+  // still in flight — and an older response used to write its own `page` back, leaving
+  // the table on page 2 while the filter showed the new query.
+  let requestTicket = 0
+
   async function loadUsers(options: { background?: boolean } = {}) {
+    const ticket = ++requestTicket
     if (options.background === true) {
       refreshing.value = true
     } else {
@@ -43,19 +50,31 @@ export function useAdminUsersList() {
         pageSize: pageSize.value,
       })
 
+      if (ticket !== requestTicket) {
+        return
+      }
+
       users.value = response.items
       page.value = response.page
       pageSize.value = response.pageSize
       total.value = response.total
       loadFailed.value = false
     } catch (error) {
+      if (ticket !== requestTicket) {
+        return
+      }
+
       loadFailed.value = true
       toast.error(
         resolveAPIErrorMessage(t, error) ?? t('common.feedback.loadFailed'),
       )
     } finally {
-      loading.value = false
-      refreshing.value = false
+      // A superseded request must not clear the flags the newer request owns, or the
+      // skeleton flashes off before its own data arrives.
+      if (ticket === requestTicket) {
+        loading.value = false
+        refreshing.value = false
+      }
     }
   }
 
