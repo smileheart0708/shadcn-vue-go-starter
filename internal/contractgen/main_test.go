@@ -36,7 +36,7 @@ func TestGeneratedModulesAreUpToDate(t *testing.T) {
 			t.Parallel()
 
 			path := filepath.Join(root, filepath.FromSlash(file.relativePath))
-			committed, readErr := os.ReadFile(path)
+			committed, readErr := os.ReadFile(path) //nolint:gosec // path 由本包 renderAll 的常量相对路径拼成，不含外部输入
 			if readErr != nil {
 				t.Fatalf("read %s: %v", path, readErr)
 			}

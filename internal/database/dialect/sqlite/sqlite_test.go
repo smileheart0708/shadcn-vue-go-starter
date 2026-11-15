@@ -24,7 +24,7 @@ func TestOpenAppliesPragmasAndSingleConnectionPool(t *testing.T) {
 	})
 
 	var foreignKeys int
-	if queryErr := sqldb.QueryRow("PRAGMA foreign_keys").Scan(&foreignKeys); queryErr != nil {
+	if queryErr := sqldb.QueryRowContext(t.Context(), "PRAGMA foreign_keys").Scan(&foreignKeys); queryErr != nil {
 		t.Fatalf("query foreign_keys: %v", queryErr)
 	}
 	if foreignKeys != 1 {
@@ -32,7 +32,7 @@ func TestOpenAppliesPragmasAndSingleConnectionPool(t *testing.T) {
 	}
 
 	var busyTimeout int64
-	if queryErr := sqldb.QueryRow("PRAGMA busy_timeout").Scan(&busyTimeout); queryErr != nil {
+	if queryErr := sqldb.QueryRowContext(t.Context(), "PRAGMA busy_timeout").Scan(&busyTimeout); queryErr != nil {
 		t.Fatalf("query busy_timeout: %v", queryErr)
 	}
 	if busyTimeout < defaultBusyTimeout.Milliseconds() {
@@ -40,7 +40,7 @@ func TestOpenAppliesPragmasAndSingleConnectionPool(t *testing.T) {
 	}
 
 	var journalMode string
-	if queryErr := sqldb.QueryRow("PRAGMA journal_mode").Scan(&journalMode); queryErr != nil {
+	if queryErr := sqldb.QueryRowContext(t.Context(), "PRAGMA journal_mode").Scan(&journalMode); queryErr != nil {
 		t.Fatalf("query journal_mode: %v", queryErr)
 	}
 	if !strings.EqualFold(journalMode, "wal") {
@@ -92,7 +92,7 @@ func TestValidateSetupTargetRejectsForeignTable(t *testing.T) {
 			t.Fatalf("Close() error = %v", closeErr)
 		}
 	})
-	if _, err := sqldb.Exec("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)"); err != nil {
+	if _, err := sqldb.ExecContext(t.Context(), "CREATE TABLE unrelated (id INTEGER PRIMARY KEY)"); err != nil {
 		t.Fatalf("create unrelated table: %v", err)
 	}
 

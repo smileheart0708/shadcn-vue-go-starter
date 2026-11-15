@@ -27,7 +27,7 @@ func TestRequireAuthRecognizesWrappedMissingBearerToken(t *testing.T) {
 		t.Fatal("next handler should not be called")
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/auth/me", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -50,7 +50,7 @@ func TestRequireAuthMapsInfrastructureErrorsToInternalError(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/auth/me", nil))
+	handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/auth/me", nil))
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, rec.Code)
@@ -68,7 +68,7 @@ func TestRequireAuthMapsInvalidTokenToUnauthorized(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/auth/me", nil))
+	handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/auth/me", nil))
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
@@ -91,7 +91,7 @@ func TestRequireAuthAcceptsAuthenticatedActor(t *testing.T) {
 	}))
 
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rec.Code)
@@ -122,7 +122,7 @@ func TestChainAppliesMiddlewaresInDeclaredOrder(t *testing.T) {
 	)
 
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rec.Code)
@@ -162,7 +162,7 @@ func TestRequireCapabilityGatesOnGrantedCapabilities(t *testing.T) {
 	)
 
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/management/users", nil))
+	handler.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/management/users", nil))
 
 	if reached {
 		t.Fatal("expected the guarded handler to be skipped")
@@ -186,7 +186,7 @@ func TestRequireCapabilityGatesOnGrantedCapabilities(t *testing.T) {
 	)
 
 	allowedRec := httptest.NewRecorder()
-	allowedHandler.ServeHTTP(allowedRec, httptest.NewRequest(http.MethodGet, "/api/management/users", nil))
+	allowedHandler.ServeHTTP(allowedRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/management/users", nil))
 	if allowedRec.Code != http.StatusNoContent {
 		t.Fatalf("expected status %d, got %d", http.StatusNoContent, allowedRec.Code)
 	}

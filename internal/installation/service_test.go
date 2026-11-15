@@ -134,10 +134,7 @@ func TestNewAdoptsIncompleteDefaultSQLite(t *testing.T) {
 
 	dataDir := t.TempDir()
 	selection := database.DefaultSQLiteSelection(dataDir)
-	runtime, err := database.OpenForSetup(context.Background(), database.Config{
-		Driver: selection.Driver,
-		DSN:    selection.DSN,
-	})
+	runtime, err := database.OpenForSetup(context.Background(), database.Config(selection))
 	if err != nil {
 		t.Fatalf("OpenForSetup() error = %v", err)
 	}
@@ -178,10 +175,7 @@ func TestCompleteAcceptsRepeatedSelectionWhileFinalizing(t *testing.T) {
 
 	dataDir := t.TempDir()
 	selection := database.DefaultSQLiteSelection(dataDir)
-	runtime, err := database.OpenForSetup(context.Background(), database.Config{
-		Driver: selection.Driver,
-		DSN:    selection.DSN,
-	})
+	runtime, err := database.OpenForSetup(context.Background(), database.Config(selection))
 	if err != nil {
 		t.Fatalf("OpenForSetup() error = %v", err)
 	}
@@ -285,7 +279,7 @@ func TestNewRejectsForeignDefaultSQLite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open() error = %v", err)
 	}
-	if _, err := sqldb.Exec("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)"); err != nil {
+	if _, err := sqldb.ExecContext(t.Context(), "CREATE TABLE unrelated (id INTEGER PRIMARY KEY)"); err != nil {
 		t.Fatalf("create unrelated table: %v", err)
 	}
 	if err := sqldb.Close(); err != nil {
@@ -325,16 +319,14 @@ func TestConcurrentCompleteRunsOnce(t *testing.T) {
 	var wait sync.WaitGroup
 	results := make(chan error, 2)
 	for range 2 {
-		wait.Add(1)
-		go func() {
-			defer wait.Done()
+		wait.Go(func() {
 			_, completeErr := service.Complete(context.Background(), CompleteInput{
 				Username: "owner",
 				Password: "owner1234",
 				Database: &DatabaseInput{Driver: database.DriverSQLite},
 			})
 			results <- completeErr
-		}()
+		})
 	}
 	wait.Wait()
 	close(results)

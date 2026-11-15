@@ -63,7 +63,7 @@ func TestWriteErrorFallsBackToInternalError(t *testing.T) {
 	t.Parallel()
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/test", nil)
 
 	writeError(rec, req, ErrorCode("not_registered"))
 
@@ -132,7 +132,7 @@ func TestWriteDomainErrorMapsWrappedErrors(t *testing.T) {
 			t.Parallel()
 
 			rec := httptest.NewRecorder()
-			writeDomainError(rec, httptest.NewRequest(http.MethodGet, "/api/test", nil), test.err)
+			writeDomainError(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/test", nil), test.err)
 
 			decodeErrorCode(t, rec.Body.Bytes(), string(test.want))
 		})
@@ -172,7 +172,7 @@ func TestWriteOwnAccountErrorTreatsMissingRowAsDeadSession(t *testing.T) {
 			t.Parallel()
 
 			rec := httptest.NewRecorder()
-			writeOwnAccountError(rec, httptest.NewRequest(http.MethodGet, "/api/account/profile", nil), test.err)
+			writeOwnAccountError(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/account/profile", nil), test.err)
 
 			decodeErrorCode(t, rec.Body.Bytes(), string(test.want))
 		})

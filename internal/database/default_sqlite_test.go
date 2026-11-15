@@ -76,7 +76,7 @@ func TestDetectDefaultSQLiteRejectsForeignDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open() error = %v", err)
 	}
-	if _, err := sqldb.Exec("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)"); err != nil {
+	if _, err := sqldb.ExecContext(t.Context(), "CREATE TABLE unrelated (id INTEGER PRIMARY KEY)"); err != nil {
 		t.Fatalf("create unrelated table: %v", err)
 	}
 	if err := sqldb.Close(); err != nil {

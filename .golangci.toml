@@ -1,0 +1,128 @@
+version = "2"
+
+[run]
+timeout = "3m"
+tests = true
+modules-download-mode = "readonly"
+relative-path-mode = "gomod"
+
+[linters]
+# standard 已含 errcheck / govet / ineffassign / staticcheck / unused，不要再列进 enable：
+# 重复列举只是噪声，从这里删掉一条也不会关掉对应检查。govet 的 enable-all 与 errcheck 的
+# check-blank 在下方 settings 里配，不靠 enable 列表。
+default = "standard"
+enable = [
+  "gosec",             # 认证、文件下发、裸 SQL
+  "errorlint",         # errors.Is/As、%w
+  "nilerr",
+  "nilnesserr",
+  "contextcheck",
+  "noctx",
+  "bodyclose",
+  "sqlclosecheck",     # sql.Rows / sql.Stmt 未关闭
+  "rowserrcheck",      # sql.Rows.Err 未检查
+  "loggercheck",       # slog key/value 配对
+  "exhaustive",        # role/status/capability 封闭词表漏 case
+  "unparam",
+  "unconvert",
+  "wastedassign",
+  "makezero",
+  "durationcheck",
+  "fatcontext",
+  "usestdlibvars",
+  "canonicalheader",
+  "nosprintfhostport",
+  "asciicheck",
+  "bidichk",
+  "nolintlint",
+  "modernize",
+]
+
+# 刻意不启用，重新打开前先看理由：
+# dupl        sqlite / postgresql 两套迁移与 SQL、role / status 目录是故意并存的镜像，
+#             token 相似度只会逼出错误合并。
+# nestif      funlen  gocyclo  阈值驱动的函数拆分只会造一次性 helper，复杂度交人工审查。
+# prealloc    小切片微优化，纯噪声。
+# sloglint    默认配置只查参数配对，与 loggercheck 完全重叠；要开就先配 static-msg / no-raw-keys。
+# forcetypeassert  errcheck 的 check-type-assertions 已覆盖同一问题。
+
+[linters.settings.errcheck]
+check-type-assertions = true
+# true：`_, _ = f()` 也报，所以"故意忽略"必须真的处理返回值，不能靠空白标识符。
+check-blank = true
+verbose = true
+
+[linters.settings.govet]
+enable-all = true
+# fieldalignment 会为内存布局重排字段，破坏语义顺序。
+disable = ["fieldalignment"]
+
+[linters.settings.govet.settings.shadow]
+strict = true
+
+[linters.settings.errorlint]
+errorf = true
+errorf-multi = true
+asserts = true
+comparison = true
+
+[linters.settings.exhaustive]
+check = ["switch"]
+# false：带 default 也要求列全，封闭词表漏 case 必须报出来。
+default-signifies-exhaustive = false
+package-scope-only = true
+
+[linters.settings.fatcontext]
+check-struct-pointers = true
+
+[linters.settings.nilnil]
+only-two = false
+detect-opposite = true
+checked-types = ["chan", "func", "iface", "map", "ptr", "uintptr", "unsafeptr"]
+
+[linters.settings.usestdlibvars]
+http-method = true
+http-status-code = true
+time-date-month = true
+time-weekday = true
+
+[linters.settings.gosec]
+# G404：math/rand 用于抖动/重试不是安全问题；G115：整数转换溢出误报多。
+# 不要顺手放宽 G101/G201/G304/G307 这几类，路径与凭据检查是承重的。
+excludes = ["G404", "G115"]
+severity = "low"
+confidence = "high"
+
+[linters.settings.nolintlint]
+# 挡住"用一个裸 //nolint 掩盖问题"的写法：必须点名 linter 并写清为什么。
+require-specific = true
+require-explanation = true
+
+[linters.exclusions]
+generated = "strict"
+warn-unused = true
+
+[[linters.exclusions.rules]]
+# 测试里「x, err := …」后紧跟「if err := …」的短声明是既定写法，按 shadow 改名
+# 只会造出 err2 / saveErr 一类噪音命名。只豁免这条消息，govet 其余检查在测试里照常生效。
+path = '_test\.go'
+linters = ["govet"]
+text = '^shadow: '
+
+[issues]
+# 只写非默认值。0 = 不设上限：留默认的 50 条上限时，同类问题超过阈值就被截断，
+# "0 issues 基线"会在看不见的地方假绿。
+max-issues-per-linter = 0
+max-same-issues = 0
+
+[formatters]
+# run 只报告格式问题，修复要跑 golangci-lint fmt；gci 默认分组（stdlib 后所有第三方
+# 与 main/... 同组）就是本仓库现状，不要加 sections，加了会把现有 import 全重排。
+enable = ["gofmt", "gci"]
+
+[formatters.settings.gofmt]
+simplify = true
+
+[formatters.exclusions]
+generated = "strict"
+warn-unused = true

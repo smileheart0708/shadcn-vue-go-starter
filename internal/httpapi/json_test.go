@@ -34,7 +34,7 @@ func TestDecodeJSONRejectsAmbiguousBodies(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(testCase.body))
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(testCase.body))
 			if err := decodeJSON(request.Context(), httptest.NewRecorder(), request, &decodeJSONTarget{}); err == nil {
 				t.Fatalf("expected decodeJSON to reject %q", testCase.body)
 			}
@@ -45,7 +45,7 @@ func TestDecodeJSONRejectsAmbiguousBodies(t *testing.T) {
 func TestDecodeJSONAcceptsOneObjectWithSurroundingWhitespace(t *testing.T) {
 	t.Parallel()
 
-	request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(" {\"name\":\"panda\"}\n\t "))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(" {\"name\":\"panda\"}\n\t "))
 	target := decodeJSONTarget{}
 	if err := decodeJSON(request.Context(), httptest.NewRecorder(), request, &target); err != nil {
 		t.Fatalf("decodeJSON() error = %v", err)

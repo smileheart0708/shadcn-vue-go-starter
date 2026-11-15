@@ -10,7 +10,6 @@ import (
 	"testing/fstest"
 
 	"github.com/uptrace/bun"
-
 	"main/internal/database/dialect/sqlite"
 )
 

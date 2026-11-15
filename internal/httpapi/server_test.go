@@ -57,7 +57,7 @@ func TestInstallSetupOnlyRunsOnceAndCreatesOwnerSession(t *testing.T) {
 
 	ctx := newTestContext(t)
 
-	stateReq := httptest.NewRequest(http.MethodGet, "/api/install/state", nil)
+	stateReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/install/state", nil)
 	stateRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(stateRec, stateReq)
 
@@ -79,7 +79,7 @@ func TestInstallSetupOnlyRunsOnceAndCreatesOwnerSession(t *testing.T) {
 		t.Fatalf("expected owner role after setup, got %+v", session.Viewer.Authorization.Role)
 	}
 
-	secondReq := httptest.NewRequest(http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"other","password":"password123"}`))
+	secondReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"other","password":"password123"}`))
 	secondReq.Header.Set("Content-Type", "application/json")
 	secondRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(secondRec, secondReq)
@@ -96,7 +96,7 @@ func TestSetupRequiredBlocksNormalAuthRoutesUntilInitialized(t *testing.T) {
 
 	ctx := newTestContext(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"owner","password":"password123"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"owner","password":"password123"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(rec, req)
@@ -113,7 +113,7 @@ func TestOwnerCanCreateManagedUserByDefault(t *testing.T) {
 	ctx := newTestContext(t)
 	ownerSession, _ := performSetup(t, ctx)
 
-	rec := createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"member","password":"member1234"}`)
+	rec := createManagedUser(t, ctx, ownerSession.AccessToken, memberCreatePayload)
 	if rec.Role != identity.RoleUser {
 		t.Fatalf("expected created user role %q, got %q", identity.RoleUser, rec.Role)
 	}
@@ -125,7 +125,7 @@ func TestDefaultPoliciesClosePublicRegistrationAndSelfDeletion(t *testing.T) {
 	ctx := newTestContext(t)
 	ownerSession, _ := performSetup(t, ctx)
 
-	settingsReq := httptest.NewRequest(http.MethodGet, "/api/system/settings", nil)
+	settingsReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/system/settings", nil)
 	settingsReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
 	settingsRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(settingsRec, settingsReq)
@@ -138,7 +138,7 @@ func TestDefaultPoliciesClosePublicRegistrationAndSelfDeletion(t *testing.T) {
 	if settingsEnvelope.Data.PublicRegistrationEnabled || settingsEnvelope.Data.SelfServiceAccountDeletionEnabled {
 		t.Fatalf("expected both policies disabled by default, got %+v", settingsEnvelope.Data)
 	}
-	publicConfigReq := httptest.NewRequest(http.MethodGet, "/api/auth/public-config", nil)
+	publicConfigReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/auth/public-config", nil)
 	publicConfigRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(publicConfigRec, publicConfigReq)
 	if publicConfigRec.Code != http.StatusOK {
@@ -148,7 +148,7 @@ func TestDefaultPoliciesClosePublicRegistrationAndSelfDeletion(t *testing.T) {
 		t.Fatalf("expected public registration to be disabled, got %s", publicConfigRec.Body.String())
 	}
 
-	registerReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(`{"username":"member","email":"member@example.com","password":"member1234"}`))
+	registerReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/register", strings.NewReader(memberRegisterPayload))
 	registerReq.Header.Set("Content-Type", "application/json")
 	registerRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(registerRec, registerReq)
@@ -165,12 +165,12 @@ func TestPublicRegistrationToggleControlsRegisterRefreshReplayAndLogoutFlow(t *t
 	ownerSession, _ := performSetup(t, ctx)
 	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
 
-	_, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member1234")
+	_, memberCookie := registerUser(t, ctx)
 	if memberCookie == nil {
 		t.Fatal("expected refresh cookie for registered member")
 	}
 
-	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refreshReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/refresh", nil)
 	refreshReq.AddCookie(memberCookie)
 	refreshRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(refreshRec, refreshReq)
@@ -188,7 +188,7 @@ func TestPublicRegistrationToggleControlsRegisterRefreshReplayAndLogoutFlow(t *t
 		t.Fatal("expected rotated refresh cookie")
 	}
 
-	replayReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	replayReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/refresh", nil)
 	replayReq.AddCookie(memberCookie)
 	replayRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(replayRec, replayReq)
@@ -197,8 +197,8 @@ func TestPublicRegistrationToggleControlsRegisterRefreshReplayAndLogoutFlow(t *t
 	}
 	decodeErrorCode(t, replayRec.Body.Bytes(), string(CodeInvalidToken))
 
-	_, latestSessionCookie := loginUser(t, ctx, "member", "member1234")
-	logoutReq := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	latestSessionCookie := loginUser(t, ctx)
+	logoutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/logout", nil)
 	logoutReq.AddCookie(latestSessionCookie)
 	logoutRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(logoutRec, logoutReq)
@@ -206,7 +206,7 @@ func TestPublicRegistrationToggleControlsRegisterRefreshReplayAndLogoutFlow(t *t
 		t.Fatalf("expected status %d, got %d", http.StatusOK, logoutRec.Code)
 	}
 
-	postLogoutRefreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	postLogoutRefreshReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/refresh", nil)
 	postLogoutRefreshReq.AddCookie(latestSessionCookie)
 	postLogoutRefreshRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(postLogoutRefreshRec, postLogoutRefreshReq)
@@ -221,8 +221,8 @@ func TestLogoutIgnoresInvalidRefreshTokenCookie(t *testing.T) {
 	ctx := newTestContext(t)
 	performSetup(t, ctx)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
-	req.AddCookie(&http.Cookie{Name: ctx.authServiceCookieName(), Value: "not-a-refresh-token"})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/logout", nil)
+	req.AddCookie(&http.Cookie{Name: ctx.authServiceCookieName(), Value: "not-a-refresh-token"}) //nolint:gosec // 请求侧伪造 cookie，Secure/HttpOnly/SameSite 只约束响应里的 Set-Cookie
 	rec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(rec, req)
 
@@ -238,9 +238,9 @@ func TestSelfServiceDeletionToggleControlsDeleteFlow(t *testing.T) {
 	ownerSession, ownerCookie := performSetup(t, ctx)
 	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
 
-	memberSession, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member1234")
+	memberSession, memberCookie := registerUser(t, ctx)
 
-	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
+	deleteReq := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/account", nil)
 	deleteReq.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
 	deleteReq.AddCookie(memberCookie)
 	deleteRec := httptest.NewRecorder()
@@ -252,7 +252,7 @@ func TestSelfServiceDeletionToggleControlsDeleteFlow(t *testing.T) {
 
 	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"selfServiceAccountDeletionEnabled":true}`)
 
-	ownerDeleteReq := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
+	ownerDeleteReq := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/account", nil)
 	ownerDeleteReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
 	ownerDeleteReq.AddCookie(ownerCookie)
 	ownerDeleteRec := httptest.NewRecorder()
@@ -261,7 +261,7 @@ func TestSelfServiceDeletionToggleControlsDeleteFlow(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusForbidden, ownerDeleteRec.Code)
 	}
 
-	memberDeleteReq := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
+	memberDeleteReq := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/account", nil)
 	memberDeleteReq.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
 	memberDeleteReq.AddCookie(memberCookie)
 	memberDeleteRec := httptest.NewRecorder()
@@ -280,7 +280,7 @@ func TestAccountDeletionClearsAssociatedData(t *testing.T) {
 	ownerSession, _ := performSetup(t, ctx)
 	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
 
-	memberSession, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member1234")
+	memberSession, memberCookie := registerUser(t, ctx)
 	member := findUserByUsername(t, ctx, "member")
 
 	uploadReq := newAvatarUploadRequest(t, memberSession.AccessToken, func(writer *multipart.Writer) {
@@ -309,7 +309,7 @@ func TestAccountDeletionClearsAssociatedData(t *testing.T) {
 
 	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"selfServiceAccountDeletionEnabled":true}`)
 
-	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
+	deleteReq := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/account", nil)
 	deleteReq.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
 	deleteReq.AddCookie(memberCookie)
 	deleteRec := httptest.NewRecorder()
@@ -323,7 +323,7 @@ func TestAccountDeletionClearsAssociatedData(t *testing.T) {
 	}
 	assertUnauthorizedMeAndRefresh(t, ctx, memberSession.AccessToken, memberCookie)
 
-	loginReq := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"member","password":"member1234"}`))
+	loginReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/login", strings.NewReader(memberLoginPayload))
 	loginReq.Header.Set("Content-Type", "application/json")
 	loginRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(loginRec, loginReq)
@@ -343,10 +343,10 @@ func TestOwnerCanDisableUserAndInvalidateSessions(t *testing.T) {
 	ownerSession, _ := performSetup(t, ctx)
 	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
 
-	memberSession, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member1234")
+	memberSession, memberCookie := registerUser(t, ctx)
 	member := findUserByUsername(t, ctx, "member")
 
-	disableReq := httptest.NewRequest(http.MethodPost, "/api/management/users/"+strconv.FormatInt(member.ID, 10)+"/disable", nil)
+	disableReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/management/users/"+strconv.FormatInt(member.ID, 10)+"/disable", nil)
 	disableReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
 	disableRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(disableRec, disableReq)
@@ -364,7 +364,7 @@ func TestRegularUserCannotAccessManagementSurfaces(t *testing.T) {
 	ctx := newTestContext(t)
 	ownerSession, _ := performSetup(t, ctx)
 	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
-	memberSession, _ := registerUser(t, ctx, "member", "member@example.com", "member1234")
+	memberSession, _ := registerUser(t, ctx)
 
 	for _, tc := range []struct {
 		method string
@@ -374,7 +374,7 @@ func TestRegularUserCannotAccessManagementSurfaces(t *testing.T) {
 		{method: http.MethodGet, path: "/api/management/users"},
 		{method: http.MethodGet, path: "/api/management/system-logs/stream"},
 	} {
-		req := httptest.NewRequest(tc.method, tc.path, nil)
+		req := httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, nil)
 		req.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
 		rec := httptest.NewRecorder()
 		ctx.handler.ServeHTTP(rec, req)
@@ -390,7 +390,7 @@ func TestManagedUserResponsesEncodeEmptySlicesAsJSONArrays(t *testing.T) {
 	ctx := newTestContext(t)
 	ownerSession, _ := performSetup(t, ctx)
 
-	listReq := httptest.NewRequest(http.MethodGet, "/api/management/users", nil)
+	listReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/management/users", nil)
 	listReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
 	listRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(listRec, listReq)
@@ -401,7 +401,7 @@ func TestManagedUserResponsesEncodeEmptySlicesAsJSONArrays(t *testing.T) {
 	if !strings.Contains(listRec.Body.String(), `"actions":[]`) {
 		t.Fatalf("expected empty actions to encode as JSON array, got %s", listRec.Body.String())
 	}
-	createRec := createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"member","password":"member1234"}`)
+	createRec := createManagedUser(t, ctx, ownerSession.AccessToken, memberCreatePayload)
 	if createRec.Actions == nil || len(createRec.Actions) != 0 {
 		t.Fatalf("expected created user actions to encode as empty array, got %+v", createRec.Actions)
 	}
@@ -413,17 +413,16 @@ func TestManagedUserResponsesIncludeLastActiveAt(t *testing.T) {
 	ctx := newTestContext(t)
 	ownerSession, _ := performSetup(t, ctx)
 
-	created := createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"member","password":"member1234"}`)
+	created := createManagedUser(t, ctx, ownerSession.AccessToken, memberCreatePayload)
 	if created.LastActiveAt != nil {
 		t.Fatalf("expected newly created managed user to have no last active time, got %v", created.LastActiveAt)
 	}
 
-	_, memberCookie := loginUser(t, ctx, "member", "member1234")
-	if memberCookie == nil {
-		t.Fatal("expected login to create a refresh session")
-	}
+	// 登录本身就是被测行为：它负责写入 last_active_at，下面的列表断言才有意义。
+	// loginUser 内部已断言会话 cookie 存在，这里不需要再判 nil。
+	loginUser(t, ctx)
 
-	listReq := httptest.NewRequest(http.MethodGet, "/api/management/users?page=1&pageSize=20", nil)
+	listReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/management/users?page=1&pageSize=20", nil)
 	listReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
 	listRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(listRec, listReq)
@@ -461,7 +460,7 @@ func TestManagementUserListAppliesDefaultPaging(t *testing.T) {
 		"/api/management/users",
 		"/api/management/users?page=0&pageSize=abc",
 	} {
-		req := httptest.NewRequest(http.MethodGet, target, nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
 		req.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
 		rec := httptest.NewRecorder()
 		ctx.handler.ServeHTTP(rec, req)
@@ -483,7 +482,7 @@ func TestSPAFallbackAndGzipStillWork(t *testing.T) {
 
 	ctx := newTestContext(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/dashboard", nil)
 	rec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -493,7 +492,7 @@ func TestSPAFallbackAndGzipStillWork(t *testing.T) {
 		t.Fatalf("expected SPA index response, got %q", rec.Body.String())
 	}
 
-	gzipReq := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	gzipReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/dashboard", nil)
 	gzipReq.Header.Set("Accept-Encoding", "gzip")
 	gzipRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(gzipRec, gzipReq)
@@ -518,7 +517,7 @@ func TestAccountCreationRejectsBlankUsernameBeforePassword(t *testing.T) {
 	expectUsernameRequired := func(t *testing.T, ctx *testContext, path string, body string) {
 		t.Helper()
 
-		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
@@ -629,7 +628,7 @@ func (ctx *testContext) authServiceCookieName() string {
 func performSetup(t *testing.T, ctx *testContext) (sessionResponse, *http.Cookie) {
 	t.Helper()
 
-	setupReq := httptest.NewRequest(http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"owner","password":"owner1234","database":{"driver":"sqlite"}}`))
+	setupReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"owner","password":"owner1234","database":{"driver":"sqlite"}}`))
 	setupReq.Header.Set("Content-Type", "application/json")
 	setupRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(setupRec, setupReq)
@@ -638,7 +637,7 @@ func performSetup(t *testing.T, ctx *testContext) (sessionResponse, *http.Cookie
 		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, setupRec.Code, setupRec.Body.String())
 	}
 
-	loginReq := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"owner","password":"owner1234"}`))
+	loginReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"owner","password":"owner1234"}`))
 	loginReq.Header.Set("Content-Type", "application/json")
 	loginRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(loginRec, loginReq)
@@ -654,7 +653,7 @@ func performSetup(t *testing.T, ctx *testContext) (sessionResponse, *http.Cookie
 func updateSystemSettings(t *testing.T, ctx *testContext, token string, payload string) {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPatch, "/api/system/settings", strings.NewReader(payload))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPatch, "/api/system/settings", strings.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
@@ -665,10 +664,23 @@ func updateSystemSettings(t *testing.T, ctx *testContext, token string, payload 
 	}
 }
 
-func registerUser(t *testing.T, ctx *testContext, username string, email string, password string) (sessionResponse, *http.Cookie) {
+// 所有用例共用同一个 member 账号。注册、登录、管理端建号必须引用同一份凭据：
+// 这些用例是「先建号/注册、再登录、最后断言状态」的链条，任一处漏改都只会退化成
+// 401，看不出真正失败的断言。新增请求体时也拼在这里，不要另写字面量。
+const (
+	memberUsername = "member"
+	memberEmail    = "member@example.com"
+	memberPassword = "member1234"
+
+	memberRegisterPayload = `{"username":"` + memberUsername + `","email":"` + memberEmail + `","password":"` + memberPassword + `"}`
+	memberLoginPayload    = `{"identifier":"` + memberUsername + `","password":"` + memberPassword + `"}`
+	memberCreatePayload   = `{"username":"` + memberUsername + `","password":"` + memberPassword + `"}`
+)
+
+func registerUser(t *testing.T, ctx *testContext) (sessionResponse, *http.Cookie) {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(`{"username":"`+username+`","email":"`+email+`","password":"`+password+`"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/register", strings.NewReader(memberRegisterPayload))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(rec, req)
@@ -682,10 +694,10 @@ func registerUser(t *testing.T, ctx *testContext, username string, email string,
 	return envelope.Data, findCookie(rec.Result().Cookies(), ctx.authServiceCookieName())
 }
 
-func loginUser(t *testing.T, ctx *testContext, identifier string, password string) (sessionResponse, *http.Cookie) {
+func loginUser(t *testing.T, ctx *testContext) *http.Cookie {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"`+identifier+`","password":"`+password+`"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/login", strings.NewReader(memberLoginPayload))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(rec, req)
@@ -694,15 +706,17 @@ func loginUser(t *testing.T, ctx *testContext, identifier string, password strin
 		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
 	}
 
-	var envelope testSuccessEnvelope[sessionResponse]
-	decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
-	return envelope.Data, findCookie(rec.Result().Cookies(), ctx.authServiceCookieName())
+	cookie := findCookie(rec.Result().Cookies(), ctx.authServiceCookieName())
+	if cookie == nil {
+		t.Fatal("login response is missing the session cookie")
+	}
+	return cookie
 }
 
 func createManagedUser(t *testing.T, ctx *testContext, token string, payload string) managedUserResponse {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPost, "/api/management/users", strings.NewReader(payload))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/management/users", strings.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
@@ -736,7 +750,7 @@ func findUserByUsername(t *testing.T, ctx *testContext, username string) identit
 func assertUnauthorizedMeAndRefresh(t *testing.T, ctx *testContext, accessToken string, refreshCookie *http.Cookie) {
 	t.Helper()
 
-	meReq := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	meReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/auth/me", nil)
 	meReq.Header.Set("Authorization", "Bearer "+accessToken)
 	meRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(meRec, meReq)
@@ -744,7 +758,7 @@ func assertUnauthorizedMeAndRefresh(t *testing.T, ctx *testContext, accessToken 
 		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, meRec.Code)
 	}
 
-	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refreshReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/refresh", nil)
 	refreshReq.AddCookie(refreshCookie)
 	refreshRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(refreshRec, refreshReq)
@@ -759,7 +773,7 @@ func createTestDist(t *testing.T) string {
 	distDir := t.TempDir()
 	assetsDir := filepath.Join(distDir, "assets")
 
-	if err := os.MkdirAll(assetsDir, 0o755); err != nil {
+	if err := os.MkdirAll(assetsDir, 0o750); err != nil {
 		t.Fatalf("failed to create asset directory: %v", err)
 	}
 
@@ -773,7 +787,7 @@ func createTestDist(t *testing.T) string {
 
 func writeTestFile(t *testing.T, filename string, content string) {
 	t.Helper()
-	if err := os.WriteFile(filename, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filename, []byte(content), 0o600); err != nil {
 		t.Fatalf("failed to write %s: %v", filename, err)
 	}
 }
@@ -789,7 +803,7 @@ func writeGzipFile(t *testing.T, filename string, content string) {
 	if err := writer.Close(); err != nil {
 		t.Fatalf("failed to finalize gzip %s: %v", filename, err)
 	}
-	if err := os.WriteFile(filename, compressed.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(filename, compressed.Bytes(), 0o600); err != nil {
 		t.Fatalf("failed to write %s: %v", filename, err)
 	}
 }
@@ -818,7 +832,11 @@ func gunzipBody(t *testing.T, body []byte) string {
 	if err != nil {
 		t.Fatalf("failed to create gzip reader: %v", err)
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			t.Errorf("close gzip reader: %v", closeErr)
+		}
+	}()
 
 	decoded, err := io.ReadAll(reader)
 	if err != nil {

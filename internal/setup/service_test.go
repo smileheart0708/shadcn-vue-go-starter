@@ -47,7 +47,7 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 		Username: "other",
 		Password: "password123",
 	})
-	if err != setup.ErrAlreadyCompleted {
+	if !errors.Is(err, setup.ErrAlreadyCompleted) {
 		t.Fatalf("expected ErrAlreadyCompleted, got %v", err)
 	}
 

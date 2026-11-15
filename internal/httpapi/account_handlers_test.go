@@ -24,7 +24,7 @@ func TestAvatarUpload(t *testing.T) {
 	session, _ := performSetup(t, ctx)
 
 	t.Run("non multipart body", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/account/avatar", strings.NewReader(`{"avatar":"x"}`))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/account/avatar", strings.NewReader(`{"avatar":"x"}`))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+session.AccessToken)
 
@@ -110,7 +110,7 @@ func newAvatarUploadRequest(t *testing.T, token string, writeParts func(*multipa
 		t.Fatalf("close multipart writer: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/account/avatar", &body)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/account/avatar", &body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Authorization", "Bearer "+token)
 

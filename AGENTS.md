@@ -145,8 +145,8 @@ pnpm build
 Go 改动（在仓库根目录）：
 
 ```powershell
-gofmt -w <改动的 .go 文件>
-go vet ./...
+golangci-lint fmt          # 写回 gofmt -s 与 gci 分组；gofmt -w 不带 -s、也不合并 import 组，别退回
+golangci-lint run ./...    # 含 govet enable-all 与格式检查，取代单独的 go vet
 go test ./...
 go build .
 ```
@@ -158,6 +158,6 @@ go generate ./internal/contractgen
 go test ./internal/contractgen ./internal/httpapi ./internal/database/...
 ```
 
-- 仓库未配置 golangci-lint，不要自行引入或大改 Go lint 规则。
+- Go lint 配置是根目录 `.golangci.toml`（golangci-lint v2），与 `go.mod` 同级并随仓库提交；根目录这份会盖掉主目录的全局配置。`run.tests = true`，测试文件同样受检，只有 govet 的 `shadow` 消息在 `_test.go` 里被豁免。改动规则前后都要跑 `golangci-lint run ./...` 与 `golangci-lint fmt --diff`，基线必须保持 0 issues。`run` 已经包含 gofmt（`-s`）与 gci 的格式检查，`fmt --diff` 只是同一检查的只读视图，所以不要退回 `gofmt -w` + `go vet` 这套更弱的门禁。
 - 前端类型检查是 `vue-tsc --build`，包含 spec 的 `tsconfig.vitest.json`；不要只跑 `tsc`。
 - 新增依赖：前端在 `web/` 用 `pnpm add` 并提交 `pnpm-lock.yaml`；Go 在根目录用 `go get` / `go mod tidy`。不要手改 lockfile。

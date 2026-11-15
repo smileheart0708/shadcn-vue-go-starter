@@ -11,7 +11,7 @@ func TestSetRefreshCookieAppliesSecurityAttributes(t *testing.T) {
 	t.Parallel()
 
 	service := newCookieTestService()
-	req := httptest.NewRequest(http.MethodPost, "http://example.test/api/auth/login", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://example.test/api/auth/login", nil)
 	rec := httptest.NewRecorder()
 
 	service.SetRefreshCookie(rec, req, "refresh-value")
@@ -33,7 +33,7 @@ func TestClearRefreshCookieAppliesExpiredSecurityAttributes(t *testing.T) {
 	t.Parallel()
 
 	service := newCookieTestService()
-	req := httptest.NewRequest(http.MethodPost, "http://example.test/api/auth/logout", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://example.test/api/auth/logout", nil)
 	rec := httptest.NewRecorder()
 
 	service.ClearRefreshCookie(rec, req)

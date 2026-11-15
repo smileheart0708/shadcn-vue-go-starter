@@ -27,7 +27,7 @@ func TestRequestLoggerKeepsResponseControllerFlushable(t *testing.T) {
 	})
 
 	logged := Chain(inner, requestLogger(slog.New(slog.NewTextHandler(io.Discard, nil))))
-	logged.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/management/system-logs/stream", nil))
+	logged.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/management/system-logs/stream", nil))
 
 	if !sawRecorder {
 		t.Fatal("expected requestLogger to wrap the ResponseWriter in statusRecorder")
@@ -61,14 +61,15 @@ func TestServerShutdownEndsOpenLogStream(t *testing.T) {
 		}
 	})
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
 	serveErrCh := make(chan error, 1)
 	go func() { serveErrCh <- server.Serve(listener) }()
 
-	request, err := http.NewRequest(http.MethodGet, "http://"+listener.Addr().String()+"/api/management/system-logs/stream", nil)
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+listener.Addr().String()+"/api/management/system-logs/stream", nil)
 	if err != nil {
 		t.Fatalf("build stream request: %v", err)
 	}
@@ -77,7 +78,12 @@ func TestServerShutdownEndsOpenLogStream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open log stream: %v", err)
 	}
-	defer func() { _ = response.Body.Close() }()
+	// 测试不读完 stream，关闭错误只可能反映连接已随 Shutdown 断开，记录即可，不算失败。
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil {
+			t.Logf("close log stream body: %v", closeErr)
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("stream status = %d, want %d", response.StatusCode, http.StatusOK)
@@ -125,7 +131,7 @@ func TestParseSystemLogTail(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := httptest.NewRequest(http.MethodGet, "/api/management/system-logs/stream", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/management/system-logs/stream", nil)
 			if tt.raw != "" {
 				query := req.URL.Query()
 				query.Set("tail", tt.raw)

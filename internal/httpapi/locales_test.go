@@ -78,7 +78,7 @@ func readLocaleMessages(t *testing.T, filename string) map[string]string {
 	t.Helper()
 
 	path := filepath.Join("..", "..", "web", "src", "locales", filename)
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) //nolint:gosec // 只读 zh-CN.json / en-US.json 两个固定文件名拼出的路径
 	if err != nil {
 		t.Fatalf("read frontend locale file %s: %v", path, err)
 	}

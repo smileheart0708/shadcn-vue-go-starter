@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/uptrace/bun"
-
 	"main/internal/auth"
 	"main/internal/database/dialect/sqlite"
 	"main/internal/database/migrate"
