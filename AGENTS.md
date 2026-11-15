@@ -94,7 +94,7 @@ Go 是契约的唯一事实来源，前端生成文件禁止手改：
 - `stores/` 只放跨路由或需要持久化的状态（auth、locale、theme、polling、system-logs preferences）。列表筛选、分页等页面状态留在 composable，不要复制进 Pinia。
 - `components/ui/` 是 shadcn-vue 风格基础组件：只做原语级修改，不写业务逻辑，不导入 store、router 或业务模块。
 - `components/common/charts/` 是图表能力层，也是唯一引入 `@unovis/*` 的地方：只放与业务无关的图表本体、图例、色板与取色函数，不读 i18n、store 或侧栏等外壳 context；页面级图表卡（标题、数据、选中项）留在 `components/<domain>/`。图表需要感知宿主布局时由调用方通过 props 传信号（如 `freezeOnLayoutChange`），不要反向依赖 SidebarProvider 之类的外壳上下文。引入 `@unovis/*` 必须走子路径 default 导出（`@unovis/vue/components/<name>`、`@unovis/vue/containers/<xy|single>-container`）：改回包根会静默把 485 kB 的 maplibre worker chunk 带回产物并随之嵌入二进制，构建不会报错。子路径不执行上游 `styles.js`，`.unovis-*-container` 的定位样式由 `src/style.css` 手工补齐，升级 unovis 时逐字核对。
-- `@` 别名的唯一来源是 `web/build/alias.ts`；`tsconfig.json` 与 `tsconfig.app.json` 手工镜像，改别名必须三处同步。`tsconfig.json` 的 `files` 为空且没有被引用项目 extends，`vue-tsc --build` 不会读它那份，它只是给退回根项目解析的编辑器兜底——只改它等于没改。配置文件中导入别名必须带 `.ts` 扩展名（Vite 原生加载器限制）。
+- `@` 别名只在 `tsconfig.app.json` 的 `compilerOptions.paths` 定义一次：`vue-tsc` 用它做类型解析，`vite.config.ts` 与 `vitest.config.ts` 各自的 `resolve.tsconfigPaths: true` 让 Vite 8 读同一份做打包解析。不要在根 `tsconfig.json` 里补一份 `paths`——它是 solution 文件（`files: []`），构建和类型检查都不会读，补了只会让人以为改动了别名。这个选项上游默认关闭（每次解析略有开销），别按"清理冗余配置"的直觉删掉。
 - API 层：`lib/api/*.ts` 使用 ky + zod。认证接口用 `authApi`（401 单飞刷新），公开/安装接口用 `baseApi`；统一 `.json<unknown>()` 后 `schema.parse`，异常交给 `normalizeAPIError(error)`。不要裸用 `fetch`，不要使用 `any`。
 - 成功响应用 `successEnvelopeSchema`；`roleKeySchema`、`userStatusSchema`、`managedUserActionSchema`、`capabilitySchema` 是线上词汇表，不要在业务代码中重复字面量。
 - ESLint 禁止用 `as` 做类型断言（`as const` 除外）和 `any`：外部输入用 zod / `parseExternalValue` 收窄，不要用断言绕过。
@@ -127,7 +127,7 @@ Go 是契约的唯一事实来源，前端生成文件禁止手改：
 - 踩过的坑必须批注在坑所在的代码位置，写清触发条件、失败表现、为什么不能改成“更自然”的写法、何时可以移除；不要只写在提交信息或 PR 描述里。
 - workaround 使用可检索标记：`shortcut: <限制>, <升级/移除条件>`。
 - 行为改变时同步更新注释；过期或误导性注释按缺陷处理。删除被改动路径上的注释代码和废弃注释。
-- 现有解释“为什么”的注释是承重结构（`json.go`、`spa.go`、`contractgen`、`build/alias.ts`、`vitest.config.ts` 等），重构前先理解，不要顺手删除。
+- 现有解释“为什么”的注释是承重结构（`json.go`、`spa.go`、`contractgen`、`vite.config.ts`、`vitest.config.ts` 等），重构前先理解，不要顺手删除。
 
 ## 10. 验证清单
 

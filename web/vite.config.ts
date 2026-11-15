@@ -4,8 +4,6 @@ import { msw } from 'msw/vite'
 import { defineConfig, loadEnv } from 'vite'
 import { compression, defineAlgorithm } from 'vite-plugin-compression2'
 import vueDevTools from 'vite-plugin-vue-devtools'
-// Extension required: Vite's native config loader cannot resolve an extensionless import.
-import { resolveAlias } from './build/alias.ts'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -28,7 +26,12 @@ export default defineConfig(({ mode }) => {
         skipIfLargerOrEqual: true,
       }),
     ],
-    resolve: { alias: resolveAlias },
+    // `@` comes from `paths` in tsconfig.app.json: Vite follows the project references declared
+    // in tsconfig.json, so the solution file needs no paths of its own. Before this option
+    // existed the mapping had to be restated in `resolve.alias`, which made a third copy next to
+    // the two tsconfigs. Off by default upstream because it costs a little resolution work per
+    // import; for a single alias that is the right trade.
+    resolve: { tsconfigPaths: true },
     server: { proxy: { '/api': { target: 'http://localhost:8080' } } },
     build: { target: 'es2022' },
   }
