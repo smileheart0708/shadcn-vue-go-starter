@@ -15,7 +15,7 @@ const props = defineProps<{
 </script>
 
 <template>
-  <ul :class="cn('flex items-center justify-center', props.class)">
+  <ul :class="cn('flex items-center justify-center text-xs', props.class)">
     <li
       v-for="item in props.items"
       :key="item.key"
