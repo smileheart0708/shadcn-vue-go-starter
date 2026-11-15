@@ -13,12 +13,17 @@ import (
 
 var ErrAlreadyCompleted = errors.New("setup: install already completed")
 
+// State carries no JSON tags on purpose, matching accountpolicies: the wire shape belongs to
+// internal/httpapi (see installStateResponse), which uses different field names entirely
+// (phase/databaseDriver/completedAt). A tag here would be a second, silently authoritative
+// definition of the API contract — nothing serializes this type today, so the tags could only
+// mislead the next reader into marshalling it and shipping a shape the frontend cannot parse.
 type State struct {
-	SetupCompleted   bool       `json:"setupCompleted"`
-	OwnerUserID      *int64     `json:"ownerUserId"`
-	SetupCompletedAt *time.Time `json:"setupCompletedAt"`
-	CreatedAt        time.Time  `json:"createdAt"`
-	UpdatedAt        time.Time  `json:"updatedAt"`
+	SetupCompleted   bool
+	OwnerUserID      *int64
+	SetupCompletedAt *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 type CompleteSetupInput struct {

@@ -94,7 +94,7 @@ Go 是契约的唯一事实来源，前端生成文件禁止手改：
 - `stores/` 只放跨路由或需要持久化的状态（auth、locale、theme、polling、system-logs preferences）。列表筛选、分页等页面状态留在 composable，不要复制进 Pinia。
 - `components/ui/` 是 shadcn-vue 风格基础组件：只做原语级修改，不写业务逻辑，不导入 store、router 或业务模块。
 - `components/common/charts/` 是图表能力层，也是唯一引入 `@unovis/*` 的地方：只放与业务无关的图表本体、图例、色板与取色函数，不读 i18n、store 或侧栏等外壳 context；页面级图表卡（标题、数据、选中项）留在 `components/<domain>/`。图表需要感知宿主布局时由调用方通过 props 传信号（如 `freezeOnLayoutChange`），不要反向依赖 SidebarProvider 之类的外壳上下文。引入 `@unovis/*` 必须走子路径 default 导出（`@unovis/vue/components/<name>`、`@unovis/vue/containers/<xy|single>-container`）：改回包根会静默把 485 kB 的 maplibre worker chunk 带回产物并随之嵌入二进制，构建不会报错。子路径不执行上游 `styles.js`，`.unovis-*-container` 的定位样式由 `src/style.css` 手工补齐，升级 unovis 时逐字核对。
-- `@` 别名的唯一来源是 `web/build/alias.ts`；`tsconfig.json` 与 `tsconfig.app.json` 手工镜像，改别名必须三处同步。配置文件中导入它必须带 `.ts` 扩展名（Vite 原生加载器限制）。
+- `@` 别名的唯一来源是 `web/build/alias.ts`；`tsconfig.json` 与 `tsconfig.app.json` 手工镜像，改别名必须三处同步。`tsconfig.json` 的 `files` 为空且没有被引用项目 extends，`vue-tsc --build` 不会读它那份，它只是给退回根项目解析的编辑器兜底——只改它等于没改。配置文件中导入别名必须带 `.ts` 扩展名（Vite 原生加载器限制）。
 - API 层：`lib/api/*.ts` 使用 ky + zod。认证接口用 `authApi`（401 单飞刷新），公开/安装接口用 `baseApi`；统一 `.json<unknown>()` 后 `schema.parse`，异常交给 `normalizeAPIError(error)`。不要裸用 `fetch`，不要使用 `any`。
 - 成功响应用 `successEnvelopeSchema`；`roleKeySchema`、`userStatusSchema`、`managedUserActionSchema`、`capabilitySchema` 是线上词汇表，不要在业务代码中重复字面量。
 - ESLint 禁止用 `as` 做类型断言（`as const` 除外）和 `any`：外部输入用 zod / `parseExternalValue` 收窄，不要用断言绕过。
@@ -157,6 +157,14 @@ go build .
 go generate ./internal/contractgen
 go test ./internal/contractgen ./internal/httpapi ./internal/database/...
 ```
+
+并发改动（`internal/logging` 的 Stream、`internal/installation` 的锁、`main.go` 的停机路径）额外执行：
+
+```powershell
+go test -race ./...
+```
+
+- 默认门禁不带 `-race`：它需要 cgo，不是所有机器都装了 C 工具链。上面三类改动是唯一存在 goroutine 与共享状态的地方，改了就必须带 `-race` 跑一遍。
 
 - Go lint 配置是根目录 `.golangci.toml`（golangci-lint v2），与 `go.mod` 同级并随仓库提交；根目录这份会盖掉主目录的全局配置。`run.tests = true`，测试文件同样受检，只有 govet 的 `shadow` 消息在 `_test.go` 里被豁免。改动规则前后都要跑 `golangci-lint run ./...` 与 `golangci-lint fmt --diff`，基线必须保持 0 issues。`run` 已经包含 gofmt（`-s`）与 gci 的格式检查，`fmt --diff` 只是同一检查的只读视图，所以不要退回 `gofmt -w` + `go vet` 这套更弱的门禁。
 - 前端类型检查是 `vue-tsc --build`，包含 spec 的 `tsconfig.vitest.json`；不要只跑 `tsc`。

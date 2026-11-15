@@ -45,14 +45,33 @@ func (h *spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *spaHandler) serveFrontendFile(w http.ResponseWriter, r *http.Request, name string) {
+	// Advertised on both branches, not just the gzip one: the response body depends on
+	// Accept-Encoding either way, and the immutable header below makes shared caches willing
+	// to store it. Without Vary here a cache can hand a gzip body to a client that never
+	// asked for one.
+	setVary(w.Header(), "Accept-Encoding")
+
 	if clientAcceptsGzip(r.Header.Get("Accept-Encoding")) && h.fileExists(name+".gz") {
-		setVary(w.Header(), "Accept-Encoding")
 		w.Header().Set("Content-Encoding", "gzip")
 		serveFSContent(w, r, h.fsys, name+".gz", name)
 		return
 	}
 
 	serveFSContent(w, r, h.fsys, name, name)
+}
+
+// cacheControlFor is keyed on the logical path rather than the stored one, because the gzip
+// branch resolves to `<name>.gz` while the URL the browser sees is still `<name>`.
+//
+// Vite fingerprints everything under assets/, so those bytes never change for a given URL and
+// revalidating them is pure latency. Everything else keeps its name across deploys — pinning
+// index.html would leave users on a shell that references asset hashes the server no longer
+// serves, which is a blank page rather than a stale one.
+func cacheControlFor(name string) string {
+	if strings.HasPrefix(name, "assets/") {
+		return "public, max-age=31536000, immutable"
+	}
+	return "no-cache"
 }
 
 func (h *spaHandler) fileExists(name string) bool {
@@ -70,6 +89,10 @@ func serveFSContent(w http.ResponseWriter, r *http.Request, fsys fs.FS, storedNa
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
+
+	// Set only after the read succeeds: a 404 for a missing asset hash would otherwise be
+	// cached for a year and outlive the deploy that restores it.
+	w.Header().Set("Cache-Control", cacheControlFor(originalName))
 
 	if contentType := mime.TypeByExtension(path.Ext(originalName)); contentType != "" {
 		w.Header().Set("Content-Type", contentType)

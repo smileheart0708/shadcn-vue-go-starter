@@ -123,4 +123,31 @@ describe('useAdminUsersList', () => {
     expect(refreshing.value).toBe(false)
     expect(deps.toastError).toHaveBeenCalledWith('common.feedback.loadFailed')
   })
+
+  // 回归：翻页曾经先写 page 再请求，失败后页码已经前进、表格还是旧数据，而失败态会把
+  // 分页条摘掉 —— 用户既回不到上一页也没有重试入口，只能整页刷新。现在目标页只作为
+  // 请求参数，成功响应才提交。
+  it('翻页失败时页码停在原页，请求仍指向目标页', async () => {
+    deps.listAdminUsers
+      .mockResolvedValueOnce({
+        items: [managedUser],
+        page: 1,
+        pageSize: 10,
+        total: 25,
+      })
+      .mockRejectedValueOnce(new Error('offline'))
+
+    const { page, loadFailed, loadUsers, goToNextPage } = useAdminUsersList()
+    await loadUsers()
+
+    goToNextPage()
+    await vi.waitFor(() => {
+      expect(loadFailed.value).toBe(true)
+    })
+
+    expect(deps.listAdminUsers).toHaveBeenLastCalledWith(
+      expect.objectContaining({ page: 2 }),
+    )
+    expect(page.value).toBe(1)
+  })
 })

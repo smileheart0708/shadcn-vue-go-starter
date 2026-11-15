@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -14,6 +15,24 @@ import (
 	"main/internal/authorization"
 	"main/internal/identity"
 )
+
+// dummyPasswordHash gives the "unknown account" branch of Login the same argon2id cost as a
+// real verify.
+//
+// Without it a miss returned in microseconds while a hit spent ~100ms (64 MiB, t=3), and the
+// response body and status code are identical by design — so response time alone told an
+// attacker whether an identifier exists. Computed lazily from the live parameters instead of
+// hardcoded: a literal hash would silently stop matching `passwordArgon*` if those change,
+// and the whole point is to spend the same work.
+var dummyPasswordHash = sync.OnceValue(func() string {
+	hash, err := HashPassword("not-a-real-account-password")
+	if err != nil {
+		// HashPassword only fails when the CSPRNG is broken, and then no login can succeed
+		// either. Returning "" makes VerifyPassword fail closed instead of skipping the work.
+		return ""
+	}
+	return hash
+})
 
 const (
 	defaultAccessTTL      = 10 * time.Minute
@@ -189,6 +208,12 @@ func (s *Service) BuildViewer(ctx context.Context, userID int64) (Viewer, error)
 func (s *Service) Login(ctx context.Context, identifier string, password string, ip string, userAgent string) (SessionResult, error) {
 	record, err := s.identities.GetAuthRecordByIdentifier(ctx, identifier)
 	if errors.Is(err, identity.ErrUserNotFound) {
+		// Burn the same argon2id work a real account would before answering. This branch is
+		// also reached for a blank identifier, which GetAuthRecordByIdentifier short-circuits,
+		// so the enumeration oracle is closed for that path too.
+		if _, verifyErr := VerifyPassword(password, dummyPasswordHash()); verifyErr != nil {
+			return SessionResult{}, fmt.Errorf("auth: verify dummy password: %w", verifyErr)
+		}
 		return SessionResult{}, ErrInvalidCredentials
 	}
 	if err != nil {
@@ -353,6 +378,17 @@ func (s *Service) Refresh(ctx context.Context, rawToken string) (SessionResult, 
 		return SessionResult{}, ErrAccountDisabled
 	}
 
+	// Built before rotation on purpose. rotateSession is the commit point: once it lands the
+	// old refresh token is dead, so anything that fails afterwards leaves the client holding a
+	// token the server has already replaced. The next refresh then fails the constant-time
+	// hash compare, reports token reuse, and revokes the session — a transient policy read
+	// error becomes a forced logout. Everything below this line is local computation, which is
+	// why it must all happen before the commit.
+	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.Role)
+	if err != nil {
+		return SessionResult{}, err
+	}
+
 	nextSecret, err := randomTokenComponent(32)
 	if err != nil {
 		return SessionResult{}, err
@@ -377,10 +413,6 @@ func (s *Service) Refresh(ctx context.Context, rawToken string) (SessionResult, 
 		return SessionResult{}, s.revokeSessionAfterAccessTokenIssueFailure(ctx, session.ID, err)
 	}
 
-	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.Role)
-	if err != nil {
-		return SessionResult{}, err
-	}
 	return SessionResult{
 		Viewer: Viewer{
 			User:          user,
@@ -462,6 +494,13 @@ func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, i
 	if err != nil {
 		return SessionResult{}, err
 	}
+	// Same ordering rule as Refresh: the session row is the commit point, so the policy read
+	// that can fail has to happen before it. Otherwise a failed read leaves an orphan session
+	// row behind for a login the caller was told did not happen.
+	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.Role)
+	if err != nil {
+		return SessionResult{}, err
+	}
 	if createErr := sessions.CreateSession(ctx, Session{
 		ID:               sessionID,
 		UserID:           user.ID,
@@ -479,11 +518,6 @@ func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, i
 	accessToken, expiresAt, err := s.issueAccessToken(user, sessionID)
 	if err != nil {
 		return SessionResult{}, s.revokeSessionAfterAccessTokenIssueFailure(ctx, sessionID, err)
-	}
-
-	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.Role)
-	if err != nil {
-		return SessionResult{}, err
 	}
 
 	return SessionResult{

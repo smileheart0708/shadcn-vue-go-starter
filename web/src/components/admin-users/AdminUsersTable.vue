@@ -261,9 +261,10 @@ const skeletonClass = computed(() => ({ 'animate-none': isFailed.value }))
       </Table>
     </div>
 
-    <!-- 骨架阶段不渲染分页条：页码在数据回来前没有意义，渲染出来只会上下跳一次。 -->
+    <!-- 首屏加载时页头不可用：页码在数据回来前没有意义，渲染出来只会上下跳一次。失败态则必须
+         保留，否则 `page` 停在旧值、分页条又消失，用户除了整页刷新没有别的出路。 -->
     <div
-      v-if="!showSkeleton"
+      v-if="!loading"
       class="flex items-center justify-between"
     >
       <div class="flex items-center gap-2 text-sm text-muted-foreground">

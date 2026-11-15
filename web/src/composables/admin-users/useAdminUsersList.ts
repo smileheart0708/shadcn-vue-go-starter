@@ -34,8 +34,15 @@ export function useAdminUsersList() {
   // the table on page 2 while the filter showed the new query.
   let requestTicket = 0
 
-  async function loadUsers(options: { background?: boolean } = {}) {
+  async function loadUsers(
+    options: { background?: boolean; page?: number } = {},
+  ) {
     const ticket = ++requestTicket
+    // The target page is a parameter rather than a mutation of `page` before the request: a
+    // failed request used to leave `page` already advanced while the table still showed the
+    // previous rows, and `loadFailed` hides the pagination bar, so there was no way back to the
+    // page the user came from except reloading the whole document.
+    const requestedPage = options.page ?? page.value
     if (options.background === true) {
       refreshing.value = true
     } else {
@@ -46,7 +53,7 @@ export function useAdminUsersList() {
       const response = await listAdminUsers({
         q: searchQuery.value,
         status: statusFilter.value === 'ALL' ? null : statusFilter.value,
-        page: page.value,
+        page: requestedPage,
         pageSize: pageSize.value,
       })
 
@@ -88,8 +95,7 @@ export function useAdminUsersList() {
       return
     }
 
-    page.value -= 1
-    void loadUsers({ background: true })
+    void loadUsers({ background: true, page: page.value - 1 })
   }
 
   function goToNextPage() {
@@ -97,8 +103,7 @@ export function useAdminUsersList() {
       return
     }
 
-    page.value += 1
-    void loadUsers({ background: true })
+    void loadUsers({ background: true, page: page.value + 1 })
   }
 
   return {

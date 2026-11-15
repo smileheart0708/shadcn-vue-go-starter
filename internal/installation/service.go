@@ -79,7 +79,14 @@ type Options struct {
 }
 
 type Service struct {
+	// mu guards the state fields below and must never be held across database I/O. State()
+	// backs the public /api/install/state route, so a slow dial or migration under this lock
+	// would stall every reader — including a second tab and the shutdown path.
 	mu sync.Mutex
+	// completeMu serializes Complete() as a whole, plus Close(), which must not pull the
+	// runtime out from under a setup that is still writing. It is a second lock rather than a
+	// wider mu precisely because the work it covers takes seconds.
+	completeMu sync.Mutex
 
 	dataDir        string
 	selectionStore SelectionRepository
@@ -159,10 +166,14 @@ func (s *Service) Runtime() *database.Runtime {
 }
 
 func (s *Service) Complete(ctx context.Context, input CompleteInput) (State, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.completeMu.Lock()
+	defer s.completeMu.Unlock()
 
-	if s.phase == PhaseCompleted {
+	s.mu.Lock()
+	phase := s.phase
+	s.mu.Unlock()
+
+	if phase == PhaseCompleted {
 		return State{}, setup.ErrAlreadyCompleted
 	}
 	username, password, err := setup.ValidateInitialOwner(input.Username, input.Password)
@@ -173,7 +184,14 @@ func (s *Service) Complete(ctx context.Context, input CompleteInput) (State, err
 		return State{}, configErr
 	}
 
-	owner, completeErr := s.setup.Complete(ctx, setup.CompleteSetupInput{
+	s.mu.Lock()
+	setupService := s.setup
+	s.mu.Unlock()
+	if setupService == nil {
+		return State{}, errors.New("installation: setup service is unavailable")
+	}
+
+	owner, completeErr := setupService.Complete(ctx, setup.CompleteSetupInput{
 		Username: username,
 		Password: password,
 	})
@@ -182,23 +200,39 @@ func (s *Service) Complete(ctx context.Context, input CompleteInput) (State, err
 	}
 
 	completedAt := time.Now().UTC()
+
+	s.mu.Lock()
 	s.ownerUserID = &owner.ID
 	s.completedAt = &completedAt
 	s.phase = PhaseCompleted
+	runtime := s.runtime
+	publish := s.publish
+	s.mu.Unlock()
+
 	// Publish before the follow-up read: once the owner transaction committed, a
 	// transient read error must not leave the process in setup-only mode.
-	if s.publish != nil {
-		s.publish(s.runtime)
+	if publish != nil {
+		publish(runtime)
 	}
-	if state, stateErr := s.setup.GetState(ctx); stateErr == nil {
+	if state, stateErr := setupService.GetState(ctx); stateErr == nil {
+		s.mu.Lock()
 		s.ownerUserID = state.OwnerUserID
 		s.completedAt = state.SetupCompletedAt
+		s.mu.Unlock()
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.publicState(), nil
 }
 
 func (s *Service) configureDatabase(ctx context.Context, input *DatabaseInput) error {
-	if s.phase != PhaseDatabaseRequired {
+	s.mu.Lock()
+	phase := s.phase
+	configured := s.selection
+	s.mu.Unlock()
+
+	if phase != PhaseDatabaseRequired {
 		if input == nil {
 			return nil
 		}
@@ -208,7 +242,7 @@ func (s *Service) configureDatabase(ctx context.Context, input *DatabaseInput) e
 		}
 		// A client retrying after a failed owner transaction still carries the
 		// selection it chose earlier; accept it instead of locking setup out.
-		if selection != s.selection {
+		if selection != configured {
 			return ErrDatabaseAlreadyConfigured
 		}
 		return nil
@@ -240,12 +274,24 @@ func (s *Service) configureDatabase(ctx context.Context, input *DatabaseInput) e
 }
 
 func (s *Service) Close() error {
+	// Takes completeMu first so an in-flight Complete can finish: closing the runtime
+	// underneath it would fail the owner transaction with a driver error instead of a
+	// meaningful one, and would leave setup half applied.
+	s.completeMu.Lock()
+	defer s.completeMu.Unlock()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.closeRuntimeLocked()
 }
 
+// activate publishes a freshly opened runtime. It takes mu itself: callers hold completeMu (or
+// are the single-threaded constructor), never mu, so the state swap stays atomic for readers
+// and a concurrent State() sees either the old phase or the new one, never a torn pair.
 func (s *Service) activate(runtime *database.Runtime, selection database.Selection, setupService *setup.Service) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.runtime = runtime
 	s.selection = selection
 	s.setup = setupService

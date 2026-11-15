@@ -110,6 +110,14 @@ func parseSystemLogTail(r *http.Request, logger *slog.Logger) int {
 	}
 }
 
+// writeSystemLogSSEEvent frames one entry for the SSE stream.
+//
+// This is the one place in the HTTP layer that uses encoding/json v1 instead of jsonv2, and
+// deliberately so. The payload is a log line, not a response envelope: v2 fails the whole
+// encode on invalid UTF-8, which would turn one malformed log record into a broken stream for
+// every subscriber, while v1 substitutes U+FFFD and keeps going. The frame is also written
+// verbatim rather than through writeJSON because SSE needs `event:`/`id:`/`data:` lines, not a
+// JSON body.
 func writeSystemLogSSEEvent(w http.ResponseWriter, entry logging.StreamEntry) error {
 	payload, err := json.Marshal(entry)
 	if err != nil {

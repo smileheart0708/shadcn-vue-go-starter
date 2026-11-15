@@ -1,4 +1,3 @@
-import { defineStore } from 'pinia'
 import type { ChangePasswordInput, UpdateProfileInput } from '@/lib/api/account'
 import {
   deleteAccount as deleteAccountRequest,
@@ -11,11 +10,13 @@ import { useAuthStore } from '@/stores/auth'
 /**
  * Account self-service writes (profile, avatar, password, deletion).
  *
- * The auth store owns the session; this store only mutates the account and then
- * pushes the resulting viewer — or a terminated session — back into it. The
- * dependency is one-way: account -> auth.
+ * These are plain calls, not Pinia state. Nothing here survives a route change and nothing is
+ * shared between pages, so a store would only advertise state that does not exist — and
+ * AGENTS.md §7 reserves `stores/` for state that is cross-route or persisted. The auth store
+ * still owns the session; every write pushes the resulting viewer — or the terminated session —
+ * back into it, so the dependency stays one-way: account writes -> auth.
  */
-export const useAccountStore = defineStore('account', () => {
+export function useAccountMutations() {
   const authStore = useAuthStore()
 
   async function saveProfile(profile: UpdateProfileInput) {
@@ -32,6 +33,7 @@ export const useAccountStore = defineStore('account', () => {
 
   async function changePassword(input: ChangePasswordInput) {
     await updatePasswordRequest(input)
+    // The server revoked every session for this user, so the local one is dead too.
     authStore.resetSession(true)
   }
 
@@ -46,4 +48,4 @@ export const useAccountStore = defineStore('account', () => {
     changePassword,
     deleteAccount,
   }
-})
+}

@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { resolveErrorMessageOrInternal } from '@/lib/api/error-messages'
 import { CAPABILITY } from '@/lib/auth/capabilities.generated'
-import { useAccountStore } from '@/stores/account'
+import { useAccountMutations } from '@/composables/settings/useAccountMutations'
 import { useAuthStore } from '@/stores/auth'
 
 const DELETE_COUNTDOWN_SECONDS = 3
@@ -14,7 +14,7 @@ export function useDeleteAccountFlow() {
   const { t } = useI18n()
   const router = useRouter()
   const authStore = useAuthStore()
-  const accountStore = useAccountStore()
+  const accountMutations = useAccountMutations()
 
   const deleteDialogOpen = ref(false)
   const deleteAccountConfirmed = ref(false)
@@ -48,6 +48,11 @@ export function useDeleteAccountFlow() {
   watch(deleteDialogOpen, (isOpen) => {
     if (!isOpen) {
       countdown.stop()
+      // Resetting here, not just in closeDeleteAccountFlow(), because the dialog also closes
+      // through Cancel, Escape and the overlay — none of which go through that function. The
+      // checkbox gates the open button (`:disabled="!canOpenDeleteDialog"`), so leaving it
+      // checked let a later click skip the confirmation for a destructive action.
+      deleteAccountConfirmed.value = false
       return
     }
 
@@ -68,7 +73,7 @@ export function useDeleteAccountFlow() {
     isDeletingAccount.value = true
 
     try {
-      await accountStore.deleteAccount()
+      await accountMutations.deleteAccount()
       closeDeleteAccountFlow()
       toast.success(t('common.feedback.deleted'))
       await router.push({ name: 'login' })

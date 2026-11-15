@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -29,7 +29,6 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
 import { useAuthStore } from '@/stores/auth'
@@ -42,7 +41,6 @@ const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const loadingPolicy = ref(true)
 const loadFailed = ref(false)
 const username = ref('')
 const email = ref('')
@@ -54,23 +52,15 @@ const registrationEnabled = computed(
   () => authStore.publicAuthConfig?.registrationEnabled === true,
 )
 
-onMounted(() => {
-  void loadPolicy()
-})
-
-async function loadPolicy() {
-  loadingPolicy.value = true
-  try {
-    await authStore.refreshPublicState()
-    loadFailed.value = false
-  } catch (error) {
-    loadFailed.value = true
-    toast.error(
-      resolveAPIErrorMessage(t, error) ?? t('auth.signUp.policyLoadFailed'),
-    )
-  } finally {
-    loadingPolicy.value = false
-  }
+// Nothing is loaded on mount on purpose: the route guard awaits `initialize()` before this page
+// renders, so `publicAuthConfig` is already present. Re-fetching it here duplicated the request
+// pair and put the form behind a skeleton with nothing to wait for. This is only used to
+// re-read the policy after a failed submit — the usual cause is that an admin just disabled
+// registration, and the form should switch to the "disabled" card instead of letting the user
+// retry into the same error.
+async function resyncPolicy() {
+  await authStore.refreshPublicState()
+  loadFailed.value = authStore.publicStateFailed
 }
 
 async function handleSubmit() {
@@ -100,7 +90,7 @@ async function handleSubmit() {
     await registerPromise
     await router.push({ name: 'dashboard' })
   } catch {
-    await loadPolicy()
+    await resyncPolicy()
   } finally {
     isSubmitting.value = false
   }
@@ -109,24 +99,7 @@ async function handleSubmit() {
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <div
-      v-if="loadingPolicy"
-      class="space-y-4 rounded-xl border p-6"
-    >
-      <div class="space-y-2 text-center">
-        <Skeleton class="mx-auto rounded-md block-6 inline-40" />
-        <Skeleton class="mx-auto rounded-md block-4 inline-60" />
-      </div>
-      <div class="space-y-3">
-        <Skeleton class="rounded-xl block-18" />
-        <Skeleton class="rounded-xl block-18" />
-        <Skeleton class="rounded-xl block-18" />
-        <Skeleton class="rounded-xl block-18" />
-        <Skeleton class="rounded-md block-10" />
-      </div>
-    </div>
-
-    <Card v-else-if="loadFailed">
+    <Card v-if="loadFailed">
       <CardHeader class="text-center">
         <CardTitle>{{ t('auth.signUp.loadFailedTitle') }}</CardTitle>
         <CardDescription>{{
@@ -134,7 +107,7 @@ async function handleSubmit() {
         }}</CardDescription>
       </CardHeader>
       <CardContent class="flex justify-center">
-        <Button @click="loadPolicy">{{ t('common.action.retry') }}</Button>
+        <Button @click="resyncPolicy">{{ t('common.action.retry') }}</Button>
       </CardContent>
     </Card>
 

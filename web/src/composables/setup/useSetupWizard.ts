@@ -135,7 +135,9 @@ export function useSetupWizard(): SetupWizard {
 
     adminDraft.value.password = ''
     goTo('done')
-    void authStore.refreshPublicState().catch(() => undefined)
+    // Not awaited: the wizard already moved on, and refreshPublicState records its own failure
+    // instead of throwing, so there is nothing to catch here.
+    void authStore.refreshPublicState()
   }
 
   async function completeDatabase() {

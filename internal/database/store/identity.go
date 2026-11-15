@@ -81,14 +81,11 @@ func (s *Store) GetAuthRecordByIdentifier(ctx context.Context, identifier string
 
 // UpdateProfile writes the two columns a user can change about themselves.
 //
-// The update and the read-back share one transaction so a caller always returns the row it
-// just wrote; otherwise a concurrent delete could turn a successful update into
-// ErrUserNotFound. It also serves the administrative edit path on purpose: both callers
-// write exactly the same columns, so a second method would only be a copy under another
-// name. Who may change whom is a domain rule (CanManageUser), not a storage concern.
+// It also serves the administrative edit path on purpose: both callers write exactly the
+// same columns, so a second method would only be a copy under another name. Who may change
+// whom is a domain rule (CanManageUser), not a storage concern.
 func (s *Store) UpdateProfile(ctx context.Context, userID int64, username string, email *string) (identity.User, error) {
-	var updated identity.User
-	err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	return s.updateUserAndReload(ctx, userID, func(ctx context.Context, tx bun.Tx) error {
 		result, updateErr := tx.NewUpdate().
 			Model((*userRow)(nil)).
 			Set("username = ?", username).
@@ -99,41 +96,27 @@ func (s *Store) UpdateProfile(ctx context.Context, userID int64, username string
 		if updateErr != nil {
 			return s.identityWriteError(updateErr)
 		}
-		if affectedErr := ensureUserUpdated(result); affectedErr != nil {
-			return affectedErr
-		}
-		loaded, getErr := s.getUser(ctx, tx, userID)
-		if getErr != nil {
-			return getErr
-		}
-		updated = loaded
-		return nil
+		return ensureUserUpdated(result)
 	})
-	if err != nil {
-		return identity.User{}, err
-	}
-	return updated, nil
 }
 
 func (s *Store) UpdateAvatar(ctx context.Context, userID int64, avatarPath *string) (identity.User, error) {
-	result, err := s.db.NewUpdate().
-		Model((*userRow)(nil)).
-		Set("avatar_path = ?", avatarPath).
-		Set("updated_at = ?", time.Now().UTC().Unix()).
-		Where("id = ?", userID).
-		Exec(ctx)
-	if err != nil {
-		return identity.User{}, fmt.Errorf("identity: update avatar: %w", err)
-	}
-	if affectedErr := ensureUserUpdated(result); affectedErr != nil {
-		return identity.User{}, affectedErr
-	}
-	return s.getUser(ctx, s.db, userID)
+	return s.updateUserAndReload(ctx, userID, func(ctx context.Context, tx bun.Tx) error {
+		result, updateErr := tx.NewUpdate().
+			Model((*userRow)(nil)).
+			Set("avatar_path = ?", avatarPath).
+			Set("updated_at = ?", time.Now().UTC().Unix()).
+			Where("id = ?", userID).
+			Exec(ctx)
+		if updateErr != nil {
+			return fmt.Errorf("identity: update avatar: %w", updateErr)
+		}
+		return ensureUserUpdated(result)
+	})
 }
 
 func (s *Store) SetUserStatus(ctx context.Context, userID int64, status string) (identity.User, error) {
-	var updated identity.User
-	err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	return s.updateUserAndReload(ctx, userID, func(ctx context.Context, tx bun.Tx) error {
 		now := time.Now().UTC()
 		var disabledAt *int64
 		if status == identity.StatusDisabled {
@@ -153,8 +136,24 @@ func (s *Store) SetUserStatus(ctx context.Context, userID int64, status string) 
 		if affectedErr := ensureUserUpdated(result); affectedErr != nil {
 			return affectedErr
 		}
-		if revokeErr := revokeActiveSessions(ctx, tx, userID, "status_changed", now); revokeErr != nil {
-			return revokeErr
+		return revokeActiveSessions(ctx, tx, userID, "status_changed", now)
+	})
+}
+
+// updateUserAndReload applies one single-row user update and reads the row back inside the
+// same transaction.
+//
+// Every user write shares it because the read-back must observe the row the update just
+// wrote. Without the transaction a concurrent delete turns a committed update into
+// ErrUserNotFound, and for the avatar path that is not cosmetic: updateAvatarHandler reacts
+// to the error by deleting the file it just saved, leaving the row pointing at a file that no
+// longer exists. Keeping one copy also stops the three callers from drifting apart — a
+// forgotten transaction is invisible until the rare interleaving happens.
+func (s *Store) updateUserAndReload(ctx context.Context, userID int64, apply func(ctx context.Context, tx bun.Tx) error) (identity.User, error) {
+	var updated identity.User
+	err := s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if applyErr := apply(ctx, tx); applyErr != nil {
+			return applyErr
 		}
 		loaded, getErr := s.getUser(ctx, tx, userID)
 		if getErr != nil {

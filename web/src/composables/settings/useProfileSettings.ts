@@ -5,7 +5,7 @@ import { toast } from 'vue-sonner'
 import { resolveErrorMessageOrInternal } from '@/lib/api/error-messages'
 import { getUserRoleBadgeVariant, getUserRoleLabel } from '@/lib/auth/roles'
 import { AVATAR_ACCEPTED_FILE_TYPES, getAvatarFallbackText } from '@/lib/avatar'
-import { useAccountStore } from '@/stores/account'
+import { useAccountMutations } from '@/composables/settings/useAccountMutations'
 import { useAuthStore } from '@/stores/auth'
 import { normalizeOptionalEmail } from '@/utils/email'
 import { compressAvatarFile, validateAvatarFile } from '@/utils/settings/avatar'
@@ -13,7 +13,7 @@ import { compressAvatarFile, validateAvatarFile } from '@/utils/settings/avatar'
 export function useProfileSettings() {
   const { t } = useI18n()
   const authStore = useAuthStore()
-  const accountStore = useAccountStore()
+  const accountMutations = useAccountMutations()
 
   const editDialogOpen = ref(false)
   const editForm = ref({
@@ -117,13 +117,13 @@ export function useProfileSettings() {
     profileError.value = ''
 
     try {
-      await accountStore.saveProfile({
+      await accountMutations.saveProfile({
         username,
         email: normalizeOptionalEmail(editForm.value.email),
       })
 
       if (pendingAvatarFile.value !== null) {
-        await accountStore.uploadAvatar(pendingAvatarFile.value)
+        await accountMutations.uploadAvatar(pendingAvatarFile.value)
         pendingAvatarFile.value = null
       }
 

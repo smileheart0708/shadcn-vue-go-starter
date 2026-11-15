@@ -1,6 +1,7 @@
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import type { MessageSchema } from '@/locales'
 import i18n from '@/plugins/i18n'
+import { assertNever } from '@/utils/assert-never'
 
 // The `route` block is flat (every leaf is a string), so its top-level keys are
 // the valid title keys.
@@ -49,8 +50,4 @@ export function translateRouteTitle(key: RouteTitleKey): string {
     default:
       return assertNever(key)
   }
-}
-
-function assertNever(value: never): never {
-  throw new Error(`untranslated route title key: ${String(value)}`)
 }

@@ -33,6 +33,10 @@ export const useAuthStore = defineStore('auth', () => {
   const viewer = ref<Viewer | null>(null)
   const installState = ref<InstallState | null>(null)
   const publicAuthConfig = ref<PublicAuthConfig | null>(null)
+  // Set when the unauthenticated endpoints could not be loaded. bootstrap() reads it to show a
+  // retry screen instead of mounting a shell that cannot route; every other caller can ignore
+  // it because a failure keeps the previously loaded state.
+  const publicStateFailed = ref(false)
 
   const isSetupComplete = computed(
     () => installState.value?.phase === 'completed',
@@ -119,13 +123,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Loads the two unauthenticated endpoints the route guard and the login/register pages read.
+  //
+  // A failure is recorded instead of thrown. Three of the four callers cannot do anything with
+  // a rejection: the route guard awaits initialize() on every navigation, so a throw aborts
+  // routing and leaves a blank shell; the 401 handler would skip its redirect; and
+  // refreshAccessToken would replace the real refresh error with a network error. bootstrap()
+  // is the only caller that acts on the outcome, through `publicStateFailed`.
   async function refreshPublicState() {
-    const [nextInstallState, nextPublicAuthConfig] = await Promise.all([
-      getInstallState(),
-      getPublicAuthConfig(),
-    ])
-    installState.value = nextInstallState
-    publicAuthConfig.value = nextPublicAuthConfig
+    try {
+      const [nextInstallState, nextPublicAuthConfig] = await Promise.all([
+        getInstallState(),
+        getPublicAuthConfig(),
+      ])
+      installState.value = nextInstallState
+      publicAuthConfig.value = nextPublicAuthConfig
+      publicStateFailed.value = false
+    } catch {
+      // Deliberately not cleared: on a warm failure the previous values stay usable, and on a
+      // cold one both refs are already null, which is what bootstrap() checks.
+      publicStateFailed.value = true
+    }
   }
 
   async function refreshViewer(
@@ -245,6 +263,7 @@ export const useAuthStore = defineStore('auth', () => {
     viewer,
     installState,
     publicAuthConfig,
+    publicStateFailed,
     capabilities,
     isSetupComplete,
     isAuthenticated,

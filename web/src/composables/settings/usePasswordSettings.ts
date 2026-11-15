@@ -3,12 +3,12 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { resolveErrorMessageOrInternal } from '@/lib/api/error-messages'
-import { useAccountStore } from '@/stores/account'
+import { useAccountMutations } from '@/composables/settings/useAccountMutations'
 
 export function usePasswordSettings() {
   const { t } = useI18n()
   const router = useRouter()
-  const accountStore = useAccountStore()
+  const accountMutations = useAccountMutations()
 
   const passwordError = ref('')
   const passwordForm = ref({
@@ -29,7 +29,7 @@ export function usePasswordSettings() {
     isUpdatingPassword.value = true
 
     try {
-      await accountStore.changePassword({
+      await accountMutations.changePassword({
         currentPassword: passwordForm.value.currentPassword,
         newPassword: passwordForm.value.newPassword,
       })
