@@ -43,7 +43,7 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 // 穷尽 switch：i18n lint 只认 t() 调用里的字面量键。
 function exportFormatLabel(format: SystemLogExportFormat): string {
@@ -87,7 +87,7 @@ function downloadSystemLogs(
   entries: readonly SystemLogEntry[],
   format: SystemLogExportFormat,
 ) {
-  const blob = createSystemLogExportBlob(entries, format)
+  const blob = createSystemLogExportBlob(entries, format, locale.value)
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
 

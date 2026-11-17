@@ -1,26 +1,52 @@
+import { readdirSync } from 'node:fs'
+import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import enUSMessages from '@/locales/en-US.json'
-import zhCNMessages from '@/locales/zh-CN.json'
+import { defaultLocale, messages, supportedLocales } from '@/locales'
 
 /**
- * Two language-pack invariants no other gate can see:
+ * Locale-pack invariants no other gate can see:
+ * - the directory and `supportedLocales` must stay in lockstep, so a pack that is added
+ *   without registering it (or registered without a pack) fails here instead of silently
+ *   rendering raw keys at runtime;
  * - `MessageSchema` and `no-missing-keys-in-other-locales` compare which keys exist, not
  *   their order, so the files can silently stop being diffable side by side (the reason
- *   AGENTS.md asks for identical order).
+ *   AGENTS.md asks for identical order);
  * - `no-unused-keys` treats every `@:` target in the pack as used, so a typo'd link target
  *   passes `pnpm lint` + `vue-tsc` and only shows up at runtime as a raw key on screen.
  * Values are intentionally not compared: each locale owns its own copy.
+ *
+ * Everything is derived from the directory and `supportedLocales`, so adding a language
+ * never requires touching this file.
  */
 describe('locale messages', () => {
-  it('keeps en-US keys in the same order as the zh-CN source', () => {
-    expect(walkLocale(enUSMessages).keyPaths).toEqual(
-      walkLocale(zhCNMessages).keyPaths,
-    )
+  // `new URL('.', import.meta.url)` comes out as an http:// URL under jsdom; a real path
+  // is the only form `readdirSync` accepts (same reason as lib/layout/breakpoints.spec.ts).
+  const localeDir = dirname(fileURLToPath(import.meta.url))
+
+  it('has exactly one pack per supported locale', () => {
+    const files = readdirSync(localeDir)
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => name.slice(0, -'.json'.length))
+      .sort()
+
+    expect(files).toEqual(supportedLocales.map((locale) => locale.value).sort())
+  })
+
+  it('keeps every pack in the reference pack key order', () => {
+    const referenceKeyPaths = walkLocale(messages[defaultLocale]).keyPaths
+
+    for (const { value } of supportedLocales) {
+      expect(walkLocale(messages[value]).keyPaths, value).toEqual(
+        referenceKeyPaths,
+      )
+    }
   })
 
   it('resolves every linked message inside its own pack', () => {
-    expect(unresolvedLinks(zhCNMessages)).toEqual([])
-    expect(unresolvedLinks(enUSMessages)).toEqual([])
+    for (const { value } of supportedLocales) {
+      expect(unresolvedLinks(messages[value]), value).toEqual([])
+    }
   })
 })
 

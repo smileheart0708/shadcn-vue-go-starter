@@ -1,56 +1,48 @@
-import { z } from 'zod'
-import { parseExternalValue } from '@/lib/external-input'
+import { defaultLocale, supportedLocales } from '@/locales'
+import type { AppLocale } from '@/locales'
 
-export const supportedLocales = ['zh-CN', 'en-US'] as const
-const appLocaleSchema = z.enum(supportedLocales)
-
-export type AppLocale = z.infer<typeof appLocaleSchema>
-
-/** Endonyms for the language switcher — always shown in their own language. */
-export const localeNames: Record<AppLocale, string> = {
-  'zh-CN': '简体中文',
-  'en-US': 'English',
-}
-
-export const fallbackLocale: AppLocale = 'en-US'
+export { fallbackLocale, supportedLocales } from '@/locales'
+export type { AppLocale } from '@/locales'
 
 const STORAGE_KEY = 'app.locale'
-const defaultLocale: AppLocale = 'zh-CN'
-const localeAliases: Readonly<Partial<Record<string, AppLocale>>> = {
-  en: 'en-US',
-  'en-us': 'en-US',
-  zh: 'zh-CN',
-  'zh-cn': 'zh-CN',
-}
+const supportedLocaleValues = new Set<string>(
+  supportedLocales.map((locale) => locale.value),
+)
 
 // Accepts `unknown` so callers can narrow untrusted values (storage, UI event payloads)
 // without a type assertion.
 export function isSupportedLocale(locale: unknown): locale is AppLocale {
-  return parseExternalValue(appLocaleSchema, locale) !== null
+  return typeof locale === 'string' && supportedLocaleValues.has(locale)
 }
 
-/** Maps a browser language tag (`en`, `zh-Hans-CN`, …) onto a supported locale. */
+/**
+ * Maps a browser language tag (`en`, `zh-Hans-CN`, …) onto a supported locale: exact
+ * match first, then the primary subtag (`en-GB` → `en-US`, `zh-Hans-CN` → `zh-CN`).
+ * No alias table, so adding a language needs no edit here.
+ */
 function normalizeLocale(locale: string): AppLocale | null {
   const normalizedLocale = locale.toLowerCase()
   const exactMatch = supportedLocales.find(
-    (candidate) => candidate.toLowerCase() === normalizedLocale,
+    (candidate) => candidate.value.toLowerCase() === normalizedLocale,
   )
-  const primaryLocale = normalizedLocale.split('-')[0]
 
-  if (exactMatch) {
-    return exactMatch
+  if (exactMatch !== undefined) {
+    return exactMatch.value
   }
 
-  return localeAliases[normalizedLocale] ?? localeAliases[primaryLocale] ?? null
+  const primaryLocale = normalizedLocale.split('-')[0]
+  const primaryMatch = supportedLocales.find((candidate) => {
+    const value = candidate.value.toLowerCase()
+    return value === primaryLocale || value.startsWith(`${primaryLocale}-`)
+  })
+
+  return primaryMatch?.value ?? null
 }
 
 export function resolveInitialLocale(): AppLocale {
   if (typeof window !== 'undefined') {
-    const persistedLocale = parseExternalValue(
-      appLocaleSchema,
-      window.localStorage.getItem(STORAGE_KEY),
-    )
-    if (persistedLocale !== null) {
+    const persistedLocale = window.localStorage.getItem(STORAGE_KEY)
+    if (isSupportedLocale(persistedLocale)) {
       return persistedLocale
     }
   }

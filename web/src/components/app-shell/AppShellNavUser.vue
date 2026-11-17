@@ -26,11 +26,7 @@ import {
 import type { RoleKey } from '@/lib/api/contract.generated'
 import { getUserRoleBadgeVariant, getUserRoleLabel } from '@/lib/auth/roles'
 import { useI18n } from 'vue-i18n'
-import {
-  isSupportedLocale,
-  localeNames,
-  supportedLocales,
-} from '@/plugins/i18n/locales'
+import { isSupportedLocale, supportedLocales } from '@/plugins/i18n/locales'
 import { useLocaleStore } from '@/stores/locale'
 
 const props = defineProps<{
@@ -141,11 +137,11 @@ function switchLanguage(newLocale: unknown) {
                   @update:model-value="switchLanguage($event)"
                 >
                   <DropdownMenuRadioItem
-                    v-for="lang in supportedLocales"
-                    :key="lang"
-                    :value="lang"
+                    v-for="localeOption in supportedLocales"
+                    :key="localeOption.value"
+                    :value="localeOption.value"
                   >
-                    {{ localeNames[lang] }}
+                    {{ localeOption.label }}
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
               </DropdownMenuSubContent>

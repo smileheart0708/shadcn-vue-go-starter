@@ -66,14 +66,14 @@ Go 是契约的唯一事实来源，前端生成文件禁止手改：
 新增或删除错误码时，以下位置一起改：
 
 1. `internal/httpapi/error_codes.go`：常量 + `errorDefinitions`。
-2. `web/src/locales/zh-CN.json` 和 `en-US.json` 的 `apiError.<code>`。
+2. `web/src/locales/*.json` 的 `apiError.<code>`（每个语言包都要补）。
 3. `web/src/lib/api/error-messages.ts`：加一行字面量 `t('apiError.<code>')`。
 4. 检查调用方是否需要专属 fallback 文案。
 
-- `TestErrorCodesMatchFrontendLocale` 锁定 Go 注册表与两个语言包；`satisfies Record<ApiErrorCode, ...>` 锁定 TypeScript 端完整性。
-- `zh-CN.json` 是 `MessageSchema` 的来源，不要加 `as const`；英文包缺键由类型标注和 ESLint 共同拦截。
+- `TestErrorCodesMatchFrontendLocale` 锁定 Go 注册表与 `src/locales` 下的所有语言包；`satisfies Record<ApiErrorCode, ...>` 锁定 TypeScript 端完整性。
+- `src/locales/index.ts` 是语言注册表：`supportedLocales` 顺序即切换器显示顺序，首项同时是默认语言与浏览器兜底（只保留一个语言包时它就是默认）；`MessageSchema` 取自该文件 import 的参考包（当前 `zh-CN.json`），与默认语言、切换器顺序无关，只剩一个语言包时把 import 换成它即可。新增语言只需在 `supportedLocales` 加一项、`messages` 加一条并 import 新 JSON，再放一个 `<tag>.json`（键顺序与参考包一致）；切换器、浏览器探测、目录一致性测试和 Go 契约测试都会自动跟随，不需要改测试或组件。
 - i18n 是硬约束：禁止运行期拼键；数据驱动取键只能写成穷尽 `switch` 或内联到定义处；所有 `t()` 必须使用字面量 key。否则 `no-unused-keys` 看不到键，键会被误删，运行时静默显示原始 key。
-- 两个语言包同名 key 的 `{placeholder}` 集合必须一致（Go 测试 `TestLocalePlaceholdersMatch`）。
+- 语言包之间同名 key 的 `{placeholder}` 集合必须一致（Go 测试 `TestLocalePlaceholdersMatch`）。
 - 错误提示默认用 `resolveErrorMessageOrInternal(t, error)`；调用方有专属文案时用 `resolveAPIErrorMessage(t, error) ?? t('...')`，不要让通用 `internal_error` 覆盖场景文案。
 - 文案分层：`common.*` 承载跨页面复用的动作（`action`）、字段标签与占位（`field`/`placeholder`）、状态（`state`）、通用结果（`feedback`）、校验（`validation`）、头像（`avatar`）与枚举目录（`status`/`role`/`theme`）；`<domain>.*` 只放该域独有的名词和说明。页面不要再自建 `retry`、`loadFailed`、`cancel`、`save` 这类通用键，同一个按钮在不同页面会漂成三种措辞。
 - 链接消息（`"@:other.key"`）只用于**必须逐字一致**的成对文案，典型是接口错误码与前端校验提示，例如 `apiError.avatar_invalid_type: "@:common.avatar.invalidType"`。区块标题、路由标题、导航标签、表格列名这类可独立演化的文案不要造链接，需要同词就直接在组件里 `t()` 通用键。`no-unused-keys` 会把整个语言包里所有 `@:` 目标都算作已使用，链接目标不需要再补一处 `t()` 引用。
@@ -99,11 +99,11 @@ Go 是契约的唯一事实来源，前端生成文件禁止手改：
 - 成功响应用 `successEnvelopeSchema`；`roleKeySchema`、`userStatusSchema`、`managedUserActionSchema`、`capabilitySchema` 是线上词汇表，不要在业务代码中重复字面量。
 - ESLint 禁止用 `as` 做类型断言（`as const` 除外）和 `any`：外部输入用 zod / `parseExternalValue` 收窄，不要用断言绕过。
 - Vue 组件契约：`defineProps` 用类型声明，`defineEmits` 用类型字面量，自定义事件使用 kebab-case，模板 ref 用 `useTemplateRef`（均为 lint 强制）。
-- 新增路由：`router/index.ts` 配 `titleKey`、`requiresAuth`、`requiredCapabilities`（用 `CAPABILITY` 句柄）、`maskUnauthorizedAsNotFound`；同时补 `route-title.ts` 的穷尽 switch 和两个语言包的 `route.*`。
+- 新增路由：`router/index.ts` 配 `titleKey`、`requiresAuth`、`requiredCapabilities`（用 `CAPABILITY` 句柄）、`maskUnauthorizedAsNotFound`；同时补 `route-title.ts` 的穷尽 switch 和各语言包的 `route.*`。
 - Tailwind 由 `eslint-plugin-better-tailwindcss` 校验未知、冲突、重复、规范写法和顺序，入口是 `src/style.css`；改模板 class 后必须跑 `pnpm lint`。
 - 格式：Prettier 无分号、单引号、LF；`pnpm format:check` 是门禁。
 - MSW 仅开发期生效（`VITE_API_MOCKING=true` 且 `import.meta.env.DEV`），不得进入生产包；mock 只补真实后端不可用的场景，不要用它掩盖契约缺口。
-- 新增语言时同步 `src/locales/index.ts`、`plugins/i18n/locales.ts`、`eslint.config.mjs` 的 `localeMessageFiles` 与 settings。
+- 新增/删除语言时只改 `src/locales/index.ts`（`supportedLocales`、`messages`，以及 `MessageSchema` 的参考包 import）并增删 `<tag>.json`；`eslint.config.mjs` 的 `localeMessageFiles` / `localeDir` 是 `src/locales/*.json` 通配，`plugins/i18n/locales.ts` 没有逐语言配置，都不需要改。
 
 ## 8. 测试：锁定行为，拒绝凑数
 

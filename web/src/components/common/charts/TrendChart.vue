@@ -27,6 +27,8 @@ const props = withDefaults(
     xTickFormat: (value: number) => string
     /** tooltip 标题文案。 */
     xTooltipFormat: (value: number | Date) => string
+    /** 数字与日期的区域设置；图表层不读 i18n，由宿主传入。 */
+    locale: string
     xNumTicks?: number
     /**
      * 宿主布局动画（侧栏开合、面板收展）开始/结束时翻转的布尔值。
@@ -67,6 +69,7 @@ const tooltipSeries = computed<Record<string, TooltipSeries>>(() => {
 const crosshairTemplate = computed(() =>
   componentToString(tooltipSeries.value, ChartTooltipContent, {
     labelFormatter: props.xTooltipFormat,
+    locale: props.locale,
   }),
 )
 
@@ -93,7 +96,7 @@ const chartMargin = computed(() => {
     }
   }
 
-  const labelWidth = maxValue.toLocaleString().length
+  const labelWidth = maxValue.toLocaleString(props.locale).length
 
   return {
     left: Math.min(Math.max(40, labelWidth * 8 + 12), 80),

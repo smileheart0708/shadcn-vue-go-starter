@@ -11,7 +11,7 @@ import (
 )
 
 // The placeholder check sits next to the error-code contract test because both gates
-// read the same two locale files and `go test ./...` already runs them together.
+// read the same locale files and `go test ./...` already runs them together.
 // Invariants that need nothing from the Go side (key order, `@:` link targets) live in
 // web/src/locales/locales.spec.ts instead of being duplicated here.
 
@@ -22,32 +22,73 @@ var placeholderPattern = regexp.MustCompile(`\{([A-Za-z0-9_]+)\}`)
 // renders a missing named parameter as an empty string (no console warning), so a
 // translation that renames `{count}` to `{total}` produces broken copy in exactly
 // one language instead of an error. Comparing the declared parameter sets catches
-// that at test time.
+// that at test time. Every other pack is compared against the first one in filename
+// order, so no language is special-cased and a single pack (or removing one) needs no
+// edit here; placeholder sets must be equal across packs, so the baseline choice does
+// not matter.
 func TestLocalePlaceholdersMatch(t *testing.T) {
 	t.Parallel()
 
-	zhMessages := readLocaleMessages(t, "zh-CN.json")
-	enMessages := readLocaleMessages(t, "en-US.json")
+	filenames := localeFiles(t)
+	referenceFile := filenames[0]
+	referenceMessages := readLocaleMessages(t, referenceFile)
 
-	for key, zhMessage := range zhMessages {
-		enMessage, ok := enMessages[key]
-		if !ok {
-			// A missing key is already reported by `no-missing-keys-in-other-locales`
-			// and by `vue-tsc`; this test only owns the placeholders of shared keys.
+	for _, filename := range filenames[1:] {
+		t.Run(filename, func(t *testing.T) {
+			t.Parallel()
+
+			for key, message := range readLocaleMessages(t, filename) {
+				referenceMessage, ok := referenceMessages[key]
+				if !ok {
+					// A missing key is already reported by `no-missing-keys-in-other-locales`
+					// and by `vue-tsc`; this test only owns the placeholders of shared keys.
+					continue
+				}
+
+				referencePlaceholders := declaredPlaceholders(referenceMessage)
+				placeholders := declaredPlaceholders(message)
+				if !slices.Equal(placeholders, referencePlaceholders) {
+					t.Errorf(
+						"%s placeholders differ: %s%s %s%s",
+						key,
+						referenceFile,
+						formatPlaceholders(referencePlaceholders),
+						filename,
+						formatPlaceholders(placeholders),
+					)
+				}
+			}
+		})
+	}
+}
+
+// localeFiles lists every message pack in the frontend locale directory. Both gates in
+// this package derive from it, so adding or removing a language never requires editing a
+// test.
+func localeFiles(t *testing.T) []string {
+	t.Helper()
+
+	localeDir := filepath.Join("..", "..", "web", "src", "locales")
+	entries, err := os.ReadDir(localeDir)
+	if err != nil {
+		t.Fatalf("read frontend locale dir %s: %v", localeDir, err)
+	}
+
+	filenames := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
 		}
-
-		zhPlaceholders := declaredPlaceholders(zhMessage)
-		enPlaceholders := declaredPlaceholders(enMessage)
-		if !slices.Equal(zhPlaceholders, enPlaceholders) {
-			t.Errorf(
-				"%s placeholders differ: zh-CN%s en-US%s",
-				key,
-				formatPlaceholders(zhPlaceholders),
-				formatPlaceholders(enPlaceholders),
-			)
-		}
+		filenames = append(filenames, entry.Name())
 	}
+
+	if len(filenames) == 0 {
+		t.Fatalf("no locale packs found in %s", localeDir)
+	}
+
+	slices.Sort(filenames)
+
+	return filenames
 }
 
 // declaredPlaceholders returns the sorted set of parameter names a message
@@ -78,7 +119,7 @@ func readLocaleMessages(t *testing.T, filename string) map[string]string {
 	t.Helper()
 
 	path := filepath.Join("..", "..", "web", "src", "locales", filename)
-	raw, err := os.ReadFile(path) //nolint:gosec // 只读 zh-CN.json / en-US.json 两个固定文件名拼出的路径
+	raw, err := os.ReadFile(path) //nolint:gosec // 只读 localeFiles 扫出的文件名拼出的路径
 	if err != nil {
 		t.Fatalf("read frontend locale file %s: %v", path, err)
 	}

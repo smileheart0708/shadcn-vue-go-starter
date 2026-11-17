@@ -18,7 +18,7 @@ import (
 func TestErrorCodesMatchFrontendLocale(t *testing.T) {
 	t.Parallel()
 
-	for _, filename := range []string{"zh-CN.json", "en-US.json"} {
+	for _, filename := range localeFiles(t) {
 		t.Run(filename, func(t *testing.T) {
 			t.Parallel()
 

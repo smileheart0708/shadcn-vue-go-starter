@@ -227,12 +227,13 @@ export function reduceSystemLogStreamPresentation(
 
 export function formatSystemLogTimestamp(
   timestamp: number | null | undefined,
+  locale: string,
 ): string {
   if (timestamp === null || timestamp === undefined) {
     return ''
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

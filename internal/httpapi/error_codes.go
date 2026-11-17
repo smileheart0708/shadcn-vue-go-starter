@@ -15,8 +15,8 @@ import (
 
 // ErrorCode is the machine-readable identifier carried in `error.code` of every
 // failed API response. It is the contract with the frontend: this set must match
-// the `apiError` block of web/src/locales/{zh-CN,en-US}.json exactly.
-// error_codes_test.go fails the build when the two drift apart, so adding a code
+// the `apiError` block of every pack in web/src/locales/*.json exactly.
+// error_codes_test.go fails the build when they drift apart, so adding a code
 // here without adding its translations (and vice versa) is not possible.
 type ErrorCode string
 

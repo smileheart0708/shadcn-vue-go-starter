@@ -6,8 +6,7 @@ import type {
   RetryOptions,
 } from 'ky'
 import { readAuthToken } from '@/lib/auth/token'
-import type { MessageSchema } from '@/locales'
-import zhCNMessages from '@/locales/zh-CN.json'
+import { defaultLocale, messages, type MessageSchema } from '@/locales'
 import { BACKGROUND_REQUEST_HEADER, trackedFetch } from '@/router/route-loading'
 
 interface APIErrorPayload {
@@ -16,7 +15,8 @@ interface APIErrorPayload {
 
 /**
  * Every error code this build can translate: exactly the `apiError` block of the locale
- * bundle, which `internal/httpapi`'s tests keep in lockstep with the Go registry.
+ * bundle, which `internal/httpapi`'s tests keep in lockstep with the Go registry. Read it
+ * from the registry so removing a language pack never leaves a dangling JSON import here.
  */
 export type ApiErrorCode = keyof MessageSchema['apiError']
 
@@ -31,7 +31,10 @@ export type ApiErrorCode = keyof MessageSchema['apiError']
 export function isApiErrorCode(value: unknown): value is ApiErrorCode {
   return (
     typeof value === 'string' &&
-    Object.prototype.hasOwnProperty.call(zhCNMessages.apiError, value)
+    Object.prototype.hasOwnProperty.call(
+      messages[defaultLocale].apiError,
+      value,
+    )
   )
 }
 

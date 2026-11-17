@@ -14,6 +14,8 @@ const props = withDefaults(
     series?: Record<string, TooltipSeries>
     x?: number | Date
     labelFormatter?: (value: number | Date) => string
+    /** 由 TrendChart 透传；图表层不读 i18n。 */
+    locale: string
   }>(),
   {
     payload: () => ({}),
@@ -62,16 +64,16 @@ function formatTooltipValue(value: unknown): string {
     return ''
   }
 
-  if (
-    typeof value === 'number' ||
-    typeof value === 'bigint' ||
-    typeof value === 'string'
-  ) {
-    return value.toLocaleString()
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (typeof value === 'number' || typeof value === 'bigint') {
+    return value.toLocaleString(props.locale)
   }
 
   if (value instanceof Date) {
-    return value.toLocaleString()
+    return value.toLocaleString(props.locale)
   }
 
   if (typeof value === 'object') {

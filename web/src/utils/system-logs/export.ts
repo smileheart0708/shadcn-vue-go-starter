@@ -13,6 +13,7 @@ import { formatSystemLogTimestamp } from './console'
 export function createSystemLogExportBlob(
   entries: readonly SystemLogEntry[],
   format: SystemLogExportFormat,
+  locale: string,
 ): Blob {
   switch (format) {
     case 'json':
@@ -20,12 +21,12 @@ export function createSystemLogExportBlob(
         type: 'application/json;charset=utf-8',
       })
     case 'txt':
-      return new Blob([serializeSystemLogsTXT(entries)], {
+      return new Blob([serializeSystemLogsTXT(entries, locale)], {
         type: 'text/plain;charset=utf-8',
       })
     case 'csv':
     default:
-      return new Blob([`\uFEFF${serializeSystemLogsCSV(entries)}`], {
+      return new Blob([`\uFEFF${serializeSystemLogsCSV(entries, locale)}`], {
         type: 'text/csv;charset=utf-8',
       })
   }
@@ -37,10 +38,13 @@ export function getSystemLogExportFileName(
   return `system-logs-${formatExportFileDate(new Date())}.${format}`
 }
 
-function serializeSystemLogsCSV(entries: readonly SystemLogEntry[]): string {
+function serializeSystemLogsCSV(
+  entries: readonly SystemLogEntry[],
+  locale: string,
+): string {
   const header = ['timestamp', 'level', 'source', 'message', 'text']
   const rows = entries.map((entry) => [
-    formatSystemLogTimestamp(entry.timestamp),
+    formatSystemLogTimestamp(entry.timestamp, locale),
     entry.level,
     entry.source,
     entry.message,
@@ -52,11 +56,14 @@ function serializeSystemLogsCSV(entries: readonly SystemLogEntry[]): string {
     .join('\r\n')
 }
 
-function serializeSystemLogsTXT(entries: readonly SystemLogEntry[]): string {
+function serializeSystemLogsTXT(
+  entries: readonly SystemLogEntry[],
+  locale: string,
+): string {
   return entries
     .map(
       (entry) =>
-        `[${formatSystemLogTimestamp(entry.timestamp)}] [${entry.level}] [${entry.source}] ${entry.text}`,
+        `[${formatSystemLogTimestamp(entry.timestamp, locale)}] [${entry.level}] [${entry.source}] ${entry.text}`,
     )
     .join('\r\n')
 }

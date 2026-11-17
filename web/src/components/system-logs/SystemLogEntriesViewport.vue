@@ -21,7 +21,7 @@ defineProps<{
   firstLoadPending: boolean
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 </script>
 
 <template>
@@ -67,7 +67,7 @@ const { t } = useI18n()
       class="grid grid-cols-[auto_auto_auto_1fr] items-start gap-2 rounded-lg border border-transparent px-3 py-2 transition-colors hover:bg-muted/60"
     >
       <span class="text-muted-foreground tabular-nums">{{
-        formatSystemLogTimestamp(entry.timestamp)
+        formatSystemLogTimestamp(entry.timestamp, locale)
       }}</span>
       <Badge :variant="getLevelBadgeVariant(entry.level)">{{
         entry.level

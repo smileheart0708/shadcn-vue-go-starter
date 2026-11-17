@@ -236,6 +236,7 @@ function rangeLabel(range: TimeRange): string {
         :x="xValue"
         :x-tick-format="formatAxisDate"
         :x-tooltip-format="formatTooltipDate"
+        :locale="locale"
         :x-num-ticks="timeRange === '7d' ? 7 : 6"
         :freeze-on-layout-change="sidebarOpen"
         :freeze-duration="SIDEBAR_TRANSITION_MS"

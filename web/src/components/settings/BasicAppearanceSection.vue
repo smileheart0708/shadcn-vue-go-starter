@@ -17,7 +17,7 @@ import SettingsRow from '@/components/common/SettingsRow.vue'
 const props = defineProps<{
   theme: ThemePreference
   locale: AppLocale
-  localeOptions: LocaleOption[]
+  localeOptions: readonly LocaleOption[]
 }>()
 
 const emit = defineEmits<{
