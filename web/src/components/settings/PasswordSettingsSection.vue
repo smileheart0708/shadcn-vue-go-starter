@@ -27,6 +27,7 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
         <Input
           id="current-password"
           v-model="passwordForm.currentPassword"
+          autocomplete="current-password"
           type="password"
           :placeholder="t('common.placeholder.currentPassword')"
         />
@@ -37,6 +38,7 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
         <Input
           id="new-password"
           v-model="passwordForm.newPassword"
+          autocomplete="new-password"
           type="password"
           :minlength="MIN_PASSWORD_LENGTH"
           :placeholder="t('common.placeholder.newPassword')"
@@ -50,6 +52,7 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
         <Input
           id="confirm-password"
           v-model="passwordForm.confirmPassword"
+          autocomplete="new-password"
           type="password"
           :placeholder="t('common.placeholder.confirmPassword')"
         />
