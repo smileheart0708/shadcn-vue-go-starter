@@ -13,6 +13,7 @@ import {
   STEP_ENTER_DURATION_MS,
   useSetupWizard,
 } from '@/composables/setup/useSetupWizard'
+import { prefersReducedMotion } from '@/utils/motion'
 
 const { t } = useI18n()
 const wizard = useSetupWizard()
@@ -40,10 +41,7 @@ function captureCardHeight() {
 // 会跳过 transitionend 收尾，out-in 的新内容会永久停在 enter-from 的 opacity-0 上。
 function animateCardHeight() {
   const card = cardRef.value
-  if (
-    card === null ||
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  ) {
+  if (card === null || prefersReducedMotion()) {
     return
   }
 

@@ -3,12 +3,21 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { THEME_REVEAL_CSS, useThemeStore } from '@/stores/theme'
+import {
+  SYSTEM_THEME_MEDIA_QUERY,
+  THEME_REVEAL_CSS,
+  THEME_STORAGE_KEY,
+  useThemeStore,
+} from '@/stores/theme'
 
-// CSS 无法从 TS 读取常量，只能由测试读文件校验；路径从本模块位置推导，见
+// CSS 与 index.html 都无法从 TS 读取常量，只能由测试读文件校验；路径从本模块位置推导，见
 // lib/layout/breakpoints.spec.ts 里对 jsdom 下 import.meta.url 的说明。
 const styleSource = readFileSync(
   resolve(dirname(fileURLToPath(import.meta.url)), '../style.css'),
+  'utf8',
+)
+const indexHtmlSource = readFileSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), '../../index.html'),
   'utf8',
 )
 
@@ -39,6 +48,16 @@ function installViewTransition() {
   return { startViewTransition, runCallbacks }
 }
 
+// jsdom 没有实现 matchMedia；store 的主题落地与「减少动效」判断都要经过它。
+// 只实现被读的 `matches`：本文件不调用 store.initialize()，它才会用到 addEventListener。
+// 若日后补 initialize 的用例，需要在这里补上 change 监听。
+function stubReducedMotion(reduce: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: () => ({ matches: reduce }),
+  })
+}
+
 describe('theme store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -46,10 +65,12 @@ describe('theme store', () => {
     document.documentElement.className = ''
     document.documentElement.removeAttribute(THEME_REVEAL_CSS.attribute)
     document.documentElement.removeAttribute('style')
+    stubReducedMotion(false)
   })
 
   afterEach(() => {
     Reflect.deleteProperty(document, 'startViewTransition')
+    Reflect.deleteProperty(window, 'matchMedia')
   })
 
   it('同一帧内重复设置同一主题只启动一次过渡', () => {
@@ -159,5 +180,28 @@ describe('theme store', () => {
         THEME_REVEAL_CSS.radius,
       ].sort(),
     )
+  })
+
+  it('系统要求减少动效时不启动整页过渡，主题同步落地', () => {
+    const { startViewTransition } = installViewTransition()
+    stubReducedMotion(true)
+    const store = useThemeStore()
+    const origin = document.createElement('button')
+
+    store.setTheme('dark', origin)
+
+    expect(startViewTransition).not.toHaveBeenCalled()
+    expect(store.theme).toBe('dark')
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+    // 揭示开关只能由过渡消费；没启动过渡就不能留下它，否则下一次路由跳转会误播圆形揭示。
+    expect(
+      document.documentElement.hasAttribute(THEME_REVEAL_CSS.attribute),
+    ).toBe(false)
+  })
+
+  it('index.html 首帧脚本与 store 使用同一主题存储键与系统主题查询', () => {
+    // 键名或 query 不同步都不会报错，只会在深色主题下先闪一次白屏，所以在这里锁住。
+    expect(indexHtmlSource).toContain(THEME_STORAGE_KEY)
+    expect(indexHtmlSource).toContain(SYSTEM_THEME_MEDIA_QUERY)
   })
 })

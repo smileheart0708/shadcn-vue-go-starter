@@ -1,6 +1,7 @@
 import { nextTick } from 'vue'
 import type { Router } from 'vue-router'
 import { THEME_REVEAL_CSS } from '@/stores/theme'
+import { prefersReducedMotion } from '@/utils/motion'
 
 type NavigationTarget = Parameters<Router['push']>[0]
 type NavigationResult = Awaited<ReturnType<Router['push']>>
@@ -38,8 +39,11 @@ export function installRouteViewTransitions(router: Router) {
   function shouldSkipTransition(to: NavigationTarget) {
     // A hidden tab has no rendering opportunity, so the update callback would never run
     // and the navigation would hang inside the transition.
+    // Reduced motion also lands here: the page-wide snapshot cross-fade is UA-driven and
+    // cannot be disabled from CSS, so the only opt-out is not starting the transition.
     return (
       !enabled ||
+      prefersReducedMotion() ||
       document.visibilityState !== 'visible' ||
       router.resolve(to).fullPath === router.currentRoute.value.fullPath
     )

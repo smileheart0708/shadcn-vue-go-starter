@@ -146,6 +146,17 @@
 }
 
 @layer base {
+  /*
+   * 原生 UI（滚动条、表单控件、日期选择器）跟随主题。写在这里而不是让 store 写内联
+   * style.colorScheme：index.html 的首帧脚本只切 `.dark` 类，两处都靠这条规则收口，
+   * 不存在「JS 还没跑所以配色是浅色」的中间态。
+   */
+  :root {
+    color-scheme: light;
+  }
+  .dark {
+    color-scheme: dark;
+  }
   * {
     @apply border-border outline-ring/50;
   }
@@ -205,4 +216,27 @@
   display: block;
   position: relative;
   width: 100%;
+}
+
+/*
+ * 全局「减少动效」兜底。组件里只对需要保留布局的动画逐个写了 `motion-reduce:`
+ * 变体（如 RouteLoadingBar），而 tw-animate-css 的弹层动画、Vue Transition 的
+ * transition-* 类、内联 animation 会随组件数量增长，逐个补一定会漏。
+ *
+ * 时长取 0.01ms 而不是 0：CSS 规定 duration 为 0 时不会产生过渡、也不会派发
+ * transitionend，Vue Transition / reka-ui 会卡在离场状态等不到收尾。极小值让事件
+ * 照常派发，视觉上等同瞬时。
+ *
+ * 需要「整段不启动」而不是「瞬间播完」的动画在 JS 侧用 prefersReducedMotion()
+ * 拦掉：View Transition 的 `::view-transition-*` 是浏览器伪元素树，不是页面元素，
+ * 这里的通配选择器与 transition/animation 声明都触不到它。
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
