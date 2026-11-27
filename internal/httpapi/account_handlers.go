@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 
 	"main/internal/authorization"
 	"main/internal/avatar"
@@ -14,6 +15,9 @@ import (
 // maxAvatarUploadBodySize leaves room for multipart framing on top of the file limit
 // the avatar store enforces.
 const maxAvatarUploadBodySize = avatar.MaxFileSizeBytes + (1 << 20)
+
+// Immutable: Save never reuses a name, so the bytes behind an avatar URL never change.
+const avatarCacheControl = "public, max-age=31536000, immutable"
 
 type updateProfileRequest struct {
 	Username string  `json:"username"`
@@ -190,11 +194,41 @@ func (api *API) avatarHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ServeFile answers 404 on its own when the row still names a file that is gone.
-	// shortcut: gosec's taint analysis cannot see avatar.Store.Path's validation, so the
-	// directive below has to stay; without it `golangci-lint run` fails with G703 and the
-	// report points at this call instead of at a real problem.
-	http.ServeFile(w, r, fullPath) //nolint:gosec // avatar.Store.Path only accepts bare file names, so fullPath cannot leave its directory
+	// Open before setting the cache headers: a missing file must answer 404 without
+	// the immutable directive, or a deleted avatar would stay pinned in caches for a
+	// year.
+	// shortcut: gosec's taint analysis cannot see avatar.Store.Path's validation,
+	// so the directive below has to stay; drop it once the file is opened through an
+	// avatar.Store method the analyzer can follow.
+	file, err := os.Open(fullPath) //nolint:gosec // avatar.Store.Path only accepts bare file names, so fullPath cannot leave its directory
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			http.NotFound(w, r)
+			return
+		}
+		writeError(w, r, CodeInternalError, err)
+		return
+	}
+	defer func(ctx context.Context) {
+		if closeErr := file.Close(); closeErr != nil {
+			api.loggerOrDefault().WarnContext(ctx, "failed to close avatar file", "error", closeErr)
+		}
+	}(r.Context())
+
+	info, err := file.Stat()
+	if err != nil {
+		writeError(w, r, CodeInternalError, err)
+		return
+	}
+	// Path validates the name only; never serve a directory or special file.
+	if !info.Mode().IsRegular() {
+		http.NotFound(w, r)
+		return
+	}
+
+	w.Header().Set("Cache-Control", avatarCacheControl)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	http.ServeContent(w, r, info.Name(), info.ModTime(), file)
 }
 
 // removeAvatarFile is best-effort: on delete and replace the row no longer references

@@ -75,6 +75,8 @@ func newAPIMux(api *API) http.Handler {
 	mux.Handle("POST /api/account/avatar", Chain(http.HandlerFunc(api.updateAvatarHandler), RequireSetupCompleted(api.setup), RequireAuth(api.auth)))
 	mux.Handle("POST /api/account/password", Chain(http.HandlerFunc(api.changePasswordHandler), RequireSetupCompleted(api.setup), RequireAuth(api.auth)))
 	mux.Handle("DELETE /api/account", Chain(http.HandlerFunc(api.deleteAccountHandler), RequireSetupCompleted(api.setup), RequireAuth(api.auth)))
+	// Public on purpose: <img> cannot attach the in-memory bearer token, and the
+	// random name is the capability URL. Do not add RequireAuth here.
 	mux.Handle("GET /api/avatars/{filename}", http.HandlerFunc(api.avatarHandler))
 
 	mux.Handle(

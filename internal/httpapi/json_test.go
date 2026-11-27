@@ -54,3 +54,15 @@ func TestDecodeJSONAcceptsOneObjectWithSurroundingWhitespace(t *testing.T) {
 		t.Fatalf("expected name %q, got %q", "panda", target.Name)
 	}
 }
+
+// TestWriteJSONDisablesCaching keeps API payloads out of browser and shared caches.
+func TestWriteJSONDisablesCaching(t *testing.T) {
+	t.Parallel()
+
+	recorder := httptest.NewRecorder()
+	writeSuccessJSON(recorder, http.StatusOK, struct{}{})
+
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+}

@@ -55,6 +55,7 @@ func New(dataDir string) *Store {
 
 // Save validates data and writes it under a random name. The returned name is what
 // the identity domain stores in the user row and what Path/Remove later accept.
+// Never reuse a name; the avatar URL is immutable. Do not derive it from the user ID.
 func (s *Store) Save(data []byte) (string, error) {
 	if len(data) == 0 {
 		return "", ErrEmpty

@@ -54,6 +54,8 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	// API JSON may contain user-specific data; keep it out of browser and shared caches.
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 
 	// The status is already committed, so a failed write cannot change the

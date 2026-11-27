@@ -74,29 +74,7 @@ func TestAvatarUpload(t *testing.T) {
 	})
 
 	t.Run("valid image is stored", func(t *testing.T) {
-		req := newAvatarUploadRequest(t, session.AccessToken, func(writer *multipart.Writer) {
-			part, err := writer.CreateFormFile("avatar", "avatar.png")
-			if err != nil {
-				t.Fatalf("create form file: %v", err)
-			}
-			if _, err := part.Write(append(pngSignature, make([]byte, 32)...)); err != nil {
-				t.Fatalf("write form file: %v", err)
-			}
-		})
-
-		rec := httptest.NewRecorder()
-		ctx.handler.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
-		}
-
-		var envelope testSuccessEnvelope[viewerResponse]
-		decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
-		avatarURL := envelope.Data.Identity.AvatarURL
-		if avatarURL == nil || *avatarURL == "" {
-			t.Fatalf("expected a stored avatar URL, got %v", avatarURL)
-		}
+		uploadAvatarForTest(t, ctx, session.AccessToken)
 	})
 }
 
@@ -115,4 +93,78 @@ func newAvatarUploadRequest(t *testing.T, token string, writeParts func(*multipa
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	return req
+}
+
+// TestAvatarServingIsPublicAndCacheable locks the cache contract: every upload gets
+// a new URL, and that URL must be fetchable without a bearer token and cacheable by
+// browsers and shared caches. A missing file must stay outside that contract so a
+// deleted avatar is not pinned in a cache for a year.
+func TestAvatarServingIsPublicAndCacheable(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	session, _ := performSetup(t, ctx)
+
+	firstURL := uploadAvatarForTest(t, ctx, session.AccessToken)
+	secondURL := uploadAvatarForTest(t, ctx, session.AccessToken)
+	if firstURL == secondURL {
+		t.Fatalf("expected a new avatar URL for every upload, got %q twice", firstURL)
+	}
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, secondURL, nil)
+	rec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET %s: expected status %d, got %d: %s", secondURL, http.StatusOK, rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Cache-Control"); got != avatarCacheControl {
+		t.Fatalf("GET %s: Cache-Control = %q, want %q", secondURL, got, avatarCacheControl)
+	}
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("GET %s: X-Content-Type-Options = %q, want nosniff", secondURL, got)
+	}
+	if got := rec.Header().Get("Content-Type"); !strings.HasPrefix(got, "image/png") {
+		t.Fatalf("GET %s: Content-Type = %q, want image/png", secondURL, got)
+	}
+
+	missingReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/avatars/missing.png", nil)
+	missingRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(missingRec, missingReq)
+
+	if missingRec.Code != http.StatusNotFound {
+		t.Fatalf("GET missing avatar: expected status %d, got %d", http.StatusNotFound, missingRec.Code)
+	}
+	if got := missingRec.Header().Get("Cache-Control"); got == avatarCacheControl {
+		t.Fatalf("missing avatar must not be cached as immutable, got Cache-Control = %q", got)
+	}
+}
+
+func uploadAvatarForTest(t *testing.T, ctx *testContext, token string) string {
+	t.Helper()
+
+	req := newAvatarUploadRequest(t, token, func(writer *multipart.Writer) {
+		part, err := writer.CreateFormFile("avatar", "avatar.png")
+		if err != nil {
+			t.Fatalf("create form file: %v", err)
+		}
+		if _, err := part.Write(append(pngSignature, make([]byte, 32)...)); err != nil {
+			t.Fatalf("write form file: %v", err)
+		}
+	})
+
+	rec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("upload avatar: expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
+	}
+
+	var envelope testSuccessEnvelope[viewerResponse]
+	decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
+	avatarURL := envelope.Data.Identity.AvatarURL
+	if avatarURL == nil || *avatarURL == "" {
+		t.Fatalf("upload avatar: expected a stored avatar URL, got %v", avatarURL)
+	}
+
+	return *avatarURL
 }
