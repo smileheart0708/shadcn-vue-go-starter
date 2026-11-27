@@ -3,11 +3,14 @@ import { authApi, baseApi, normalizeAPIError } from '@/lib/api/client'
 import { roleKeySchema, userStatusSchema } from '@/lib/api/contract.generated'
 import { successEnvelopeSchema } from '@/lib/api/envelope'
 import { capabilitySchema } from '@/lib/auth/capabilities.generated'
+import { runWithRefreshLock } from '@/lib/auth/refresh-lock'
 
 export const viewerIdentitySchema = z.object({
   id: z.number().int().positive(),
   username: z.string(),
-  email: z.email().nullable(),
+  // The server enforces the format on write. Reading the stored value as an opaque
+  // string keeps one legacy row from making the whole viewer response unparsable.
+  email: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   status: userStatusSchema,
 })
@@ -100,6 +103,14 @@ export async function register(input: RegisterInput): Promise<SessionResponse> {
 }
 
 export async function refreshSession(): Promise<SessionResponse> {
+  // Every refresh path goes through here, including the startup call in the auth
+  // store, so the tab lock also covers boot-time refreshes that never touch authApi.
+  return runWithRefreshLock(refreshSessionOnce)
+}
+
+// Stays on baseApi: authApi's 401 hook calls refreshSession again, and Web Locks are not
+// reentrant per origin, so moving this call would deadlock the tab against its own lock.
+async function refreshSessionOnce(): Promise<SessionResponse> {
   try {
     const payload = await baseApi
       .post('/api/auth/refresh', {

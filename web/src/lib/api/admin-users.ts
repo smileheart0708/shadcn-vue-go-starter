@@ -11,7 +11,9 @@ import { successEnvelopeSchema } from '@/lib/api/envelope'
 export const managedUserSchema = z.object({
   id: z.number().int().positive(),
   username: z.string(),
-  email: z.email().nullable(),
+  // The server enforces the format on write. One legacy row must not make the whole
+  // management list unparsable; the value is displayed, not trusted for validation.
+  email: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   role: roleKeySchema,
   status: userStatusSchema,

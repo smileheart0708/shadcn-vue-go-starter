@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { USERNAME_MAX_LENGTH } from '@/utils/username'
 
 const props = defineProps<{
   avatarImageSrc: string | null
@@ -96,6 +97,7 @@ function toText(value: string | number): string {
           <Input
             id="edit-username"
             :model-value="username"
+            :maxlength="USERNAME_MAX_LENGTH"
             :placeholder="t('common.placeholder.username')"
             @update:model-value="username = toText($event)"
           />

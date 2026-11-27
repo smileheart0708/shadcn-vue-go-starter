@@ -9,6 +9,7 @@ import {
   resolveRefreshUser,
 } from '@/mocks/handlers/session'
 import {
+  emailFieldError,
   emailTaken,
   getPublicAuthConfig,
   isRecord,
@@ -17,6 +18,7 @@ import {
   nowISO,
   readJSON,
   state,
+  usernameFieldError,
   usernameTaken,
   type MockUser,
 } from '@/mocks/handlers/state'
@@ -39,11 +41,13 @@ export const authHandlers = [
       return jsonError(400, 'invalid_request', 'Invalid login payload.')
     }
 
+    const identifier = payload.identifier.trim().toLowerCase()
+    const byEmail = identifier.includes('@')
     const user =
-      state.users.find(
-        (entry) =>
-          entry.username === payload.identifier ||
-          entry.email === payload.identifier,
+      state.users.find((entry) =>
+        byEmail
+          ? entry.email?.toLowerCase() === identifier
+          : entry.username.toLowerCase() === identifier,
       ) ?? null
     if (user?.password !== payload.password) {
       return jsonError(401, 'invalid_credentials', 'Invalid credentials.')
@@ -82,8 +86,9 @@ export const authHandlers = [
     const username = payload.username.trim()
     const email =
       typeof payload.email === 'string' ? payload.email.trim() || null : null
-    if (username === '') {
-      return jsonError(400, 'username_required', 'Username is required.')
+    const usernameError = usernameFieldError(username)
+    if (usernameError !== null) {
+      return usernameError
     }
     if (!meetsMinPasswordLength(payload.password)) {
       return jsonError(
@@ -91,6 +96,10 @@ export const authHandlers = [
         'password_too_short',
         'Password must be at least 8 characters.',
       )
+    }
+    const emailError = emailFieldError(email)
+    if (emailError !== null) {
+      return emailError
     }
     if (usernameTaken(username)) {
       return jsonError(409, 'username_taken', 'Username is already in use.')

@@ -119,6 +119,129 @@ func TestOwnerCanCreateManagedUserByDefault(t *testing.T) {
 	}
 }
 
+func TestEmailFormatIsValidatedOnEveryWriteBoundary(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+
+	profileReq := httptest.NewRequestWithContext(t.Context(), http.MethodPatch, "/api/account/profile",
+		strings.NewReader(`{"username":"owner","email":"a@b"}`))
+	profileReq.Header.Set("Content-Type", "application/json")
+	profileReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	profileRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(profileRec, profileReq)
+	if profileRec.Code != http.StatusBadRequest {
+		t.Fatalf("profile status = %d, want %d: %s", profileRec.Code, http.StatusBadRequest, profileRec.Body.String())
+	}
+	decodeErrorCode(t, profileRec.Body.Bytes(), string(CodeEmailInvalid))
+
+	managedReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/management/users",
+		strings.NewReader(`{"username":"member","email":"a@b","password":"member1234"}`))
+	managedReq.Header.Set("Content-Type", "application/json")
+	managedReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	managedRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(managedRec, managedReq)
+	if managedRec.Code != http.StatusBadRequest {
+		t.Fatalf("managed create status = %d, want %d: %s", managedRec.Code, http.StatusBadRequest, managedRec.Body.String())
+	}
+	decodeErrorCode(t, managedRec.Body.Bytes(), string(CodeEmailInvalid))
+
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
+	registerReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/register",
+		strings.NewReader(`{"username":"newcomer","email":"a@b","password":"newcomer1234"}`))
+	registerReq.Header.Set("Content-Type", "application/json")
+	registerRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(registerRec, registerReq)
+	if registerRec.Code != http.StatusBadRequest {
+		t.Fatalf("register status = %d, want %d: %s", registerRec.Code, http.StatusBadRequest, registerRec.Body.String())
+	}
+	decodeErrorCode(t, registerRec.Body.Bytes(), string(CodeEmailInvalid))
+}
+
+func TestEmailShapedUsernameIsRejectedAndEmailLoginStillWorks(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+
+	profileReq := httptest.NewRequestWithContext(t.Context(), http.MethodPatch, "/api/account/profile",
+		strings.NewReader(`{"username":"owner","email":"owner@example.com"}`))
+	profileReq.Header.Set("Content-Type", "application/json")
+	profileReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	profileRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(profileRec, profileReq)
+	if profileRec.Code != http.StatusOK {
+		t.Fatalf("profile status = %d, want %d: %s", profileRec.Code, http.StatusOK, profileRec.Body.String())
+	}
+
+	managedReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/management/users",
+		strings.NewReader(`{"username":"owner@example.com","password":"member1234"}`))
+	managedReq.Header.Set("Content-Type", "application/json")
+	managedReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	managedRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(managedRec, managedReq)
+	if managedRec.Code != http.StatusBadRequest {
+		t.Fatalf("managed create status = %d, want %d: %s", managedRec.Code, http.StatusBadRequest, managedRec.Body.String())
+	}
+	decodeErrorCode(t, managedRec.Body.Bytes(), string(CodeUsernameInvalid))
+
+	loginReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/auth/login",
+		strings.NewReader(`{"identifier":"owner@example.com","password":"owner1234"}`))
+	loginReq.Header.Set("Content-Type", "application/json")
+	loginRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(loginRec, loginReq)
+	if loginRec.Code != http.StatusOK {
+		t.Fatalf("email login status = %d, want %d: %s", loginRec.Code, http.StatusOK, loginRec.Body.String())
+	}
+	var loginEnvelope testSuccessEnvelope[sessionResponse]
+	decodeJSONResponse(t, loginRec.Body.Bytes(), &loginEnvelope)
+	if loginEnvelope.Data.Viewer.Identity.Username != "owner" {
+		t.Fatalf("email login resolved to username %q, want owner", loginEnvelope.Data.Viewer.Identity.Username)
+	}
+}
+
+func TestUsernamePolicyRejectsNonASCIIAndInvalidSeparators(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+
+	// The full rule matrix belongs to identity.TestValidateUsername; this covers the
+	// HTTP mapping and the JSON transport of non-ASCII/control characters. Do not copy
+	// every case here again.
+	invalidUsernames := []string{
+		"中文",
+		"ali\nce",
+		"alice bob",
+	}
+	for _, username := range invalidUsernames {
+		payload, err := json.Marshal(map[string]string{
+			"username": username,
+			"password": "member1234",
+		})
+		if err != nil {
+			t.Fatalf("marshal username %q: %v", username, err)
+		}
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/management/users", strings.NewReader(string(payload)))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+		rec := httptest.NewRecorder()
+		ctx.handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("username %q status = %d, want %d: %s", username, rec.Code, http.StatusBadRequest, rec.Body.String())
+		}
+		decodeErrorCode(t, rec.Body.Bytes(), string(CodeUsernameInvalid))
+	}
+
+	created := createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"a.b_c-d","password":"member1234"}`)
+	if created.Username != "a.b_c-d" {
+		t.Fatalf("created username = %q, want a.b_c-d", created.Username)
+	}
+}
+
 func TestDefaultPoliciesClosePublicRegistrationAndSelfDeletion(t *testing.T) {
 	t.Parallel()
 

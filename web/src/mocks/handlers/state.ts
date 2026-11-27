@@ -1,5 +1,7 @@
 import { HttpResponse } from 'msw'
 import type { RoleKey, UserStatus } from '@/lib/api/contract.generated'
+import { isValidEmail } from '@/utils/email'
+import { isValidUsername } from '@/utils/username'
 
 /**
  * In-memory backend state for `pnpm dev` with `VITE_API_MOCKING=true`.
@@ -137,6 +139,33 @@ export function jsonError(status: number, code: string, message: string) {
     { success: false, error: { code, message } },
     { status },
   )
+}
+
+/**
+ * Shared by every mock write boundary so dev responses keep the same field codes and
+ * messages as the Go handlers. Username and email stay separate because the server
+ * checks the password between them on registration and administrative creation; merging
+ * these checks would change which error wins when several fields are invalid.
+ */
+export function usernameFieldError(username: string) {
+  if (username === '') {
+    return jsonError(400, 'username_required', 'Username is required.')
+  }
+  if (!isValidUsername(username)) {
+    return jsonError(
+      400,
+      'username_invalid',
+      'Username must use 1-32 ASCII letters, digits, dots, underscores or hyphens.',
+    )
+  }
+  return null
+}
+
+export function emailFieldError(email: string | null) {
+  if (email !== null && !isValidEmail(email)) {
+    return jsonError(400, 'email_invalid', 'Email address is invalid.')
+  }
+  return null
 }
 
 export function getPublicAuthConfig() {

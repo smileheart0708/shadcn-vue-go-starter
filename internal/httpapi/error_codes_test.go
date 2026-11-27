@@ -116,6 +116,16 @@ func TestWriteDomainErrorMapsWrappedErrors(t *testing.T) {
 			want: CodeUsernameTaken,
 		},
 		{
+			name: "email-shaped username",
+			err:  identity.ErrUsernameInvalid,
+			want: CodeUsernameInvalid,
+		},
+		{
+			name: "malformed email",
+			err:  identity.ErrEmailInvalid,
+			want: CodeEmailInvalid,
+		},
+		{
 			name: "missing user keeps the table entry",
 			err:  identity.ErrUserNotFound,
 			want: CodeUserNotFound,

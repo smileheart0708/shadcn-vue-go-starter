@@ -5,6 +5,7 @@ import { meetsMinPasswordLength } from '@/lib/auth/password'
 import { hasCapability } from '@/mocks/handlers/permissions'
 import { clearSession, requireAuthenticated } from '@/mocks/handlers/session'
 import {
+  emailFieldError,
   emailTaken,
   isRecord,
   jsonError,
@@ -12,6 +13,7 @@ import {
   nowISO,
   readJSON,
   state,
+  usernameFieldError,
   usernameTaken,
   type MockUser,
 } from '@/mocks/handlers/state'
@@ -141,8 +143,9 @@ export const managementUsersHandlers = [
     const username = payload.username.trim()
     const email =
       typeof payload.email === 'string' ? payload.email.trim() || null : null
-    if (username === '') {
-      return jsonError(400, 'username_required', 'Username is required.')
+    const usernameError = usernameFieldError(username)
+    if (usernameError !== null) {
+      return usernameError
     }
     if (!meetsMinPasswordLength(payload.password)) {
       return jsonError(
@@ -150,6 +153,10 @@ export const managementUsersHandlers = [
         'password_too_short',
         'Password must be at least 8 characters.',
       )
+    }
+    const emailError = emailFieldError(email)
+    if (emailError !== null) {
+      return emailError
     }
     if (usernameTaken(username)) {
       return jsonError(409, 'username_taken', 'Username is already in use.')
@@ -198,8 +205,13 @@ export const managementUsersHandlers = [
     const username = payload.username.trim()
     const email =
       typeof payload.email === 'string' ? payload.email.trim() || null : null
-    if (username === '') {
-      return jsonError(400, 'username_required', 'Username is required.')
+    const usernameError = usernameFieldError(username)
+    if (usernameError !== null) {
+      return usernameError
+    }
+    const emailError = emailFieldError(email)
+    if (emailError !== null) {
+      return emailError
     }
     if (usernameTaken(username, target.id)) {
       return jsonError(409, 'username_taken', 'Username is already in use.')

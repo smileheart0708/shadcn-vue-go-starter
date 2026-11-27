@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -43,15 +44,30 @@ var (
 	ErrEmailTaken         = errors.New("identity: email already exists")
 	ErrOwnerAlreadyExists = errors.New("identity: owner already exists")
 
-	// ErrUsernameRequired is the only validation error the transport layer maps; it has
-	// to stay exported so handlers answer CodeUsernameRequired instead of an opaque 500.
+	// These validation errors stay exported so handlers answer a specific code instead
+	// of an opaque 500.
 	ErrUsernameRequired = errors.New("identity: username is required")
+	ErrUsernameInvalid  = errors.New("identity: username must be 1-32 ASCII letters, digits, dot, underscore or hyphen, starting and ending with a letter or digit")
+	ErrEmailInvalid     = errors.New("identity: email is invalid")
 
 	// Internal invariants: callers always supply a known role and a non-empty hash, so
 	// these never reach the transport layer and stay unexported.
 	errRoleRequired         = errors.New("identity: role is required")
 	errPasswordHashRequired = errors.New("identity: password hash is required")
 )
+
+// emailPattern is the Go port of zod's z.email() regex, which the frontend uses on
+// form input. The backend is the write boundary, so accepting a value the client
+// rejects (or the reverse) would recreate the unparsable-response bug this closes.
+// Keep the two patterns in sync when upgrading zod.
+var emailPattern = regexp.MustCompile(`^([A-Za-z0-9_'+-]+\.)*[A-Za-z0-9_'+-]*[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}$`)
+
+// usernamePattern is deliberately ASCII-only: usernames identify accounts in login and
+// admin surfaces, so Unicode homoglyphs, bidi controls and zero-width characters are not
+// worth the impersonation risk. A future display name can carry the localized copy.
+// The length bounds are 1-32 and the first/last characters must be alphanumeric so a
+// username cannot begin or end with a separator.
+var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9._-]{0,30}[A-Za-z0-9])?$`)
 
 type User struct {
 	ID              int64
@@ -121,15 +137,10 @@ func NewService(repository Repository) *Service {
 }
 
 func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
-	repository, err := s.requireRepository()
-	if err != nil {
+	if err := ValidateUsername(params.Username); err != nil {
 		return User{}, err
 	}
-
 	params.Username = normalizeUsername(params.Username)
-	if params.Username == "" {
-		return User{}, ErrUsernameRequired
-	}
 	params.Role = normalizeRole(params.Role)
 	if params.Role == "" {
 		return User{}, errRoleRequired
@@ -138,8 +149,16 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User
 	if params.PasswordHash == "" {
 		return User{}, errPasswordHashRequired
 	}
-	params.Email = normalizeEmailPointer(params.Email)
+	email, err := normalizeEmailPointer(params.Email)
+	if err != nil {
+		return User{}, err
+	}
+	params.Email = email
 
+	repository, err := s.requireRepository()
+	if err != nil {
+		return User{}, err
+	}
 	return repository.CreateUser(ctx, params)
 }
 
@@ -173,16 +192,20 @@ func (s *Service) GetAuthRecordByIdentifier(ctx context.Context, identifier stri
 }
 
 func (s *Service) UpdateProfile(ctx context.Context, userID int64, username string, email *string) (User, error) {
-	normalizedUsername := normalizeUsername(username)
-	if normalizedUsername == "" {
-		return User{}, ErrUsernameRequired
+	if err := ValidateUsername(username); err != nil {
+		return User{}, err
+	}
+
+	normalizedEmail, err := normalizeEmailPointer(email)
+	if err != nil {
+		return User{}, err
 	}
 
 	repository, err := s.requireRepository()
 	if err != nil {
 		return User{}, err
 	}
-	return repository.UpdateProfile(ctx, userID, normalizedUsername, normalizeEmailPointer(email))
+	return repository.UpdateProfile(ctx, userID, normalizeUsername(username), normalizedEmail)
 }
 
 func (s *Service) UpdateAvatar(ctx context.Context, userID int64, avatarPath *string) (User, error) {
@@ -280,18 +303,36 @@ func normalizeStatus(status string) string {
 	return ""
 }
 
+// ValidateUsername owns the shape rule every account write shares. The ASCII-only
+// charset keeps usernames unambiguous in login and admin surfaces, and no '@' means
+// a username can never collide with another account's email. Keeping the rule here
+// means setup, registration, administrative creation and profile edits cannot drift.
+func ValidateUsername(username string) error {
+	normalized := normalizeUsername(username)
+	if normalized == "" {
+		return ErrUsernameRequired
+	}
+	if !usernamePattern.MatchString(normalized) {
+		return ErrUsernameInvalid
+	}
+	return nil
+}
+
 func normalizeUsername(value string) string {
 	return strings.TrimSpace(value)
 }
 
-func normalizeEmailPointer(email *string) *string {
+func normalizeEmailPointer(email *string) (*string, error) {
 	if email == nil {
-		return nil
+		return nil, nil
 	}
 
 	normalized := strings.ToLower(strings.TrimSpace(*email))
 	if normalized == "" {
-		return nil
+		return nil, nil
 	}
-	return &normalized
+	if !emailPattern.MatchString(normalized) {
+		return nil, ErrEmailInvalid
+	}
+	return &normalized, nil
 }

@@ -7,7 +7,8 @@ import { getUserRoleBadgeVariant, getUserRoleLabel } from '@/lib/auth/roles'
 import { AVATAR_ACCEPTED_FILE_TYPES, getAvatarFallbackText } from '@/lib/avatar'
 import { useAccountMutations } from '@/composables/settings/useAccountMutations'
 import { useAuthStore } from '@/stores/auth'
-import { normalizeOptionalEmail } from '@/utils/email'
+import { isValidEmail, normalizeOptionalEmail } from '@/utils/email'
+import { isValidUsername } from '@/utils/username'
 import { compressAvatarFile, validateAvatarFile } from '@/utils/settings/avatar'
 
 export function useProfileSettings() {
@@ -112,6 +113,16 @@ export function useProfileSettings() {
       profileError.value = t('common.validation.usernameRequired')
       return
     }
+    if (!isValidUsername(username)) {
+      profileError.value = t('common.validation.usernameInvalid')
+      return
+    }
+
+    const email = normalizeOptionalEmail(editForm.value.email)
+    if (email !== null && !isValidEmail(email)) {
+      profileError.value = t('common.validation.emailInvalid')
+      return
+    }
 
     isSavingProfile.value = true
     profileError.value = ''
@@ -119,7 +130,7 @@ export function useProfileSettings() {
     try {
       await accountMutations.saveProfile({
         username,
-        email: normalizeOptionalEmail(editForm.value.email),
+        email,
       })
 
       if (pendingAvatarFile.value !== null) {

@@ -1,3 +1,7 @@
+import { z } from 'zod'
+
+const emailSchema = z.email()
+
 // Email reaches the API from three places (registration form, profile dialog, admin user
 // dialog) and every one of them has to turn a blank input into `null` the same way. This
 // lives here instead of under `utils/settings/` because it is not a preference: it is the
@@ -5,4 +9,12 @@
 export function normalizeOptionalEmail(value: string): string | null {
   const email = value.trim()
   return email.length > 0 ? email : null
+}
+
+/**
+ * The practical z.email() format. The Go write boundary ports the same pattern, so
+ * dev mocks and form checks reject what the server rejects.
+ */
+export function isValidEmail(value: string): boolean {
+  return emailSchema.safeParse(value).success
 }

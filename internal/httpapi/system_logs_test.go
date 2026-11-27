@@ -107,6 +107,93 @@ func TestServerShutdownEndsOpenLogStream(t *testing.T) {
 	}
 }
 
+// Regression: the stream authenticated once on connect and then kept pushing after
+// logout, account disable or password change. The heartbeat now re-reads the session
+// and capability, so a revoked connection ends without waiting for the access token.
+func TestLogStreamClosesAfterSessionRevoked(t *testing.T) {
+	previousInterval := systemLogsHeartbeatInterval
+	systemLogsHeartbeatInterval = 10 * time.Millisecond
+	t.Cleanup(func() {
+		systemLogsHeartbeatInterval = previousInterval
+	})
+
+	ctx := newTestContext(t)
+	session, refreshCookie := performSetup(t, ctx)
+	if refreshCookie == nil {
+		t.Fatal("setup did not return a refresh cookie")
+	}
+
+	server := httptest.NewServer(ctx.handler)
+	defer func() {
+		ctx.logStream.Shutdown("test_cleanup")
+		server.Close()
+	}()
+
+	streamReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+"/api/management/system-logs/stream", nil)
+	if err != nil {
+		t.Fatalf("build stream request: %v", err)
+	}
+	streamReq.Header.Set("Authorization", "Bearer "+session.AccessToken)
+	streamResp, err := server.Client().Do(streamReq)
+	if err != nil {
+		t.Fatalf("open log stream: %v", err)
+	}
+	defer func() {
+		if closeErr := streamResp.Body.Close(); closeErr != nil {
+			t.Logf("close log stream body: %v", closeErr)
+		}
+	}()
+
+	if streamResp.StatusCode != http.StatusOK {
+		t.Fatalf("stream status = %d, want %d", streamResp.StatusCode, http.StatusOK)
+	}
+	if count := ctx.logStream.SubscriberCount(); count != 1 {
+		t.Fatalf("subscribers = %d, want 1", count)
+	}
+
+	logoutReq, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+"/api/auth/logout", nil)
+	if err != nil {
+		t.Fatalf("build logout request: %v", err)
+	}
+	logoutReq.AddCookie(refreshCookie)
+	logoutResp, err := server.Client().Do(logoutReq)
+	if err != nil {
+		t.Fatalf("logout: %v", err)
+	}
+	if closeErr := logoutResp.Body.Close(); closeErr != nil {
+		t.Logf("close logout response: %v", closeErr)
+	}
+	if logoutResp.StatusCode != http.StatusOK {
+		t.Fatalf("logout status = %d, want %d", logoutResp.StatusCode, http.StatusOK)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for ctx.logStream.SubscriberCount() != 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("stream stayed subscribed after its session was revoked")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	// A zero subscriber count only proves the server dropped the subscription; draining
+	// the body also proves the client stops reading instead of hanging on an open
+	// response until the test server is closed.
+	closed := make(chan error, 1)
+	go func() {
+		_, copyErr := io.Copy(io.Discard, streamResp.Body)
+		closed <- copyErr
+	}()
+
+	select {
+	case copyErr := <-closed:
+		if copyErr != nil {
+			t.Fatalf("drain revoked log stream: %v", copyErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("stream did not close after its session was revoked")
+	}
+}
+
 func TestParseSystemLogTail(t *testing.T) {
 	t.Parallel()
 

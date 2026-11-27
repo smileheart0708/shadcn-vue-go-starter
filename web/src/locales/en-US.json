@@ -57,6 +57,8 @@
     },
     "validation": {
       "usernameRequired": "Enter a username",
+      "usernameInvalid": "Use 1-32 ASCII letters, digits, dots, underscores or hyphens; start and end with a letter or digit",
+      "emailInvalid": "Enter a valid email address",
       "passwordMismatch": "Passwords don't match"
     },
     "avatar": {
@@ -93,7 +95,9 @@
     "registration_disabled": "Registration is closed",
     "account_delete_forbidden": "This account can't delete itself",
     "username_required": "@:common.validation.usernameRequired",
+    "username_invalid": "@:common.validation.usernameInvalid",
     "username_taken": "That username is taken",
+    "email_invalid": "@:common.validation.emailInvalid",
     "email_taken": "That email is taken",
     "password_too_short": "Password needs at least 8 characters",
     "current_password_invalid": "Current password is wrong",

@@ -30,7 +30,9 @@ const (
 	CodeRegistrationDisabled       ErrorCode = "registration_disabled"
 	CodeAccountDeleteForbidden     ErrorCode = "account_delete_forbidden"
 	CodeUsernameRequired           ErrorCode = "username_required"
+	CodeUsernameInvalid            ErrorCode = "username_invalid"
 	CodeUsernameTaken              ErrorCode = "username_taken"
+	CodeEmailInvalid               ErrorCode = "email_invalid"
 	CodeEmailTaken                 ErrorCode = "email_taken"
 	CodePasswordTooShort           ErrorCode = "password_too_short"
 	CodeCurrentPasswordInvalid     ErrorCode = "current_password_invalid"
@@ -75,7 +77,9 @@ var errorDefinitions = map[ErrorCode]errorDefinition{
 	CodeRegistrationDisabled:       {status: http.StatusForbidden, message: "Registration is currently disabled."},
 	CodeAccountDeleteForbidden:     {status: http.StatusForbidden, message: "This account cannot delete itself."},
 	CodeUsernameRequired:           {status: http.StatusBadRequest, message: "Username is required."},
+	CodeUsernameInvalid:            {status: http.StatusBadRequest, message: "Username must be 1-32 ASCII letters, digits, dots, underscores or hyphens, starting and ending with a letter or digit."},
 	CodeUsernameTaken:              {status: http.StatusConflict, message: "Username is already in use."},
+	CodeEmailInvalid:               {status: http.StatusBadRequest, message: "Email address is invalid."},
 	CodeEmailTaken:                 {status: http.StatusConflict, message: "Email is already in use."},
 	CodePasswordTooShort:           {status: http.StatusBadRequest, message: "Password must be at least 8 characters."},
 	CodeCurrentPasswordInvalid:     {status: http.StatusBadRequest, message: "Current password is incorrect."},
@@ -111,7 +115,9 @@ type errorMapping struct {
 // keeps this table free of "this code, except there" entries.
 var domainErrorMappings = []errorMapping{
 	{identity.ErrUsernameRequired, CodeUsernameRequired},
+	{identity.ErrUsernameInvalid, CodeUsernameInvalid},
 	{identity.ErrUsernameTaken, CodeUsernameTaken},
+	{identity.ErrEmailInvalid, CodeEmailInvalid},
 	{identity.ErrEmailTaken, CodeEmailTaken},
 	{identity.ErrUserNotFound, CodeUserNotFound},
 	{auth.ErrPasswordTooShort, CodePasswordTooShort},

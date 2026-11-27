@@ -24,7 +24,9 @@ const API_ERROR_MESSAGES = {
   account_delete_forbidden: (t: Translate) =>
     t('apiError.account_delete_forbidden'),
   username_required: (t: Translate) => t('apiError.username_required'),
+  username_invalid: (t: Translate) => t('apiError.username_invalid'),
   username_taken: (t: Translate) => t('apiError.username_taken'),
+  email_invalid: (t: Translate) => t('apiError.email_invalid'),
   email_taken: (t: Translate) => t('apiError.email_taken'),
   password_too_short: (t: Translate) => t('apiError.password_too_short'),
   current_password_invalid: (t: Translate) =>

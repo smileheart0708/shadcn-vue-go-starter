@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -8,10 +9,14 @@ import (
 	"strings"
 	"time"
 
+	"main/internal/auth"
+	"main/internal/authorization"
 	"main/internal/logging"
 )
 
-const systemLogsHeartbeatInterval = 25 * time.Second
+// A variable, not a constant, so the revocation test can shorten the beat instead of
+// keeping a live stream open for 25 seconds.
+var systemLogsHeartbeatInterval = 25 * time.Second
 
 func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) {
 	logger := api.loggerOrDefault()
@@ -66,6 +71,9 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 		case <-r.Context().Done():
 			return
 		case <-heartbeat.C:
+			if !api.systemLogStreamStillAuthorized(r.Context(), actor) {
+				return
+			}
 			if _, err := w.Write([]byte(": keep-alive\n\n")); err != nil {
 				logger.WarnContext(r.Context(), "failed to write system log heartbeat", "user_id", actor.User.ID, "error", err)
 				return
@@ -82,6 +90,23 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 			flushStream(r, stream, logger)
 		}
 	}
+}
+
+// systemLogStreamStillAuthorized is the periodic gate for a connection that already
+// passed RequireAuth and RequireCapability when it opened. Headers are gone by the
+// time this runs, so a failure closes the stream instead of writing an error.
+func (api *API) systemLogStreamStillAuthorized(ctx context.Context, actor auth.Actor) bool {
+	current, err := api.auth.RevalidateActor(ctx, actor.Principal)
+	if err != nil {
+		api.loggerOrDefault().WarnContext(ctx, "system log stream revalidation failed", "user_id", actor.User.ID, "error", err)
+		return false
+	}
+
+	if !api.authorization.HasCapability(current.Authorization.Capabilities, authorization.CapabilityManagementSystemLogsRead) {
+		api.loggerOrDefault().WarnContext(ctx, "system log stream permission revoked", "user_id", actor.User.ID)
+		return false
+	}
+	return true
 }
 
 func flushStream(r *http.Request, stream *http.ResponseController, logger *slog.Logger) {

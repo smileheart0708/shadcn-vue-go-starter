@@ -3,6 +3,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -26,6 +27,7 @@ func (s *createUserStub) CreateUser(_ context.Context, params CreateUserParams) 
 func TestCreateUserReportsValidationSentinels(t *testing.T) {
 	t.Parallel()
 
+	invalidEmail := "a@b"
 	tests := []struct {
 		name   string
 		params CreateUserParams
@@ -35,6 +37,16 @@ func TestCreateUserReportsValidationSentinels(t *testing.T) {
 			name:   "blank username",
 			params: CreateUserParams{Username: "   ", Role: RoleUser, PasswordHash: "hash"},
 			want:   ErrUsernameRequired,
+		},
+		{
+			name:   "username that looks like an email",
+			params: CreateUserParams{Username: "carol@example.com", Role: RoleUser, PasswordHash: "hash"},
+			want:   ErrUsernameInvalid,
+		},
+		{
+			name:   "invalid email",
+			params: CreateUserParams{Username: "alice", Email: &invalidEmail, Role: RoleUser, PasswordHash: "hash"},
+			want:   ErrEmailInvalid,
 		},
 		{
 			name:   "unknown role",
@@ -94,6 +106,13 @@ func TestUpdateProfileRejectsBlankUsernameBeforeRepository(t *testing.T) {
 	if _, err := service.UpdateManagedUser(context.Background(), 1, UpdateManagedUserParams{Username: "\t"}); !errors.Is(err, ErrUsernameRequired) {
 		t.Fatalf("UpdateManagedUser(blank) error = %v, want ErrUsernameRequired", err)
 	}
+	if _, err := service.UpdateManagedUser(context.Background(), 1, UpdateManagedUserParams{Username: "carol@example.com"}); !errors.Is(err, ErrUsernameInvalid) {
+		t.Fatalf("UpdateManagedUser(email-shaped username) error = %v, want ErrUsernameInvalid", err)
+	}
+	invalidEmail := "a@b"
+	if _, err := service.UpdateProfile(context.Background(), 1, "alice", &invalidEmail); !errors.Is(err, ErrEmailInvalid) {
+		t.Fatalf("UpdateProfile(invalid email) error = %v, want ErrEmailInvalid", err)
+	}
 	if repository.called {
 		t.Fatal("expected validation to stop before the repository")
 	}
@@ -120,5 +139,89 @@ func TestCreateUserPassesNormalizedParamsToRepository(t *testing.T) {
 	}
 	if repository.params.Email == nil || *repository.params.Email != "alice@example.com" {
 		t.Fatalf("expected lowercase email, got %v", repository.params.Email)
+	}
+}
+
+func TestValidateUsername(t *testing.T) {
+	t.Parallel()
+
+	valid := []string{
+		"a",
+		"ab",
+		"alice",
+		"Alice-01",
+		"a.b_c-d",
+		"a..b",
+		strings.Repeat("a", 32),
+	}
+	for _, username := range valid {
+		if err := ValidateUsername(username); err != nil {
+			t.Errorf("expected %q to be accepted, got %v", username, err)
+		}
+	}
+
+	invalid := []string{
+		"alice@example.com",
+		"alice bob",
+		"alice!",
+		"alice/",
+		".alice",
+		"alice.",
+		"-alice",
+		"alice-",
+		"_alice",
+		"alice_",
+		"中文",
+		"😀",
+		"ali\nce",
+		"ad\u200Bmin",
+		"admin\u202Egnp.exe",
+		strings.Repeat("a", 33),
+	}
+	for _, username := range invalid {
+		if err := ValidateUsername(username); !errors.Is(err, ErrUsernameInvalid) {
+			t.Errorf("expected %q to be rejected, got %v", username, err)
+		}
+	}
+
+	if err := ValidateUsername("   "); !errors.Is(err, ErrUsernameRequired) {
+		t.Fatalf("blank username error = %v, want ErrUsernameRequired", err)
+	}
+}
+
+// The Go pattern is a port of zod's z.email(), which the frontend uses on form input.
+// These cases pin the differences that matter: a bare domain is not enough, the local
+// part may not contain consecutive dots, and the TLD is at least two letters.
+func TestEmailPatternMatchesFrontendValidation(t *testing.T) {
+	t.Parallel()
+
+	valid := []string{
+		"alice@example.com",
+		"a.b+tag@example.co.uk",
+		"o'hara@example.com",
+		"alice@example-.com", // zod accepts a trailing hyphen in a label
+		"a@b.co",
+	}
+	for _, email := range valid {
+		if !emailPattern.MatchString(email) {
+			t.Errorf("expected %q to be accepted", email)
+		}
+	}
+
+	invalid := []string{
+		"a@b",
+		"alice@example",
+		"alice..b@example.com",
+		"alice@example..com",
+		".alice@example.com",
+		"alice.@example.com",
+		"alice@example.c",
+		"alice@example.c0m",
+		"alice@example.中国",
+	}
+	for _, email := range invalid {
+		if emailPattern.MatchString(email) {
+			t.Errorf("expected %q to be rejected", email)
+		}
 	}
 }

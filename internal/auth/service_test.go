@@ -75,6 +75,14 @@ func TestCreateManagedUserValidatesUsernameBeforePassword(t *testing.T) {
 	if !errors.Is(err, identity.ErrUsernameRequired) {
 		t.Fatalf("expected identity.ErrUsernameRequired, got %v", err)
 	}
+
+	_, err = service.CreateManagedUser(context.Background(), CreateManagedUserParams{
+		Username: "alice@example.com",
+		Password: strings.Repeat("a", MinPasswordLength-1),
+	})
+	if !errors.Is(err, identity.ErrUsernameInvalid) {
+		t.Fatalf("expected identity.ErrUsernameInvalid, got %v", err)
+	}
 }
 
 // The UI states the rule as "at least 8 characters", so the server has to count

@@ -7,6 +7,7 @@ import {
   nowISO,
   readJSON,
   state,
+  usernameFieldError,
   usernameTaken,
   type MockUser,
 } from '@/mocks/handlers/state'
@@ -33,8 +34,9 @@ export const installHandlers = [
     }
 
     const username = payload.username.trim()
-    if (username === '') {
-      return jsonError(400, 'username_required', 'Username is required.')
+    const usernameError = usernameFieldError(username)
+    if (usernameError !== null) {
+      return usernameError
     }
     if (!meetsMinPasswordLength(payload.password)) {
       return jsonError(

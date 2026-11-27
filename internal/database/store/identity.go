@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/uptrace/bun"
@@ -72,11 +73,22 @@ func (s *Store) GetAuthRecordByID(ctx context.Context, userID int64) (identity.A
 }
 
 func (s *Store) GetAuthRecordByIdentifier(ctx context.Context, identifier string) (identity.AuthRecord, error) {
-	query := authRecordQuery +
-		"\nWHERE " + s.dialect.CaseInsensitiveEqual("u.username") +
-		" OR " + s.dialect.CaseInsensitiveEqual("u.email") +
-		"\nORDER BY u.id\nLIMIT 1"
-	return s.getAuthRecord(ctx, s.db.NewRaw(query, identifier, identifier))
+	// The shape selects the column instead of OR-ing both. Usernames are restricted to
+	// ASCII letters, digits, '.', '_' and '-' (identity.ValidateUsername), so an '@'
+	// can only be an email. The old OR matched a legacy username that looked like
+	// another account's email and returned whichever row had the smaller id,
+	// authenticating against the wrong account.
+	//
+	// Accounts created before that rule existed may still hold an '@' in their username.
+	// They no longer resolve here and an administrator has to rename them; a fallback to
+	// the username column would reintroduce the ambiguous shape this branch removes.
+	column := "u.username"
+	if strings.Contains(identifier, "@") {
+		column = "u.email"
+	}
+
+	query := authRecordQuery + "\nWHERE " + s.dialect.CaseInsensitiveEqual(column) + "\nLIMIT 1"
+	return s.getAuthRecord(ctx, s.db.NewRaw(query, identifier))
 }
 
 // UpdateProfile writes the two columns a user can change about themselves.

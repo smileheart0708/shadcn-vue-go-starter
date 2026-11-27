@@ -4,6 +4,7 @@ import { meetsMinPasswordLength } from '@/lib/auth/password'
 import { hasCapability, toViewer } from '@/mocks/handlers/permissions'
 import { clearSession, requireAuthenticated } from '@/mocks/handlers/session'
 import {
+  emailFieldError,
   emailTaken,
   isRecord,
   jsonError,
@@ -11,6 +12,7 @@ import {
   nowISO,
   readJSON,
   state,
+  usernameFieldError,
   usernameTaken,
 } from '@/mocks/handlers/state'
 
@@ -29,8 +31,13 @@ export const accountHandlers = [
     const username = payload.username.trim()
     const email =
       typeof payload.email === 'string' ? payload.email.trim() || null : null
-    if (username === '') {
-      return jsonError(400, 'username_required', 'Username is required.')
+    const usernameError = usernameFieldError(username)
+    if (usernameError !== null) {
+      return usernameError
+    }
+    const emailError = emailFieldError(email)
+    if (emailError !== null) {
+      return emailError
     }
     if (usernameTaken(username, user.id)) {
       return jsonError(409, 'username_taken', 'Username is already in use.')

@@ -185,7 +185,7 @@ func (s *Service) AuthenticateRequest(ctx context.Context, header string) (Actor
 		return Actor{}, err
 	}
 
-	return s.actorForPrincipal(ctx, principal)
+	return s.RevalidateActor(ctx, principal)
 }
 
 func (s *Service) BuildViewer(ctx context.Context, userID int64) (Viewer, error) {
@@ -242,13 +242,13 @@ func (s *Service) Login(ctx context.Context, identifier string, password string,
 // creates an account (setup, registration, administrative creation).
 //
 // The order is the contract, not an implementation detail: hashing is deliberately
-// expensive, so a blank username must be rejected *before* HashPassword runs, and it
-// must win over a short password so all entry points answer the same error code when
-// both fields are invalid. Handler-level pre-checks used to enforce this; keeping it
-// here means the rule survives a new caller that forgets to validate.
+// expensive, so an invalid username must be rejected *before* HashPassword runs, and
+// it must win over a short password so all entry points answer the same error code
+// when both fields are invalid. Handler-level pre-checks used to enforce this; keeping
+// it here means the rule survives a new caller that forgets to validate.
 func ValidateNewAccount(username string, password string) error {
-	if strings.TrimSpace(username) == "" {
-		return identity.ErrUsernameRequired
+	if err := identity.ValidateUsername(username); err != nil {
+		return err
 	}
 	if passwordTooShort(password) {
 		return ErrPasswordTooShort
@@ -559,7 +559,14 @@ func (s *Service) ParseAccessToken(token string) (Principal, error) {
 	}, nil
 }
 
-func (s *Service) actorForPrincipal(ctx context.Context, principal Principal) (Actor, error) {
+// RevalidateActor re-reads the user, session and policies behind principal. It backs
+// both AuthenticateRequest and the periodic SSE heartbeat: a long-lived connection
+// outlives RequireAuth, so logging out, disabling the account or changing its role must
+// end the stream without waiting for the access token to expire. Re-reading the session
+// (instead of parsing the bearer token again) is deliberate — the token may expire while
+// the session is still valid, and killing a legitimate stream every ten minutes is not
+// the goal.
+func (s *Service) RevalidateActor(ctx context.Context, principal Principal) (Actor, error) {
 	user, err := s.identities.GetUserByID(ctx, principal.UserID)
 	switch {
 	case errors.Is(err, identity.ErrUserNotFound):

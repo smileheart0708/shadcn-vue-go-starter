@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password'
+import { isValidUsername, USERNAME_MAX_LENGTH } from '@/utils/username'
 import type { SetupWizard } from '@/composables/setup/types'
 
 const { wizard } = defineProps<{ wizard: SetupWizard }>()
@@ -23,13 +24,22 @@ onMounted(() => {
 })
 
 function submit() {
+  const usernameValue = username.value.trim()
+  if (usernameValue.length === 0) {
+    toast.error(t('common.validation.usernameRequired'))
+    return
+  }
+  if (!isValidUsername(usernameValue)) {
+    toast.error(t('common.validation.usernameInvalid'))
+    return
+  }
   if (password.value !== confirmPassword.value) {
     toast.error(t('common.validation.passwordMismatch'))
     return
   }
 
   wizard.completeAdmin({
-    username: username.value.trim(),
+    username: usernameValue,
     password: password.value,
   })
 }
@@ -53,6 +63,7 @@ function submit() {
           id="setup-username"
           v-model="username"
           autocomplete="username"
+          :maxlength="USERNAME_MAX_LENGTH"
           required
         />
       </Field>

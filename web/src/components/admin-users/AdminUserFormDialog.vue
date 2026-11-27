@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import { USERNAME_MAX_LENGTH } from '@/utils/username'
 
 defineProps<{
   mode: 'create' | 'edit'
@@ -50,10 +51,12 @@ const { t } = useI18n()
       <div class="space-y-4 py-2">
         <Input
           v-model="form.username"
+          :maxlength="USERNAME_MAX_LENGTH"
           :placeholder="t('common.placeholder.username')"
         />
         <Input
           v-model="form.email"
+          type="email"
           :placeholder="t('common.placeholder.email')"
         />
         <Input

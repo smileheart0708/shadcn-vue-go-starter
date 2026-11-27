@@ -43,8 +43,8 @@ type InitialOwner struct {
 // form does not persist a database selection first.
 func ValidateInitialOwner(username, password string) (string, string, error) {
 	trimmedUsername := strings.TrimSpace(username)
-	// Shared with registration and administrative creation so every entry point rejects a
-	// blank username before the expensive hash and answers the same code for both fields.
+	// Shared with registration and administrative creation so every entry point rejects an
+	// invalid username before the expensive hash and answers the same code for both fields.
 	if err := auth.ValidateNewAccount(trimmedUsername, password); err != nil {
 		return "", "", err
 	}

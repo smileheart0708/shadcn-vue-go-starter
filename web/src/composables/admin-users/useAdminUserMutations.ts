@@ -9,7 +9,8 @@ import {
   updateAdminUser,
 } from '@/lib/api/admin-users'
 import { resolveAPIErrorMessage } from '@/lib/api/error-messages'
-import { normalizeOptionalEmail } from '@/utils/email'
+import { isValidEmail, normalizeOptionalEmail } from '@/utils/email'
+import { isValidUsername } from '@/utils/username'
 
 interface UseAdminUserMutationsOptions {
   refreshUsers: () => Promise<void>
@@ -61,12 +62,25 @@ export function useAdminUserMutations(options: UseAdminUserMutationsOptions) {
       return
     }
 
+    const username = form.value.username.trim()
+    if (username.length === 0) {
+      toast.error(t('common.validation.usernameRequired'))
+      return
+    }
+    if (!isValidUsername(username)) {
+      toast.error(t('common.validation.usernameInvalid'))
+      return
+    }
+
+    const email = normalizeOptionalEmail(form.value.email)
+    if (email !== null && !isValidEmail(email)) {
+      toast.error(t('common.validation.emailInvalid'))
+      return
+    }
+
     const creating = dialogMode.value === 'create'
     dialogPending.value = true
-    const payload = {
-      username: form.value.username.trim(),
-      email: normalizeOptionalEmail(form.value.email),
-    }
+    const payload = { username, email }
     let requestPromise: Promise<ManagedUser>
     if (creating) {
       requestPromise = createAdminUser({

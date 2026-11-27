@@ -6,7 +6,8 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { cn } from '@/lib/utils'
 import { MIN_PASSWORD_LENGTH } from '@/lib/auth/password'
-import { normalizeOptionalEmail } from '@/utils/email'
+import { isValidEmail, normalizeOptionalEmail } from '@/utils/email'
+import { isValidUsername, USERNAME_MAX_LENGTH } from '@/utils/username'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -67,15 +68,31 @@ async function handleSubmit() {
   if (isSubmitting.value || !registrationEnabled.value) {
     return
   }
+
+  const usernameValue = username.value.trim()
+  if (usernameValue.length === 0) {
+    toast.error(t('common.validation.usernameRequired'))
+    return
+  }
+  if (!isValidUsername(usernameValue)) {
+    toast.error(t('common.validation.usernameInvalid'))
+    return
+  }
   if (password.value !== confirmPassword.value) {
     toast.error(t('common.validation.passwordMismatch'))
     return
   }
 
+  const emailValue = normalizeOptionalEmail(email.value)
+  if (emailValue !== null && !isValidEmail(emailValue)) {
+    toast.error(t('common.validation.emailInvalid'))
+    return
+  }
+
   isSubmitting.value = true
   const registerPromise = authStore.register({
-    username: username.value.trim(),
-    email: normalizeOptionalEmail(email.value),
+    username: usernameValue,
+    email: emailValue,
     password: password.value,
   })
 
@@ -157,6 +174,7 @@ async function handleSubmit() {
             id="username"
             v-model="username"
             autocomplete="username"
+            :maxlength="USERNAME_MAX_LENGTH"
             :placeholder="t('common.placeholder.username')"
             required
             type="text"

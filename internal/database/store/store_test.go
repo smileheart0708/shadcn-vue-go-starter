@@ -71,6 +71,53 @@ func TestCreateUserReturnsGeneratedIDAndDomainErrors(t *testing.T) {
 	}
 }
 
+// Regression: the identifier shape selects the column. The legacy email-shaped account is
+// created first on purpose — the old OR query returned the smallest id matching either
+// column, so this order is exactly what made the email's owner resolve to the other
+// account. Swapping the creation order makes the test pass on the old query again.
+func TestGetAuthRecordByIdentifierSeparatesUsernamesFromEmails(t *testing.T) {
+	t.Parallel()
+
+	repository := newTestStore(t)
+	ctx := context.Background()
+
+	legacy, err := repository.CreateUser(ctx, identity.CreateUserParams{
+		Username:     "carol@example.com",
+		PasswordHash: "hash",
+		Role:         identity.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("CreateUser(legacy email-shaped username) error = %v", err)
+	}
+
+	emailOwner := "carol@example.com"
+	created, err := repository.CreateUser(ctx, identity.CreateUserParams{
+		Username:     "carol",
+		Email:        &emailOwner,
+		PasswordHash: "hash",
+		Role:         identity.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("CreateUser(email owner) error = %v", err)
+	}
+
+	record, err := repository.GetAuthRecordByIdentifier(ctx, "CAROL@EXAMPLE.COM")
+	if err != nil {
+		t.Fatalf("GetAuthRecordByIdentifier(email) error = %v", err)
+	}
+	if record.ID != created.ID {
+		t.Fatalf("email identifier resolved to user %d, want %d (legacy username owns id %d)", record.ID, created.ID, legacy.ID)
+	}
+
+	record, err = repository.GetAuthRecordByIdentifier(ctx, "carol")
+	if err != nil {
+		t.Fatalf("GetAuthRecordByIdentifier(username) error = %v", err)
+	}
+	if record.ID != created.ID {
+		t.Fatalf("username identifier resolved to user %d, want %d", record.ID, created.ID)
+	}
+}
+
 func TestListUsersFiltersPagesAndReportsLastActivity(t *testing.T) {
 	t.Parallel()
 
