@@ -56,6 +56,47 @@ export function applyHistoryLimit(
   return sourceEntries.slice(-limit)
 }
 
+// Keep in sync with the entry row classes in SystemLogEntriesViewport.vue:
+// block-10 (40px) + mbe-1 (4px). The window math assumes a fixed pitch; a taller row
+// would desynchronize the virtual spacers from the real scroll height.
+export const SYSTEM_LOG_ENTRY_ROW_PITCH = 44
+const SYSTEM_LOG_ENTRY_WINDOW_OVERSCAN = 6
+
+interface SelectSystemLogEntryWindowOptions {
+  entryCount: number
+  scrollTop: number
+  viewportHeight: number
+}
+
+interface SystemLogEntryWindow {
+  start: number
+  end: number
+}
+
+export function selectSystemLogEntryWindow(
+  options: SelectSystemLogEntryWindowOptions,
+): SystemLogEntryWindow {
+  // Emulate the browser's clamp so a stale scrollTop (for example after a filter
+  // shrinks the list) cannot open a window past the end and blank the viewport.
+  const maxScrollTop = Math.max(
+    0,
+    options.entryCount * SYSTEM_LOG_ENTRY_ROW_PITCH - options.viewportHeight,
+  )
+  const scrollTop = Math.min(Math.max(0, options.scrollTop), maxScrollTop)
+  const firstVisibleIndex = Math.floor(scrollTop / SYSTEM_LOG_ENTRY_ROW_PITCH)
+  const lastVisibleIndex = Math.ceil(
+    (scrollTop + options.viewportHeight) / SYSTEM_LOG_ENTRY_ROW_PITCH,
+  )
+
+  return {
+    start: Math.max(0, firstVisibleIndex - SYSTEM_LOG_ENTRY_WINDOW_OVERSCAN),
+    end: Math.min(
+      options.entryCount,
+      lastVisibleIndex + SYSTEM_LOG_ENTRY_WINDOW_OVERSCAN,
+    ),
+  }
+}
+
 /**
  * Append-only buffer for the live log stream, kept sorted by entry id and capped by an
  * approximate byte budget.

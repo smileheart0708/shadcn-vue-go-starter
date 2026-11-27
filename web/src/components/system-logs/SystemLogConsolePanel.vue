@@ -61,8 +61,14 @@ const { t } = useI18n()
 
 const searchQuery = ref('')
 const exportDialogOpen = ref(false)
-const { autoScroll, toggleAutoScroll, scrollToBottom, handleViewportScroll } =
-  useSystemLogViewport()
+const {
+  autoScroll,
+  scrollTop,
+  viewportHeight,
+  toggleAutoScroll,
+  scrollToBottom,
+  handleViewportScroll,
+} = useSystemLogViewport()
 
 const visibleEntries = computed(() =>
   selectVisibleSystemLogEntries({
@@ -258,6 +264,8 @@ function handleHistoryLimitChange(value: unknown) {
         >
           <SystemLogEntriesViewport
             :entries="visibleEntries"
+            :scroll-top="scrollTop"
+            :viewport-height="viewportHeight"
             :loading="loading"
             :first-load-pending="firstLoadPending"
           />

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -13,15 +14,37 @@ import type { SystemLogEntry } from '@/lib/api/system-logs'
 import {
   formatSystemLogTimestamp,
   getLevelBadgeVariant,
+  selectSystemLogEntryWindow,
+  SYSTEM_LOG_ENTRY_ROW_PITCH,
 } from '@/utils/system-logs/console'
 
-defineProps<{
+const props = defineProps<{
   entries: readonly SystemLogEntry[]
+  scrollTop: number
+  viewportHeight: number
   loading: boolean
   firstLoadPending: boolean
 }>()
 
 const { t, locale } = useI18n()
+
+const entryWindow = computed(() =>
+  selectSystemLogEntryWindow({
+    entryCount: props.entries.length,
+    scrollTop: props.scrollTop,
+    viewportHeight: props.viewportHeight,
+  }),
+)
+const windowEntries = computed(() =>
+  props.entries.slice(entryWindow.value.start, entryWindow.value.end),
+)
+const leadingSpacerHeight = computed(
+  () => entryWindow.value.start * SYSTEM_LOG_ENTRY_ROW_PITCH,
+)
+const trailingSpacerHeight = computed(
+  () =>
+    (props.entries.length - entryWindow.value.end) * SYSTEM_LOG_ENTRY_ROW_PITCH,
+)
 </script>
 
 <template>
@@ -59,12 +82,16 @@ const { t, locale } = useI18n()
 
   <div
     v-else
-    class="space-y-1 p-3 font-mono text-xs/5 whitespace-nowrap min-inline-max"
+    class="p-3 font-mono text-xs/5 whitespace-nowrap min-inline-max"
   >
+    <!-- Spacers keep the scrollbar sized for the whole filtered buffer while only the
+         rows inside the viewport window are mounted. -->
+    <div :style="{ height: `${leadingSpacerHeight}px` }" />
+
     <div
-      v-for="entry in entries"
+      v-for="entry in windowEntries"
       :key="entry.id"
-      class="grid grid-cols-[auto_auto_auto_1fr] items-start gap-2 rounded-lg border border-transparent px-3 py-2 transition-colors hover:bg-muted/60"
+      class="mbe-1 grid grid-cols-[auto_auto_auto_1fr] items-start gap-2 rounded-lg border border-transparent px-3 py-2 transition-colors block-10 hover:bg-muted/60"
     >
       <span class="text-muted-foreground tabular-nums">{{
         formatSystemLogTimestamp(entry.timestamp, locale)
@@ -75,5 +102,7 @@ const { t, locale } = useI18n()
       <span class="text-muted-foreground">{{ entry.source }}</span>
       <span>{{ entry.text }}</span>
     </div>
+
+    <div :style="{ height: `${trailingSpacerHeight}px` }" />
   </div>
 </template>
