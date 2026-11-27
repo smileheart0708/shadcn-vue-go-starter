@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import {
   SYSTEM_THEME_MEDIA_QUERY,
   THEME_REVEAL_CSS,
@@ -48,14 +49,35 @@ function installViewTransition() {
   return { startViewTransition, runCallbacks }
 }
 
+type MediaChangeListener = (event: { matches: boolean }) => void
+
 // jsdom 没有实现 matchMedia；store 的主题落地与「减少动效」判断都要经过它。
-// 只实现被读的 `matches`：本文件不调用 store.initialize()，它才会用到 addEventListener。
-// 若日后补 initialize 的用例，需要在这里补上 change 监听。
-function stubReducedMotion(reduce: boolean) {
+// 返回的函数模拟系统主题切换，只通知已注册的 change 监听。
+function stubMatchMedia(initialMatches: boolean) {
+  const listeners = new Set<MediaChangeListener>()
+  let matches = initialMatches
+
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
-    value: () => ({ matches: reduce }),
+    value: () => ({
+      get matches() {
+        return matches
+      },
+      addEventListener: (_event: string, listener: MediaChangeListener) => {
+        listeners.add(listener)
+      },
+      removeEventListener: (_event: string, listener: MediaChangeListener) => {
+        listeners.delete(listener)
+      },
+    }),
   })
+
+  return (nextMatches: boolean) => {
+    matches = nextMatches
+    for (const listener of listeners) {
+      listener({ matches })
+    }
+  }
 }
 
 describe('theme store', () => {
@@ -65,7 +87,7 @@ describe('theme store', () => {
     document.documentElement.className = ''
     document.documentElement.removeAttribute(THEME_REVEAL_CSS.attribute)
     document.documentElement.removeAttribute('style')
-    stubReducedMotion(false)
+    stubMatchMedia(false)
   })
 
   afterEach(() => {
@@ -172,6 +194,27 @@ describe('theme store', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
 
+  it('启动时应用已保存的主题偏好', () => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark')
+
+    useThemeStore()
+
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+  })
+
+  it('system 偏好下跟随系统主题变化', async () => {
+    const setSystemPrefersDark = stubMatchMedia(false)
+    const store = useThemeStore()
+    // useMediaQuery 的 change 监听在 post flush 注册，先让出一帧再模拟系统切换。
+    await nextTick()
+
+    setSystemPrefersDark(true)
+
+    expect(store.theme).toBe('system')
+    expect(store.resolvedTheme).toBe('dark')
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+  })
+
   it('style.css 与 store 使用同一组揭示契约名字', () => {
     expect(collectRevealCssNames(styleSource)).toEqual(
       [
@@ -184,7 +227,7 @@ describe('theme store', () => {
 
   it('系统要求减少动效时不启动整页过渡，主题同步落地', () => {
     const { startViewTransition } = installViewTransition()
-    stubReducedMotion(true)
+    stubMatchMedia(true)
     const store = useThemeStore()
     const origin = document.createElement('button')
 

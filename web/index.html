@@ -15,8 +15,8 @@
       // 必须同步执行，不要改成 type="module"：模块脚本是 defer，要等文档解析完才运行，
       // 首帧已经按 :root 的浅色变量绘制，深色用户会先看到白屏再跳成深色。
       // 这里只切 .dark 类，color-scheme 由 src/style.css 的 :root / .dark 跟随；取值规则
-      // 与 src/stores/theme.ts 的 readStoredTheme / getSystemTheme 一致，键名由
-      // theme.spec.ts 校验，改名时那边会失败提醒同步。
+      // 与 src/stores/theme.ts 的 useThemeStore 一致（useStorage + useMediaQuery），键名与
+      // query 由 theme.spec.ts 校验，改名时那边会失败提醒同步。
       {
         let storedTheme = null
         try {

@@ -1,4 +1,5 @@
-import { watch, ref } from 'vue'
+import { useStorage } from '@vueuse/core'
+import { computed } from 'vue'
 import { defineStore } from 'pinia'
 import { z } from 'zod'
 import { parseExternalJsonOrDefault } from '@/lib/external-input'
@@ -49,38 +50,45 @@ const storedPreferencesSchema = z.object({
 export const useSystemLogsPreferencesStore = defineStore(
   'system-logs-preferences',
   () => {
-    const initialPreferences = readStoredPreferences()
-    const levels = ref<SystemLogLevel[]>(initialPreferences.levels)
-    const historyLimit = ref<SystemLogHistoryLimit>(
-      initialPreferences.historyLimit,
-    )
-    const exportFormat = ref<SystemLogExportFormat>(
-      initialPreferences.exportFormat,
+    const preferences = useStorage<SystemLogsPreferences>(
+      STORAGE_KEY,
+      defaultPreferences,
+      undefined,
+      {
+        // Keep the current single-tab semantics; cross-tab propagation is a separate decision.
+        listenToStorageChanges: false,
+        serializer: {
+          // The default object read throws on corrupt JSON and skips the level/format
+          // normalization, which would surface a partial payload as-is.
+          read: readStoredPreferences,
+          write: (value) => JSON.stringify(value),
+        },
+      },
     )
 
-    watch([levels, historyLimit, exportFormat], persistCurrentPreferences, {
-      deep: true,
-    })
-    persistCurrentPreferences()
+    const levels = computed(() => preferences.value.levels)
+    const historyLimit = computed(() => preferences.value.historyLimit)
+    const exportFormat = computed(() => preferences.value.exportFormat)
 
     function setLevels(nextLevels: readonly SystemLogLevel[]) {
-      levels.value = normalizeLevels(nextLevels)
+      preferences.value = {
+        ...preferences.value,
+        levels: normalizeLevels(nextLevels),
+      }
     }
 
     function setHistoryLimit(nextHistoryLimit: SystemLogHistoryLimit) {
-      historyLimit.value = nextHistoryLimit
+      preferences.value = {
+        ...preferences.value,
+        historyLimit: nextHistoryLimit,
+      }
     }
 
     function setExportFormat(nextExportFormat: SystemLogExportFormat) {
-      exportFormat.value = nextExportFormat
-    }
-
-    function persistCurrentPreferences() {
-      persistPreferences({
-        levels: levels.value,
-        historyLimit: historyLimit.value,
-        exportFormat: exportFormat.value,
-      })
+      preferences.value = {
+        ...preferences.value,
+        exportFormat: nextExportFormat,
+      }
     }
 
     return {
@@ -94,16 +102,7 @@ export const useSystemLogsPreferencesStore = defineStore(
   },
 )
 
-function readStoredPreferences(): SystemLogsPreferences {
-  if (typeof window === 'undefined') {
-    return defaultPreferences
-  }
-
-  const rawValue = window.localStorage.getItem(STORAGE_KEY)
-  if (rawValue === null) {
-    return defaultPreferences
-  }
-
+function readStoredPreferences(rawValue: string): SystemLogsPreferences {
   const parsedPayload = parseExternalJsonOrDefault(
     storedPreferencesSchema,
     rawValue,
@@ -114,14 +113,6 @@ function readStoredPreferences(): SystemLogsPreferences {
     historyLimit: parsedPayload.historyLimit ?? defaultPreferences.historyLimit,
     exportFormat: normalizeExportFormat(parsedPayload.exportFormat),
   }
-}
-
-function persistPreferences(preferences: SystemLogsPreferences) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences))
 }
 
 function normalizeLevels(values: readonly string[]): SystemLogLevel[] {

@@ -1,4 +1,5 @@
-import { computed, ref } from 'vue'
+import { useMediaQuery, useStorage } from '@vueuse/core'
+import { computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { z } from 'zod'
 import { parseExternalValueOrDefault } from '@/lib/external-input'
@@ -33,25 +34,6 @@ const themePreferenceSchema = z.enum([
 export type ThemePreference = z.infer<typeof themePreferenceSchema>
 type ResolvedTheme = Exclude<ThemePreference, 'system'>
 
-function readStoredTheme(): ThemePreference {
-  if (typeof window === 'undefined') {
-    return THEME_OPTIONS.system
-  }
-
-  const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
-  return parseExternalValueOrDefault(
-    themePreferenceSchema,
-    storedTheme,
-    THEME_OPTIONS.system,
-  )
-}
-
-function getSystemTheme(): ResolvedTheme {
-  return window.matchMedia(SYSTEM_THEME_MEDIA_QUERY).matches
-    ? THEME_OPTIONS.dark
-    : THEME_OPTIONS.light
-}
-
 // 只切 `.dark` 类，`color-scheme` 由 style.css 的 `:root` / `.dark` 规则跟随：
 // index.html 的首帧脚本也走同一条路径，两处各写一份内联样式会多出一个真值。
 function applyTheme(theme: ResolvedTheme) {
@@ -83,23 +65,43 @@ function prepareThemeReveal(origin: Element) {
 }
 
 export const useThemeStore = defineStore('theme', () => {
-  const initialized = ref(false)
-  const theme = ref<ThemePreference>(THEME_OPTIONS.system)
-  const systemTheme = ref<ResolvedTheme>(THEME_OPTIONS.light)
+  const theme = useStorage<ThemePreference>(
+    THEME_STORAGE_KEY,
+    THEME_OPTIONS.system,
+    undefined,
+    {
+      // The old store only wrote after an explicit choice, and index.html treats a missing key
+      // exactly like 'system'; do not create the key on first visit.
+      writeDefaults: false,
+      // Persist synchronously like the old persistTheme, inside the View Transition callback.
+      flush: 'sync',
+      // Keep the current single-tab semantics; cross-tab propagation is a separate decision.
+      listenToStorageChanges: false,
+      serializer: {
+        // An unknown stored value must fall back to 'system'; the default string read would
+        // pass it through and it would become the resolved theme.
+        read: (raw) =>
+          parseExternalValueOrDefault(
+            themePreferenceSchema,
+            raw,
+            THEME_OPTIONS.system,
+          ),
+        write: (value) => value,
+      },
+    },
+  )
+  const systemPrefersDark = useMediaQuery(SYSTEM_THEME_MEDIA_QUERY)
 
   const resolvedTheme = computed<ResolvedTheme>(() =>
-    theme.value === THEME_OPTIONS.system ? systemTheme.value : theme.value,
+    theme.value === THEME_OPTIONS.system
+      ? systemPrefersDark.value
+        ? THEME_OPTIONS.dark
+        : THEME_OPTIONS.light
+      : theme.value,
   )
 
-  let mediaQueryList: MediaQueryList | null = null
-
-  function persistTheme(nextTheme: ThemePreference) {
-    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
-  }
-
-  function syncResolvedTheme() {
-    applyTheme(resolvedTheme.value)
-  }
+  // Sync so the class lands inside the View Transition callback, not one flush later.
+  watch(resolvedTheme, applyTheme, { immediate: true, flush: 'sync' })
 
   let pendingTheme: ThemePreference | null = null
 
@@ -113,8 +115,6 @@ export const useThemeStore = defineStore('theme', () => {
 
     const apply = () => {
       theme.value = nextTheme
-      persistTheme(nextTheme)
-      syncResolvedTheme()
       pendingTheme = null
     }
 
@@ -134,28 +134,5 @@ export const useThemeStore = defineStore('theme', () => {
     document.startViewTransition(apply)
   }
 
-  function initialize() {
-    if (initialized.value) {
-      return
-    }
-
-    theme.value = readStoredTheme()
-    systemTheme.value = getSystemTheme()
-    syncResolvedTheme()
-
-    mediaQueryList ??= window.matchMedia(SYSTEM_THEME_MEDIA_QUERY)
-    mediaQueryList.addEventListener('change', (event) => {
-      systemTheme.value = event.matches
-        ? THEME_OPTIONS.dark
-        : THEME_OPTIONS.light
-
-      if (theme.value === THEME_OPTIONS.system) {
-        syncResolvedTheme()
-      }
-    })
-
-    initialized.value = true
-  }
-
-  return { initialized, theme, resolvedTheme, setTheme, initialize }
+  return { theme, resolvedTheme, setTheme }
 })

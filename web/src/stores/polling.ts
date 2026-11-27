@@ -1,4 +1,5 @@
-import { computed, ref } from 'vue'
+import { useStorage } from '@vueuse/core'
+import { computed } from 'vue'
 import { defineStore } from 'pinia'
 import { z } from 'zod'
 import { parseExternalValueOrDefault } from '@/lib/external-input'
@@ -32,50 +33,35 @@ export function normalizePollingIntervalSeconds(value: number) {
   )
 }
 
-function readStoredCurrentUserIntervalSeconds() {
-  if (typeof window === 'undefined') {
-    return POLLING_INTERVAL_DEFAULT_SECONDS
-  }
-
-  const rawValue = window.localStorage.getItem(
-    CURRENT_USER_INTERVAL_STORAGE_KEY,
-  )
-  return parseExternalValueOrDefault(
-    storedPollingIntervalSecondsSchema,
-    rawValue,
-    POLLING_INTERVAL_DEFAULT_SECONDS,
-  )
-}
-
-function persistCurrentUserIntervalSeconds(value: number) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  window.localStorage.setItem(CURRENT_USER_INTERVAL_STORAGE_KEY, String(value))
-}
-
 export const usePollingStore = defineStore('polling', () => {
-  const initialCurrentUserIntervalSeconds =
-    readStoredCurrentUserIntervalSeconds()
-  const currentUserIntervalSeconds = ref(initialCurrentUserIntervalSeconds)
-
-  persistCurrentUserIntervalSeconds(initialCurrentUserIntervalSeconds)
+  const currentUserIntervalSeconds = useStorage<number>(
+    CURRENT_USER_INTERVAL_STORAGE_KEY,
+    POLLING_INTERVAL_DEFAULT_SECONDS,
+    undefined,
+    {
+      // Keep the current single-tab semantics; cross-tab propagation is a separate decision.
+      listenToStorageChanges: false,
+      serializer: {
+        // The default number read is parseFloat: an empty/corrupt value becomes NaN and an
+        // out-of-range value is not clamped, so read through zod. write matches the default
+        // number serializer and is only here because a custom serializer replaces both sides.
+        read: (raw) =>
+          parseExternalValueOrDefault(
+            storedPollingIntervalSecondsSchema,
+            raw,
+            POLLING_INTERVAL_DEFAULT_SECONDS,
+          ),
+        write: (value) => String(value),
+      },
+    },
+  )
 
   const currentUserIntervalMs = computed(
     () => currentUserIntervalSeconds.value * 1000,
   )
 
   function setCurrentUserIntervalSeconds(value: number) {
-    const nextValue = normalizePollingIntervalSeconds(value)
-
-    if (currentUserIntervalSeconds.value === nextValue) {
-      persistCurrentUserIntervalSeconds(nextValue)
-      return
-    }
-
-    currentUserIntervalSeconds.value = nextValue
-    persistCurrentUserIntervalSeconds(nextValue)
+    currentUserIntervalSeconds.value = normalizePollingIntervalSeconds(value)
   }
 
   return {
